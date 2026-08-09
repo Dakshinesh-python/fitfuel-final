@@ -7,6 +7,9 @@ import HealthAssessment from './pages/HealthAssessment';
 import Dashboard from './pages/Dashboard';
 import Recommendations from './pages/Recommendations';
 import Progress from './pages/Progress';
+import MealPlan from './pages/MealPlan';
+import Profile from './pages/Profile';
+import Chat from './pages/Chat';
 
 function RequireAuth({ children }: { children: ReactElement }) {
   const token = getToken();
@@ -51,6 +54,30 @@ export default function App() {
         element={
           <RequireAuth>
             <Progress />
+          </RequireAuth>
+        }
+      />
+      <Route
+        path="/meal-plan"
+        element={
+          <RequireAuth>
+            <MealPlan />
+          </RequireAuth>
+        }
+      />
+      <Route
+        path="/chat"
+        element={
+          <RequireAuth>
+            <Chat />
+          </RequireAuth>
+        }
+      />
+      <Route
+        path="/profile"
+        element={
+          <RequireAuth>
+            <Profile />
           </RequireAuth>
         }
       />

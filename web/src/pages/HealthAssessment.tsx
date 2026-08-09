@@ -5,7 +5,7 @@ import {
   ACTIVITY_LEVELS,
   DIETARY_PREFERENCES,
   FITNESS_GOALS,
-  HealthProfile,
+  HealthProfileResponse,
   ActivityLevel,
   FitnessGoal,
   DietaryPreference,
@@ -60,7 +60,7 @@ export default function HealthAssessment() {
   const [dailyBudget, setDailyBudget] = useState('');
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
-  const [result, setResult] = useState<HealthProfile | null>(null);
+  const [result, setResult] = useState<HealthProfileResponse | null>(null);
 
   function addAllergy() {
     const value = allergyInput.trim();
@@ -86,7 +86,8 @@ export default function HealthAssessment() {
     setError(null);
     setLoading(true);
     try {
-      const res = await apiClient.post<HealthProfile>('/api/health-profile', {
+      // Backend returns { profile, targets, explanation } — not a flat HealthProfile.
+      const res = await apiClient.post<HealthProfileResponse>('/api/health-profile', {
         currentWeightKg: Number(currentWeightKg),
         targetWeightKg: Number(targetWeightKg),
         activityLevel,
@@ -361,38 +362,39 @@ export default function HealthAssessment() {
             </div>
 
             <div className="grid grid-cols-2 md:grid-cols-4 gap-gutter">
-              <StatCard label="BMI Category" value={result.bmiCategory ?? '—'} icon="monitor_weight" />
-              <StatCard label="BMR" value={result.bmr ? `${Math.round(result.bmr)} kcal` : '—'} icon="bolt" />
-              <StatCard label="TDEE" value={result.tdee ? `${Math.round(result.tdee)} kcal` : '—'} icon="local_fire_department" />
+              <StatCard label="BMI Category" value={result.targets.bmiCategory} icon="monitor_weight" />
+              <StatCard label="BMR" value={`${Math.round(result.targets.bmr)} kcal`} icon="bolt" />
+              <StatCard label="TDEE" value={`${Math.round(result.targets.tdee)} kcal`} icon="local_fire_department" />
               <StatCard
                 label="Calorie Target"
-                value={result.calorieTarget ? `${Math.round(result.calorieTarget)} kcal` : '—'}
+                value={`${Math.round(result.targets.calorieTarget)} kcal`}
                 icon="flag"
               />
               <StatCard
                 label="Protein"
-                value={result.proteinTargetG ? `${Math.round(result.proteinTargetG)}g` : '—'}
+                value={`${Math.round(result.targets.proteinTargetG)}g`}
                 icon="egg"
               />
               <StatCard
                 label="Carbs"
-                value={result.carbTargetG ? `${Math.round(result.carbTargetG)}g` : '—'}
+                value={`${Math.round(result.targets.carbTargetG)}g`}
                 icon="grain"
               />
               <StatCard
                 label="Fat"
-                value={result.fatTargetG ? `${Math.round(result.fatTargetG)}g` : '—'}
+                value={`${Math.round(result.targets.fatTargetG)}g`}
                 icon="water_drop"
               />
             </div>
 
-            {result.aiExplanation && (
+            {/* AI explanation — may be null if GROQ_API_KEY is not set; handle gracefully */}
+            {result.explanation && (
               <div className="p-6 bg-surface-container-lowest border border-outline-variant rounded-xl">
                 <h3 className="font-headline-md text-headline-md text-on-background mb-2">
                   Why these numbers?
                 </h3>
                 <p className="font-body-sm text-body-sm text-on-surface-variant whitespace-pre-line">
-                  {result.aiExplanation}
+                  {result.explanation}
                 </p>
               </div>
             )}
