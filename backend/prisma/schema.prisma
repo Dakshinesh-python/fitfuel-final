@@ -108,6 +108,7 @@ model Meal {
   isVegetarian  Boolean    @default(false)
   isVegan       Boolean    @default(false)
   allergens     String[]   @default([])
+  imageUrl      String?    // free stock photo URL (Unsplash CDN); optional so rows without photos don't break
   deepLinkQuery String     // used to build the Swiggy/Zomato search deep link
   createdAt     DateTime   @default(now())
 

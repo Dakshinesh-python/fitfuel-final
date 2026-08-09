@@ -53,6 +53,25 @@ router.get("/summary", requireAuth, async (req: AuthRequest, res: Response) => {
   });
 });
 
+// GET /api/progress/weight-history — returns { date, weightKg }[] for charting.
+// Only entries where weightKg was recorded, last 90 days, ascending order.
+router.get("/weight-history", requireAuth, async (req: AuthRequest, res: Response) => {
+  const ninetyDaysAgo = new Date();
+  ninetyDaysAgo.setDate(ninetyDaysAgo.getDate() - 90);
+
+  const logs = await prisma.progressLog.findMany({
+    where: {
+      userId: req.userId,
+      date: { gte: ninetyDaysAgo },
+      weightKg: { not: null },
+    },
+    select: { date: true, weightKg: true },
+    orderBy: { date: "asc" },
+  });
+
+  return res.json({ weightHistory: logs });
+});
+
 router.get("/", requireAuth, async (req: AuthRequest, res: Response) => {
   const logs = await prisma.progressLog.findMany({
     where: { userId: req.userId },

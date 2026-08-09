@@ -8,15 +8,20 @@ const router = Router();
 /**
  * IMPORTANT: Swiggy and Zomato do not expose public order-placement APIs.
  * This endpoint logs the user's intent and returns a deep link that opens
- * the relevant app/site with a pre-filled search so the user completes
+ * the relevant app/site with a pre-filled dish search so the user completes
  * checkout themselves. This is a handoff, not a real order integration.
+ *
+ * Swiggy:  /search?query=<dish>           — searches dishes by default ✓
+ * Zomato:  /search?q=<dish>&type=dishes   — &type=dishes forces dish results
+ *          (without it Zomato defaults to restaurant search)
  */
-function buildDeepLink(platform: "SWIGGY" | "ZOMATO", restaurant: string, query: string): string {
-  const q = encodeURIComponent(`${restaurant} ${query}`);
+function buildDeepLink(platform: "SWIGGY" | "ZOMATO", _restaurant: string, query: string): string {
+  const q = encodeURIComponent(query);
   if (platform === "SWIGGY") {
     return `https://www.swiggy.com/search?query=${q}`;
   }
-  return `https://www.zomato.com/search?q=${q}`;
+  // type=dishes switches Zomato to dish search (not restaurant search)
+  return `https://www.zomato.com/search?q=${q}&type=dishes`;
 }
 
 const orderSchema = z.object({

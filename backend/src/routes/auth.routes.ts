@@ -3,6 +3,7 @@ import bcrypt from "bcryptjs";
 import jwt from "jsonwebtoken";
 import { z } from "zod";
 import { prisma } from "../config/prisma";
+import { requireAuth, AuthRequest } from "../middleware/auth";
 
 const router = Router();
 
@@ -69,6 +70,61 @@ router.post("/login", async (req: Request, res: Response) => {
 
   const token = signToken(user.id);
   return res.json({ token, user: { id: user.id, name: user.name, email: user.email } });
+});
+
+// ─── GET /api/auth/me ─────────────────────────────────────────────────────────
+// Returns the full user record for the currently authenticated user.
+
+router.get("/me", requireAuth, async (req: AuthRequest, res: Response) => {
+  const user = await prisma.user.findUnique({
+    where: { id: req.userId },
+    select: { id: true, name: true, email: true, age: true, gender: true, heightCm: true, weightKg: true },
+  });
+  if (!user) return res.status(404).json({ error: "User not found" });
+  return res.json({ user });
+});
+
+// ─── PATCH /api/auth/profile ──────────────────────────────────────────────────
+// Updates the user's display name.
+
+const updateProfileSchema = z.object({
+  name: z.string().min(2).optional(),
+});
+
+router.patch("/profile", requireAuth, async (req: AuthRequest, res: Response) => {
+  const parsed = updateProfileSchema.safeParse(req.body);
+  if (!parsed.success) return res.status(400).json({ error: parsed.error.flatten() });
+
+  const user = await prisma.user.update({
+    where: { id: req.userId },
+    data: { ...(parsed.data.name && { name: parsed.data.name }) },
+    select: { id: true, name: true, email: true },
+  });
+  return res.json({ user });
+});
+
+// ─── PATCH /api/auth/password ─────────────────────────────────────────────────
+// Verifies current password then updates to the new one.
+
+const changePasswordSchema = z.object({
+  currentPassword: z.string(),
+  newPassword: z.string().min(8),
+});
+
+router.patch("/password", requireAuth, async (req: AuthRequest, res: Response) => {
+  const parsed = changePasswordSchema.safeParse(req.body);
+  if (!parsed.success) return res.status(400).json({ error: parsed.error.flatten() });
+
+  const user = await prisma.user.findUnique({ where: { id: req.userId } });
+  if (!user) return res.status(404).json({ error: "User not found" });
+
+  const valid = await bcrypt.compare(parsed.data.currentPassword, user.passwordHash);
+  if (!valid) return res.status(401).json({ error: "Current password is incorrect" });
+
+  const passwordHash = await bcrypt.hash(parsed.data.newPassword, 10);
+  await prisma.user.update({ where: { id: req.userId }, data: { passwordHash } });
+
+  return res.json({ message: "Password updated successfully" });
 });
 
 export default router;
