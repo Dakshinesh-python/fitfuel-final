@@ -1,0 +1,161 @@
+// FitFuel database schema
+// Provider: PostgreSQL (Supabase / Neon free tier)
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum Gender {
+  MALE
+  FEMALE
+  OTHER
+}
+
+enum ActivityLevel {
+  SEDENTARY
+  LIGHT
+  MODERATE
+  ACTIVE
+  VERY_ACTIVE
+}
+
+enum FitnessGoal {
+  WEIGHT_LOSS
+  WEIGHT_GAIN
+  MUSCLE_GAIN
+  MAINTENANCE
+}
+
+enum DietaryPreference {
+  VEGETARIAN
+  NON_VEGETARIAN
+  VEGAN
+}
+
+enum MealType {
+  BREAKFAST
+  LUNCH
+  DINNER
+  SNACK
+}
+
+enum Platform {
+  SWIGGY
+  ZOMATO
+}
+
+model User {
+  id            String   @id @default(uuid())
+  name          String
+  email         String   @unique
+  passwordHash  String
+  age           Int?
+  gender        Gender?
+  heightCm      Float?
+  weightKg      Float?
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  healthProfile   HealthProfile?
+  mealPlans       MealPlan[]
+  progressLogs    ProgressLog[]
+  orders          Order[]
+}
+
+model HealthProfile {
+  id                  String            @id @default(uuid())
+  userId              String            @unique
+  user                User              @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  currentWeightKg     Float
+  targetWeightKg      Float
+  activityLevel       ActivityLevel
+  fitnessGoal         FitnessGoal
+  dietaryPreference    DietaryPreference
+  allergies           String[]          @default([])
+  dailyBudget         Float
+
+  // Derived / calculated values
+  bmi                 Float?
+  bmr                 Float?
+  tdee                Float?
+  proteinTargetG      Float?
+  carbTargetG         Float?
+  fatTargetG          Float?
+
+  createdAt           DateTime @default(now())
+  updatedAt           DateTime @updatedAt
+}
+
+model Meal {
+  id            String     @id @default(uuid())
+  name          String
+  restaurant    String
+  platform      Platform
+  cuisine       String
+  mealType      MealType
+  calories      Float
+  proteinG      Float
+  carbsG        Float
+  fatG          Float
+  price         Float
+  healthScore   Float      // 0-100, computed at seed/ingest time
+  isVegetarian  Boolean    @default(false)
+  isVegan       Boolean    @default(false)
+  allergens     String[]   @default([])
+  deepLinkQuery String     // used to build the Swiggy/Zomato search deep link
+  createdAt     DateTime   @default(now())
+
+  mealPlanItems MealPlanItem[]
+  orders        Order[]
+}
+
+model MealPlan {
+  id          String   @id @default(uuid())
+  userId      String
+  user        User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  weekStart   DateTime
+  createdAt   DateTime @default(now())
+
+  items       MealPlanItem[]
+}
+
+model MealPlanItem {
+  id          String   @id @default(uuid())
+  mealPlanId  String
+  mealPlan    MealPlan @relation(fields: [mealPlanId], references: [id], onDelete: Cascade)
+  mealId      String
+  meal        Meal     @relation(fields: [mealId], references: [id])
+  dayOfWeek   Int      // 0=Mon .. 6=Sun
+  mealType    MealType
+  matchScore  Float    // recommendation engine score
+}
+
+model Order {
+  id          String   @id @default(uuid())
+  userId      String
+  user        User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  mealId      String
+  meal        Meal     @relation(fields: [mealId], references: [id])
+  platform    Platform
+  status      String   @default("REDIRECTED") // REDIRECTED | COMPLETED (self-reported)
+  createdAt   DateTime @default(now())
+}
+
+model ProgressLog {
+  id                String   @id @default(uuid())
+  userId            String
+  user              User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  date              DateTime @default(now())
+  weightKg          Float?
+  caloriesConsumed  Float?
+  proteinConsumedG  Float?
+  carbsConsumedG    Float?
+  fatConsumedG      Float?
+  notes             String?
+}

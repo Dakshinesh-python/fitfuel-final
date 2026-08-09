@@ -1,0 +1,12 @@
+node_modules/
+dist/
+build/
+.env
+*.log
+.DS_Store
+web/dist/
+backend/dist/
+mobile/build/
+mobile/.dart_tool/
+.vscode/
+.idea/
