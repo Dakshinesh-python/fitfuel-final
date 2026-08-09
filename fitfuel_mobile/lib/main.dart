@@ -1,6 +1,5 @@
 import 'package:flutter/material.dart';
 import 'theme/app_theme.dart';
-import 'services/auth_service.dart';
 import 'screens/splash_screen.dart';
 import 'screens/onboarding_screen.dart';
 import 'screens/login_screen.dart';
@@ -15,6 +14,8 @@ import 'screens/recommendations_screen.dart';
 import 'screens/meal_detail_screen.dart';
 import 'screens/weekly_meal_plan_screen.dart';
 import 'screens/progress_screen.dart';
+import 'screens/chat_screen.dart';
+import 'screens/profile_screen.dart';
 
 void main() {
   runApp(const FitFuelApp());
@@ -45,6 +46,8 @@ class FitFuelApp extends StatelessWidget {
         '/meal-detail': (context) => const MealDetailScreen(),
         '/weekly-plan': (context) => const WeeklyMealPlanScreen(),
         '/progress': (context) => const ProgressScreen(),
+        '/chat': (context) => const ChatScreen(),
+        '/profile': (context) => const ProfileScreen(),
       },
     );
   }

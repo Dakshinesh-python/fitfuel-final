@@ -1,5 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:fl_chart/fl_chart.dart';
+import 'package:intl/intl.dart';
+import '../models/models.dart';
+import '../services/api_service.dart';
 import '../theme/app_theme.dart';
 import '../widgets/app_widgets.dart';
 
@@ -11,17 +14,55 @@ class ProgressScreen extends StatefulWidget {
 }
 
 class _ProgressScreenState extends State<ProgressScreen> {
-  int _range = 0; // 1M, 3M, YTD
+  // ── Data state ─────────────────────────────────────────────────────────────
+  ProgressSummary? _summary;
+  List<ProgressLog> _logs = [];
+  List<WeightHistoryEntry> _weightHistory = [];
+  bool _loading = true;
+  String? _loadError;
 
-  final _weightSpots = const [
-    FlSpot(0, 168),
-    FlSpot(1, 167.4),
-    FlSpot(2, 167.8),
-    FlSpot(3, 166.9),
-    FlSpot(4, 165.9),
-    FlSpot(5, 165.2),
-    FlSpot(6, 164.5),
-  ];
+  @override
+  void initState() {
+    super.initState();
+    _loadData();
+  }
+
+  Future<void> _loadData() async {
+    setState(() {
+      _loading = true;
+      _loadError = null;
+    });
+    try {
+      // Three parallel API calls:
+      //   GET /api/progress/summary    → { logs, weeklyAverageCalories, goalAchievementPct }
+      //   GET /api/progress            → { logs: [...all entries] }
+      //   GET /api/progress/weight-history → { weightHistory: [{date, weightKg}] }
+      final results = await Future.wait([
+        ApiService.instance.get('/api/progress/summary'),
+        ApiService.instance.get('/api/progress'),
+        ApiService.instance.get('/api/progress/weight-history'),
+      ]);
+
+      if (!mounted) return;
+      setState(() {
+        _summary = ProgressSummary.fromJson(results[0] as Map<String, dynamic>);
+        _logs = (results[1]['logs'] as List)
+            .map((e) => ProgressLog.fromJson(e as Map<String, dynamic>))
+            .toList();
+        _weightHistory = (results[2]['weightHistory'] as List)
+            .map((e) => WeightHistoryEntry.fromJson(e as Map<String, dynamic>))
+            .toList();
+      });
+    } on ApiException catch (e) {
+      if (mounted) setState(() => _loadError = e.message);
+    } catch (_) {
+      if (mounted) {
+        setState(() => _loadError = 'Unable to load progress data. Please try again.');
+      }
+    } finally {
+      if (mounted) setState(() => _loading = false);
+    }
+  }
 
   void _openLogSheet() {
     showModalBottomSheet(
@@ -30,7 +71,10 @@ class _ProgressScreenState extends State<ProgressScreen> {
       backgroundColor: Colors.white,
       shape: const RoundedRectangleBorder(
           borderRadius: BorderRadius.vertical(top: Radius.circular(24))),
-      builder: (context) => const _LogEntrySheet(),
+      builder: (ctx) => _LogEntrySheet(onSubmitted: () {
+        Navigator.of(ctx).pop();
+        _loadData(); // refresh after log
+      }),
     );
   }
 
@@ -38,374 +82,648 @@ class _ProgressScreenState extends State<ProgressScreen> {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: const Text('FitFuel'),
-        actions: [
-          IconButton(
-              icon: const Icon(Icons.notifications_outlined), onPressed: () {}),
-        ],
+        backgroundColor: Colors.white,
+        surfaceTintColor: Colors.transparent,
+        elevation: 0,
+        centerTitle: false,
+        automaticallyImplyLeading: false,
+        title: const Text('Progress',
+            style: TextStyle(
+                fontSize: 20, fontWeight: FontWeight.w800, color: Color(0xFF111827))),
       ),
       body: SafeArea(
         top: false,
-        child: ListView(
-          padding: const EdgeInsets.symmetric(
-              horizontal: AppSpacing.marginMobile, vertical: 16),
-          children: [
-            Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-              children: [
-                Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text('Your Progress', style: AppTextStyles.headlineLgMobile),
-                      Text('Tracking your journey to better health.',
-                          style: AppTextStyles.bodyMd
-                              .copyWith(color: AppColors.onSurfaceVariant)),
-                    ],
-                  ),
-                ),
-                ElevatedButton(
-                  onPressed: _openLogSheet,
-                  style: ElevatedButton.styleFrom(
-                      padding: const EdgeInsets.symmetric(
-                          horizontal: 16, vertical: 12),
-                      minimumSize: Size.zero),
-                  child: const Row(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      Icon(Icons.add, size: 18),
-                      SizedBox(width: 4),
-                      Text('Log Entry'),
-                    ],
-                  ),
-                ),
-              ],
-            ),
-            const SizedBox(height: 20),
-            AppCard(
-              radius: 20,
-              child: Row(
-                children: [
-                  Expanded(
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text('Weekly Goal Achievement',
-                            style: AppTextStyles.labelMd.copyWith(
-                                color: AppColors.onSurfaceVariant)),
-                        const SizedBox(height: 8),
-                        Text('82%', style: AppTextStyles.displayLg.copyWith(fontSize: 34)),
-                        const SizedBox(height: 6),
-                        Text(
-                            'You are on track to meet your macro targets this week.',
-                            style: AppTextStyles.labelMd.copyWith(
-                                color: AppColors.onSurfaceVariant)),
-                      ],
-                    ),
-                  ),
-                  MacroRing(
-                    progress: 0.82,
-                    color: AppColors.primary,
-                    size: 84,
-                    center: const Icon(Icons.emoji_events,
-                        color: AppColors.primary, size: 26),
-                  ),
-                ],
-              ),
-            ),
-            const SizedBox(height: 16),
-            Row(
-              children: const [
-                Expanded(
-                    child: _MiniMacroCard(
-                        label: 'Protein', value: 95, color: AppColors.primary)),
-                SizedBox(width: 10),
-                Expanded(
-                    child: _MiniMacroCard(
-                        label: 'Carbs',
-                        value: 78,
-                        color: AppColors.secondaryContainer)),
-                SizedBox(width: 10),
-                Expanded(
-                    child: _MiniMacroCard(
-                        label: 'Fats',
-                        value: 85,
-                        color: AppColors.tertiaryContainer)),
-              ],
-            ),
-            const SizedBox(height: 20),
-            Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-              children: [
-                Text('Weight Trend', style: AppTextStyles.headlineMd.copyWith(fontSize: 18)),
-                PillTabSelector(
-                  tabs: const ['1M', '3M', 'YTD'],
-                  selectedIndex: _range,
-                  onChanged: (i) => setState(() => _range = i),
-                ),
-              ],
-            ),
-            const SizedBox(height: 16),
-            AppCard(
-              radius: 20,
-              child: SizedBox(
-                height: 180,
-                child: LineChart(
-                  LineChartData(
-                    gridData: const FlGridData(show: false),
-                    titlesData: const FlTitlesData(show: false),
-                    borderData: FlBorderData(show: false),
-                    lineTouchData: const LineTouchData(enabled: true),
-                    lineBarsData: [
-                      LineChartBarData(
-                        spots: _weightSpots,
-                        isCurved: true,
-                        color: AppColors.primary,
-                        barWidth: 3,
-                        dotData: const FlDotData(show: false),
-                        belowBarData: BarAreaData(
-                          show: true,
-                          color: AppColors.primary.withOpacity(0.1),
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-              ),
-            ),
-            const SizedBox(height: 24),
-            Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-              children: [
-                Text('Recent Logs', style: AppTextStyles.headlineMd.copyWith(fontSize: 18)),
-                Text('View All', style: AppTextStyles.labelMd.copyWith(color: AppColors.primary)),
-              ],
-            ),
-            const SizedBox(height: 12),
-            const _LogRow(
-                icon: Icons.monitor_weight_outlined,
-                title: '164.5 lbs',
-                subtitle: 'Today, 8:00 AM',
-                trailingIcon: Icons.trending_down,
-                trailingColor: AppColors.primary),
-            const _LogRow(
-                icon: Icons.restaurant_outlined,
-                title: 'Macros Logged',
-                subtitle: 'Yesterday, 7:30 PM',
-                trailingIcon: Icons.check_circle,
-                trailingColor: AppColors.primary),
-            const _LogRow(
-                icon: Icons.monitor_weight_outlined,
-                title: '165.2 lbs',
-                subtitle: 'Oct 12, 8:15 AM',
-                trailingIcon: Icons.trending_up,
-                trailingColor: AppColors.secondary),
-            const _LogRow(
-                icon: Icons.edit_note_outlined,
-                title: 'Note Added',
-                subtitle: 'Oct 10, 9:00 PM',
-                trailingIcon: Icons.chevron_right,
-                trailingColor: AppColors.outline),
-          ],
-        ),
-      ),
-      floatingActionButton: FloatingActionButton(
-        onPressed: _openLogSheet,
-        backgroundColor: AppColors.primary,
-        child: const Icon(Icons.add, color: Colors.white),
+        child: _buildBody(),
       ),
       bottomNavigationBar: FitFuelBottomNav(
-        currentIndex: 2,
+        currentIndex: 3,
         onTap: (i) {
           if (i == 0) Navigator.of(context).pushReplacementNamed('/dashboard');
-          if (i == 1) Navigator.of(context).pushNamed('/recommendations');
+          if (i == 1) Navigator.of(context).pushReplacementNamed('/recommendations');
+          if (i == 2) Navigator.of(context).pushNamed('/chat');
+          if (i == 4) Navigator.of(context).pushReplacementNamed('/profile');
         },
       ),
     );
   }
-}
 
-class _MiniMacroCard extends StatelessWidget {
-  final String label;
-  final int value;
-  final Color color;
-  const _MiniMacroCard(
-      {required this.label, required this.value, required this.color});
+  Widget _buildBody() {
+    if (_loading) return const Center(child: CircularProgressIndicator());
 
-  @override
-  Widget build(BuildContext context) {
+    if (_loadError != null) {
+      return Center(
+        child: Padding(
+          padding: const EdgeInsets.all(32),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              const Icon(Icons.wifi_off_rounded, size: 48, color: AppColors.outline),
+              const SizedBox(height: 16),
+              Text(_loadError!,
+                  textAlign: TextAlign.center,
+                  style: AppTextStyles.bodyMd
+                      .copyWith(color: AppColors.onSurfaceVariant)),
+              const SizedBox(height: 24),
+              ElevatedButton.icon(
+                onPressed: _loadData,
+                icon: const Icon(Icons.refresh),
+                label: const Text('Retry'),
+              ),
+            ],
+          ),
+        ),
+      );
+    }
+
+    return ListView(
+      padding: const EdgeInsets.symmetric(
+          horizontal: AppSpacing.marginMobile, vertical: 16),
+      children: [
+        // Hero banner
+        Container(
+          margin: const EdgeInsets.only(bottom: 20),
+          padding: const EdgeInsets.all(18),
+          decoration: BoxDecoration(
+            gradient: const LinearGradient(
+              colors: [Color(0xFF3B82F6), Color(0xFF1D4ED8)],
+              begin: Alignment.topLeft,
+              end: Alignment.bottomRight,
+            ),
+            borderRadius: BorderRadius.circular(20),
+            boxShadow: [
+              BoxShadow(
+                color: const Color(0xFF3B82F6).withValues(alpha: 0.3),
+                offset: const Offset(0, 6),
+                blurRadius: 16,
+              ),
+            ],
+          ),
+          child: Row(
+            children: [
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    const Text('Track your journey',
+                        style: TextStyle(color: Colors.white70, fontSize: 12, fontWeight: FontWeight.w500)),
+                    const SizedBox(height: 4),
+                    const Text('Your Progress',
+                        style: TextStyle(color: Colors.white, fontSize: 22, fontWeight: FontWeight.w800)),
+                    const SizedBox(height: 4),
+                    const Text('Weight trends & nutrition logs',
+                        style: TextStyle(color: Colors.white60, fontSize: 11)),
+                  ],
+                ),
+              ),
+              ElevatedButton.icon(
+                onPressed: _openLogSheet,
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: Colors.white,
+                  foregroundColor: const Color(0xFF1D4ED8),
+                  padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+                  minimumSize: Size.zero,
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                  elevation: 0,
+                ),
+                icon: const Icon(Icons.add, size: 16),
+                label: const Text('Log', style: TextStyle(fontSize: 13, fontWeight: FontWeight.w700)),
+              ),
+            ],
+          ),
+        ),
+        const SizedBox(height: 20),
+
+        // Summary cards
+        Row(
+          children: [
+            Expanded(
+              child: AppCard(
+                radius: 16,
+                padding: const EdgeInsets.all(16),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text('Weekly Avg', style: AppTextStyles.labelSm
+                        .copyWith(color: AppColors.onSurfaceVariant)),
+                    const SizedBox(height: 4),
+                    Text(
+                      '${(_summary?.weeklyAverageCalories ?? 0).round()} kcal',
+                      style: AppTextStyles.headlineMd,
+                    ),
+                    Text('/ day', style: AppTextStyles.labelSm
+                        .copyWith(color: AppColors.onSurfaceVariant)),
+                  ],
+                ),
+              ),
+            ),
+            const SizedBox(width: 12),
+            Expanded(
+              child: AppCard(
+                radius: 16,
+                padding: const EdgeInsets.all(16),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text('Goal Achievement', style: AppTextStyles.labelSm
+                        .copyWith(color: AppColors.onSurfaceVariant)),
+                    const SizedBox(height: 8),
+                    ClipRRect(
+                      borderRadius: BorderRadius.circular(AppRadius.full),
+                      child: LinearProgressIndicator(
+                        value: (_summary?.goalAchievementPct ?? 0) / 100,
+                        backgroundColor: AppColors.surfaceContainerHigh,
+                        color: AppColors.primary,
+                        minHeight: 10,
+                      ),
+                    ),
+                    const SizedBox(height: 4),
+                    Text(
+                      '${(_summary?.goalAchievementPct ?? 0).round()}%',
+                      style: AppTextStyles.headlineMd.copyWith(
+                          color: AppColors.primary),
+                    ),
+                  ],
+                ),
+              ),
+            ),
+          ],
+        ),
+        const SizedBox(height: 16),
+
+        // Weight chart ──────────────────────────────────────────────────────
+        _buildWeightChart(),
+        const SizedBox(height: 16),
+
+        // Recent log entries
+        AppCard(
+          radius: 20,
+          padding: const EdgeInsets.all(16),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text('Recent entries', style: AppTextStyles.headlineMd),
+              const SizedBox(height: 12),
+              if (_logs.isEmpty)
+                Text('No entries logged yet.',
+                    style: AppTextStyles.bodyMd
+                        .copyWith(color: AppColors.onSurfaceVariant))
+              else
+                ..._logs.take(10).map((log) => _LogRow(log: log)),
+            ],
+          ),
+        ),
+        const SizedBox(height: 24),
+      ],
+    );
+  }
+
+  // ── Weight Chart ────────────────────────────────────────────────────────────
+  Widget _buildWeightChart() {
+    if (_weightHistory.isEmpty) {
+      return AppCard(
+        radius: 20,
+        padding: const EdgeInsets.all(20),
+        child: Column(
+          children: [
+            Row(
+              children: [
+                const Text('Weight over time',
+                    style: TextStyle(
+                        fontSize: 16,
+                        fontWeight: FontWeight.w800,
+                        color: Color(0xFF111827))),
+                const Spacer(),
+                Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                  decoration: BoxDecoration(
+                    color: const Color(0xFF3B82F6).withValues(alpha: 0.1),
+                    borderRadius: BorderRadius.circular(20),
+                  ),
+                  child: const Text('0 entries',
+                      style: TextStyle(
+                          fontSize: 11,
+                          fontWeight: FontWeight.w600,
+                          color: Color(0xFF3B82F6))),
+                ),
+              ],
+            ),
+            const SizedBox(height: 32),
+            Container(
+              width: 56,
+              height: 56,
+              decoration: BoxDecoration(
+                color: const Color(0xFF3B82F6).withValues(alpha: 0.08),
+                borderRadius: BorderRadius.circular(16),
+              ),
+              child: const Icon(Icons.show_chart_rounded,
+                  color: Color(0xFF3B82F6), size: 28),
+            ),
+            const SizedBox(height: 12),
+            const Text('No weight data yet',
+                style: TextStyle(
+                    fontSize: 15,
+                    fontWeight: FontWeight.w700,
+                    color: Color(0xFF111827))),
+            const SizedBox(height: 4),
+            const Text('Log your weight to track your trend',
+                style: TextStyle(fontSize: 12, color: Color(0xFF9CA3AF))),
+            const SizedBox(height: 20),
+            SizedBox(
+              width: double.infinity,
+              child: OutlinedButton.icon(
+                onPressed: _openLogSheet,
+                icon: const Icon(Icons.add, size: 16),
+                label: const Text('Log First Entry'),
+                style: OutlinedButton.styleFrom(
+                  shape: const StadiumBorder(),
+                  padding: const EdgeInsets.symmetric(vertical: 12),
+                ),
+              ),
+            ),
+          ],
+        ),
+      );
+    }
+
+    // Compute Y-range with padding so single points aren't at the chart edge
+    final weights = _weightHistory.map((e) => e.weightKg).toList();
+    final minW = weights.reduce((a, b) => a < b ? a : b);
+    final maxW = weights.reduce((a, b) => a > b ? a : b);
+    final range = (maxW - minW).clamp(2.0, double.infinity);
+    final padding = range * 0.25;
+    final minY = (minW - padding).floorToDouble();
+    final maxY = (maxW + padding).ceilToDouble();
+    final yInterval = ((maxY - minY) / 4).ceilToDouble().clamp(0.5, 100.0);
+
+    final xMax = (_weightHistory.length - 1).toDouble().clamp(1.0, double.infinity);
+    final xInterval = _weightHistory.length > 6
+        ? (xMax / 4).ceilToDouble()
+        : 1.0;
+
     return AppCard(
-      radius: 16,
-      padding: const EdgeInsets.symmetric(vertical: 14, horizontal: 8),
+      radius: 20,
+      padding: const EdgeInsets.fromLTRB(16, 16, 16, 8),
       child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Text(label, style: AppTextStyles.labelSm.copyWith(color: AppColors.onSurfaceVariant)),
-          const SizedBox(height: 6),
-          Text('$value%', style: AppTextStyles.headlineMd.copyWith(fontSize: 18, color: color)),
+          // Header
+          Row(
+            children: [
+              const Text('Weight over time',
+                  style: TextStyle(
+                      fontSize: 16,
+                      fontWeight: FontWeight.w800,
+                      color: Color(0xFF111827))),
+              const Spacer(),
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                decoration: BoxDecoration(
+                  color: AppColors.primary.withValues(alpha: 0.1),
+                  borderRadius: BorderRadius.circular(20),
+                ),
+                child: Text('${_weightHistory.length} entries',
+                    style: TextStyle(
+                        fontSize: 11,
+                        fontWeight: FontWeight.w600,
+                        color: AppColors.primary)),
+              ),
+            ],
+          ),
+          const SizedBox(height: 4),
+          // Min/max labels
+          Row(
+            children: [
+              Text('Min: ${minW.toStringAsFixed(1)} kg',
+                  style: const TextStyle(
+                      fontSize: 11, color: Color(0xFF9CA3AF))),
+              const SizedBox(width: 12),
+              Text('Max: ${maxW.toStringAsFixed(1)} kg',
+                  style: const TextStyle(
+                      fontSize: 11, color: Color(0xFF9CA3AF))),
+            ],
+          ),
+          const SizedBox(height: 12),
+          // Chart
+          SizedBox(
+            height: 200,
+            child: LineChart(
+              LineChartData(
+                minX: 0,
+                maxX: xMax,
+                minY: minY,
+                maxY: maxY,
+                clipData: const FlClipData.all(),
+                gridData: FlGridData(
+                  show: true,
+                  drawVerticalLine: false,
+                  horizontalInterval: yInterval,
+                  getDrawingHorizontalLine: (_) => FlLine(
+                    color: const Color(0xFFE5E7EB),
+                    strokeWidth: 1,
+                    dashArray: [4, 4],
+                  ),
+                ),
+                titlesData: FlTitlesData(
+                  leftTitles: AxisTitles(
+                    sideTitles: SideTitles(
+                      showTitles: true,
+                      reservedSize: 44,
+                      interval: yInterval,
+                      getTitlesWidget: (v, meta) {
+                        if (v == meta.min || v == meta.max) return const SizedBox.shrink();
+                        return Padding(
+                          padding: const EdgeInsets.only(right: 4),
+                          child: Text(
+                            '${v.round()}',
+                            style: const TextStyle(
+                                fontSize: 10,
+                                color: Color(0xFF9CA3AF),
+                                fontWeight: FontWeight.w500),
+                          ),
+                        );
+                      },
+                    ),
+                  ),
+                  bottomTitles: AxisTitles(
+                    sideTitles: SideTitles(
+                      showTitles: true,
+                      reservedSize: 28,
+                      interval: xInterval,
+                      getTitlesWidget: (v, meta) {
+                        final idx = v.round();
+                        if (idx < 0 || idx >= _weightHistory.length) {
+                          return const SizedBox.shrink();
+                        }
+                        // Only show if it's close to an integer index
+                        if ((v - idx).abs() > 0.01) return const SizedBox.shrink();
+                        return Padding(
+                          padding: const EdgeInsets.only(top: 6),
+                          child: Text(
+                            DateFormat('d MMM').format(_weightHistory[idx].date),
+                            style: const TextStyle(
+                                fontSize: 10,
+                                color: Color(0xFF9CA3AF),
+                                fontWeight: FontWeight.w500),
+                          ),
+                        );
+                      },
+                    ),
+                  ),
+                  topTitles: const AxisTitles(
+                      sideTitles: SideTitles(showTitles: false)),
+                  rightTitles: const AxisTitles(
+                      sideTitles: SideTitles(showTitles: false)),
+                ),
+                borderData: FlBorderData(show: false),
+                lineTouchData: LineTouchData(
+                  touchTooltipData: LineTouchTooltipData(
+                    getTooltipItems: (spots) => spots.map((s) {
+                      final idx = s.x.round();
+                      final date = idx >= 0 && idx < _weightHistory.length
+                          ? DateFormat('d MMM').format(_weightHistory[idx].date)
+                          : '';
+                      return LineTooltipItem(
+                        '${s.y.toStringAsFixed(1)} kg\n$date',
+                        const TextStyle(
+                            color: Colors.white,
+                            fontWeight: FontWeight.w700,
+                            fontSize: 12),
+                      );
+                    }).toList(),
+                  ),
+                ),
+                lineBarsData: [
+                  LineChartBarData(
+                    spots: _weightHistory.asMap().entries.map((e) {
+                      return FlSpot(e.key.toDouble(), e.value.weightKg);
+                    }).toList(),
+                    isCurved: _weightHistory.length > 2,
+                    curveSmoothness: 0.3,
+                    color: AppColors.primary,
+                    barWidth: 2.5,
+                    dotData: FlDotData(
+                      show: true,
+                      getDotPainter: (spot, pct, bar, index) =>
+                          FlDotCirclePainter(
+                        radius: 4,
+                        color: Colors.white,
+                        strokeColor: AppColors.primary,
+                        strokeWidth: 2,
+                      ),
+                    ),
+                    belowBarData: BarAreaData(
+                      show: true,
+                      gradient: LinearGradient(
+                        colors: [
+                          AppColors.primary.withValues(alpha: 0.18),
+                          AppColors.primary.withValues(alpha: 0.0),
+                        ],
+                        begin: Alignment.topCenter,
+                        end: Alignment.bottomCenter,
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ),
         ],
       ),
     );
   }
 }
 
+/// A compact single-row entry in the history list.
 class _LogRow extends StatelessWidget {
-  final IconData icon;
-  final String title;
-  final String subtitle;
-  final IconData trailingIcon;
-  final Color trailingColor;
-  const _LogRow({
-    required this.icon,
-    required this.title,
-    required this.subtitle,
-    required this.trailingIcon,
-    required this.trailingColor,
-  });
+  final ProgressLog log;
+  const _LogRow({required this.log});
 
   @override
   Widget build(BuildContext context) {
+    final parts = <String>[];
+    if (log.weightKg != null) parts.add('${log.weightKg!.toStringAsFixed(1)} kg');
+    if (log.caloriesConsumed != null) parts.add('${log.caloriesConsumed} kcal');
+    if (log.proteinConsumedG != null) parts.add('${log.proteinConsumedG}g prot');
+
     return Padding(
-      padding: const EdgeInsets.only(bottom: 10),
-      child: AppCard(
-        radius: 14,
-        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
-        child: Row(
-          children: [
-            Container(
-              width: 40,
-              height: 40,
-              decoration: BoxDecoration(
-                color: AppColors.surfaceContainerLow,
-                shape: BoxShape.circle,
-              ),
-              child: Icon(icon, size: 18, color: AppColors.onSurfaceVariant),
+      padding: const EdgeInsets.symmetric(vertical: 6),
+      child: Row(
+        children: [
+          Text(
+            DateFormat('d MMM').format(log.date),
+            style: AppTextStyles.labelMd
+                .copyWith(color: AppColors.onSurfaceVariant, fontSize: 12),
+          ),
+          const SizedBox(width: 12),
+          Expanded(
+            child: Text(
+              parts.isEmpty ? 'Entry logged' : parts.join(' · '),
+              style: AppTextStyles.bodyMd.copyWith(fontSize: 13),
             ),
-            const SizedBox(width: 12),
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(title, style: AppTextStyles.bodyMd.copyWith(fontWeight: FontWeight.w600)),
-                  Text(subtitle, style: AppTextStyles.labelSm.copyWith(color: AppColors.onSurfaceVariant)),
-                ],
-              ),
-            ),
-            Icon(trailingIcon, color: trailingColor, size: 20),
-          ],
-        ),
+          ),
+        ],
       ),
     );
   }
 }
 
+/// Bottom sheet form for logging a new progress entry.
 class _LogEntrySheet extends StatefulWidget {
-  const _LogEntrySheet();
+  final VoidCallback onSubmitted;
+  const _LogEntrySheet({required this.onSubmitted});
 
   @override
   State<_LogEntrySheet> createState() => _LogEntrySheetState();
 }
 
 class _LogEntrySheetState extends State<_LogEntrySheet> {
-  final _weightController = TextEditingController();
-  final _proteinController = TextEditingController();
-  final _carbsController = TextEditingController();
-  final _fatsController = TextEditingController();
-  final _notesController = TextEditingController();
+  final _weightCtrl = TextEditingController();
+  final _calCtrl = TextEditingController();
+  final _proteinCtrl = TextEditingController();
+  final _carbsCtrl = TextEditingController();
+  final _fatCtrl = TextEditingController();
+  final _notesCtrl = TextEditingController();
+  bool _submitting = false;
+  String? _error;
 
   @override
   void dispose() {
-    _weightController.dispose();
-    _proteinController.dispose();
-    _carbsController.dispose();
-    _fatsController.dispose();
-    _notesController.dispose();
+    _weightCtrl.dispose();
+    _calCtrl.dispose();
+    _proteinCtrl.dispose();
+    _carbsCtrl.dispose();
+    _fatCtrl.dispose();
+    _notesCtrl.dispose();
     super.dispose();
+  }
+
+  Future<void> _submit() async {
+    final weight = double.tryParse(_weightCtrl.text);
+    final cal = int.tryParse(_calCtrl.text);
+    final protein = int.tryParse(_proteinCtrl.text);
+    final carbs = int.tryParse(_carbsCtrl.text);
+    final fat = int.tryParse(_fatCtrl.text);
+
+    if (weight == null && cal == null && protein == null &&
+        carbs == null && fat == null) {
+      setState(() => _error = 'Please fill in at least one value.');
+      return;
+    }
+
+    setState(() {
+      _submitting = true;
+      _error = null;
+    });
+    try {
+      // POST /api/progress
+      await ApiService.instance.post('/api/progress', body: {
+        if (weight != null) 'weightKg': weight,
+        if (cal != null) 'caloriesConsumed': cal,
+        if (protein != null) 'proteinConsumedG': protein,
+        if (carbs != null) 'carbsConsumedG': carbs,
+        if (fat != null) 'fatConsumedG': fat,
+        if (_notesCtrl.text.trim().isNotEmpty) 'notes': _notesCtrl.text.trim(),
+      });
+      widget.onSubmitted();
+    } on ApiException catch (e) {
+      if (mounted) setState(() => _error = e.message);
+    } catch (_) {
+      if (mounted) {
+        setState(() => _error = 'Unable to log entry. Please try again.');
+      }
+    } finally {
+      if (mounted) setState(() => _submitting = false);
+    }
   }
 
   @override
   Widget build(BuildContext context) {
+    final bottom = MediaQuery.of(context).viewInsets.bottom;
     return Padding(
-      padding: EdgeInsets.only(
-        left: AppSpacing.marginMobile,
-        right: AppSpacing.marginMobile,
-        top: 20,
-        bottom: MediaQuery.of(context).viewInsets.bottom + 20,
-      ),
+      padding: EdgeInsets.fromLTRB(20, 24, 20, 24 + bottom),
       child: SingleChildScrollView(
         child: Column(
-          crossAxisAlignment: CrossAxisAlignment.stretch,
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-              children: [
-                Text('New Log Entry', style: AppTextStyles.headlineMd.copyWith(fontSize: 18)),
-                IconButton(
-                  icon: const Icon(Icons.close),
-                  onPressed: () => Navigator.of(context).pop(),
+            Text('Log a new entry', style: AppTextStyles.headlineMd),
+            const SizedBox(height: 16),
+            if (_error != null)
+              Container(
+                margin: const EdgeInsets.only(bottom: 12),
+                padding: const EdgeInsets.all(12),
+                decoration: BoxDecoration(
+                  color: AppColors.error.withValues(alpha: 0.1),
+                  borderRadius: BorderRadius.circular(AppRadius.dflt),
                 ),
+                child: Text(_error!,
+                    style: AppTextStyles.bodyMd
+                        .copyWith(color: AppColors.error)),
+              ),
+            Row(
+              children: [
+                Expanded(child: _NumberField('Weight (kg)', _weightCtrl, decimal: true)),
+                const SizedBox(width: 12),
+                Expanded(child: _NumberField('Calories', _calCtrl)),
               ],
             ),
             const SizedBox(height: 12),
-            Text('Weight (lbs)', style: AppTextStyles.labelMd),
-            const SizedBox(height: 6),
-            TextField(
-              controller: _weightController,
-              keyboardType: TextInputType.number,
-              decoration: const InputDecoration(
-                  prefixIcon: Icon(Icons.monitor_weight_outlined)),
-            ),
-            const SizedBox(height: 16),
-            Text('Daily Macros (g)', style: AppTextStyles.labelMd),
-            const SizedBox(height: 6),
             Row(
               children: [
-                Expanded(
-                  child: TextField(
-                    controller: _proteinController,
-                    keyboardType: TextInputType.number,
-                    decoration: const InputDecoration(hintText: 'Protein'),
-                  ),
-                ),
-                const SizedBox(width: 8),
-                Expanded(
-                  child: TextField(
-                    controller: _carbsController,
-                    keyboardType: TextInputType.number,
-                    decoration: const InputDecoration(hintText: 'Carbs'),
-                  ),
-                ),
-                const SizedBox(width: 8),
-                Expanded(
-                  child: TextField(
-                    controller: _fatsController,
-                    keyboardType: TextInputType.number,
-                    decoration: const InputDecoration(hintText: 'Fats'),
-                  ),
-                ),
+                Expanded(child: _NumberField('Protein (g)', _proteinCtrl)),
+                const SizedBox(width: 12),
+                Expanded(child: _NumberField('Carbs (g)', _carbsCtrl)),
+                const SizedBox(width: 12),
+                Expanded(child: _NumberField('Fat (g)', _fatCtrl)),
               ],
             ),
-            const SizedBox(height: 16),
-            Text('Notes', style: AppTextStyles.labelMd),
-            const SizedBox(height: 6),
+            const SizedBox(height: 12),
             TextField(
-              controller: _notesController,
-              maxLines: 3,
-              decoration: const InputDecoration(hintText: 'Optional notes...'),
+              controller: _notesCtrl,
+              maxLines: 2,
+              decoration: const InputDecoration(
+                labelText: 'Notes (optional)',
+                border: OutlineInputBorder(),
+              ),
             ),
             const SizedBox(height: 20),
-            ElevatedButton(
-              onPressed: () => Navigator.of(context).pop(),
-              child: const Row(
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: [
-                  Icon(Icons.check, size: 18),
-                  SizedBox(width: 8),
-                  Text('Save Entry'),
-                ],
+            SizedBox(
+              width: double.infinity,
+              child: ElevatedButton(
+                onPressed: _submitting ? null : _submit,
+                child: _submitting
+                    ? const SizedBox(
+                        height: 20,
+                        width: 20,
+                        child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white))
+                    : const Text('Log Entry'),
               ),
             ),
           ],
         ),
+      ),
+    );
+  }
+}
+
+class _NumberField extends StatelessWidget {
+  final String label;
+  final TextEditingController controller;
+  final bool decimal;
+  const _NumberField(this.label, this.controller, {this.decimal = false});
+
+  @override
+  Widget build(BuildContext context) {
+    return TextField(
+      controller: controller,
+      keyboardType: TextInputType.numberWithOptions(decimal: decimal),
+      decoration: InputDecoration(
+        labelText: label,
+        border: const OutlineInputBorder(),
+        contentPadding:
+            const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
       ),
     );
   }

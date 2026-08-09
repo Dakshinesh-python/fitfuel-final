@@ -1,290 +1,460 @@
 import 'package:flutter/material.dart';
+import '../models/models.dart';
+import '../services/api_service.dart';
 import '../theme/app_theme.dart';
 import '../widgets/app_widgets.dart';
 
-class DashboardScreen extends StatelessWidget {
+class DashboardScreen extends StatefulWidget {
   const DashboardScreen({super.key});
+
+  @override
+  State<DashboardScreen> createState() => _DashboardScreenState();
+}
+
+class _DashboardScreenState extends State<DashboardScreen> {
+  HealthProfile? _profile;
+  bool _loading = true;
+  String? _error;
+
+  @override
+  void initState() {
+    super.initState();
+    _loadProfile();
+  }
+
+  Future<void> _loadProfile() async {
+    setState(() { _loading = true; _error = null; });
+    try {
+      final data = await ApiService.instance.get('/api/health-profile');
+      if (mounted) {
+        setState(() {
+          _profile = HealthProfile.fromJson(data['profile'] as Map<String, dynamic>);
+        });
+      }
+    } on ApiException catch (e) {
+      if (!mounted) return;
+      if (e.statusCode == 404) {
+        Navigator.of(context).pushReplacementNamed('/health-weight');
+        return;
+      }
+      setState(() => _error = e.message);
+    } catch (_) {
+      if (mounted) setState(() => _error = 'Unable to load dashboard. Please try again.');
+    } finally {
+      if (mounted) setState(() => _loading = false);
+    }
+  }
+
+  int? _calorieTarget(HealthProfile p) {
+    if (p.tdee == null) return null;
+    const adj = {
+      'WEIGHT_LOSS': -500, 'WEIGHT_GAIN': 400,
+      'MUSCLE_GAIN': 300, 'MAINTENANCE': 0,
+    };
+    return (p.tdee! + (adj[p.fitnessGoal] ?? 0)).clamp(1200, double.infinity).round();
+  }
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
+      backgroundColor: const Color(0xFFF7FAF8),
       appBar: AppBar(
+        backgroundColor: Colors.white,
+        elevation: 0,
+        surfaceTintColor: Colors.transparent,
+        centerTitle: false,
+        automaticallyImplyLeading: false,
         title: Row(
-          mainAxisSize: MainAxisSize.min,
           children: [
-            Image.asset('assets/images/logo.png', width: 24, height: 24),
-            const SizedBox(width: 8),
-            const Text('FitFuel'),
+            Container(
+              width: 34,
+              height: 34,
+              decoration: BoxDecoration(
+                borderRadius: BorderRadius.circular(10),
+                gradient: const LinearGradient(
+                  colors: [Color(0xFF2A9D58), Color(0xFF006C4D)],
+                ),
+              ),
+              child: const Icon(Icons.bolt, color: Colors.white, size: 18),
+            ),
+            const SizedBox(width: 10),
+            const Text('FitFuel',
+                style: TextStyle(
+                    fontSize: 20,
+                    fontWeight: FontWeight.w800,
+                    color: Color(0xFF111827))),
           ],
         ),
         actions: [
           IconButton(
-              icon: const Icon(Icons.notifications_outlined), onPressed: () {}),
+            icon: Container(
+              width: 36,
+              height: 36,
+              decoration: BoxDecoration(
+                color: const Color(0xFFF3F4F6),
+                borderRadius: BorderRadius.circular(10),
+              ),
+              child: const Icon(Icons.notifications_outlined,
+                  color: Color(0xFF374151), size: 20),
+            ),
+            onPressed: () {},
+          ),
+          const SizedBox(width: 4),
+          Padding(
+            padding: const EdgeInsets.only(right: 12),
+            child: GestureDetector(
+              onTap: () => Navigator.of(context).pushNamed('/profile'),
+              child: Container(
+                width: 36,
+                height: 36,
+                decoration: BoxDecoration(
+                  gradient: const LinearGradient(
+                    colors: [Color(0xFF2A9D58), Color(0xFF006C4D)],
+                  ),
+                  borderRadius: BorderRadius.circular(10),
+                ),
+                child: const Icon(Icons.person_rounded,
+                    color: Colors.white, size: 20),
+              ),
+            ),
+          ),
         ],
       ),
-      body: SafeArea(
-        top: false,
-        child: SingleChildScrollView(
-          padding: const EdgeInsets.symmetric(
-              horizontal: AppSpacing.marginMobile, vertical: 16),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.stretch,
-            children: [
-              Text('Good morning, Alex.', style: AppTextStyles.headlineLgMobile),
-              const SizedBox(height: 4),
-              Text("You're on track. Let's conquer today.",
-                  style: AppTextStyles.bodyMd
-                      .copyWith(color: AppColors.onSurfaceVariant)),
-              const SizedBox(height: 20),
-              AppCard(
-                radius: 20,
-                padding: const EdgeInsets.all(20),
-                child: Row(
-                  children: [
-                    Expanded(
-                      flex: 3,
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.stretch,
-                        children: const [
-                          _MacroBar(label: 'Protein', current: 85, target: 150, color: AppColors.primary),
-                          SizedBox(height: 14),
-                          _MacroBar(label: 'Carbs', current: 120, target: 200, color: AppColors.secondaryContainer),
-                          SizedBox(height: 14),
-                          _MacroBar(label: 'Fat', current: 40, target: 65, color: AppColors.tertiaryContainer),
-                        ],
-                      ),
-                    ),
-                    const SizedBox(width: 16),
-                    Expanded(
-                      flex: 2,
-                      child: MacroRing(
-                        progress: 0.65,
-                        color: AppColors.primary,
-                        size: 100,
-                        center: Column(
-                          mainAxisSize: MainAxisSize.min,
-                          children: [
-                            Text('1.2k', style: AppTextStyles.headlineMd.copyWith(fontSize: 20)),
-                            Text('Kcal Left', style: AppTextStyles.labelSm.copyWith(color: AppColors.onSurfaceVariant)),
-                          ],
-                        ),
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-              const SizedBox(height: 16),
-              AppCard(
-                radius: 20,
-                child: Row(
-                  children: [
-                    Container(
-                      width: 48,
-                      height: 48,
-                      decoration: BoxDecoration(
-                        color: AppColors.primary.withOpacity(0.1),
-                        shape: BoxShape.circle,
-                      ),
-                      child: const Icon(Icons.trending_down, color: AppColors.primary),
-                    ),
-                    const SizedBox(width: 12),
-                    Expanded(
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Text('Weight Trend', style: AppTextStyles.bodyMd.copyWith(fontWeight: FontWeight.w600)),
-                          Text('Past 7 days', style: AppTextStyles.labelSm.copyWith(color: AppColors.onSurfaceVariant)),
-                        ],
-                      ),
-                    ),
-                    Column(
-                      crossAxisAlignment: CrossAxisAlignment.end,
-                      children: [
-                        Text('-0.8 lbs', style: AppTextStyles.bodyMd.copyWith(color: AppColors.primary, fontWeight: FontWeight.w700)),
-                        Text('175.2 lbs current', style: AppTextStyles.labelSm.copyWith(color: AppColors.onSurfaceVariant)),
-                      ],
-                    ),
-                  ],
-                ),
-              ),
-              const SizedBox(height: 24),
-              Row(
-                mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                children: [
-                  Text("Today's Recommendations", style: AppTextStyles.headlineMd.copyWith(fontSize: 18)),
-                  GestureDetector(
-                    onTap: () => Navigator.of(context).pushNamed('/recommendations'),
-                    child: Text('View All', style: AppTextStyles.labelMd.copyWith(color: AppColors.primary)),
-                  ),
-                ],
-              ),
-              const SizedBox(height: 12),
-              SizedBox(
-                height: 190,
-                child: ListView(
-                  scrollDirection: Axis.horizontal,
-                  children: [
-                    _MealCard(
-                        match: 98,
-                        title: 'Grilled Salmon & Quinoa',
-                        meta: '450 kcal • 42g Protein',
-                        onTap: () => Navigator.of(context).pushNamed('/meal-detail')),
-                    _MealCard(
-                        match: 92,
-                        title: 'Green Power Smoothie',
-                        meta: '320 kcal • 15g Protein',
-                        onTap: () => Navigator.of(context).pushNamed('/meal-detail')),
-                    _MealCard(
-                        match: 88,
-                        title: 'Harvest Grain Bowl',
-                        meta: '510 kcal • 18g Protein',
-                        onTap: () => Navigator.of(context).pushNamed('/meal-detail')),
-                  ],
-                ),
-              ),
-              const SizedBox(height: 24),
-              Row(
-                children: [
-                  Expanded(
-                      child: _QuickAction(
-                          icon: Icons.chat_bubble_outline,
-                          title: 'Coach Chat',
-                          subtitle: 'Ask questions')),
-                  const SizedBox(width: 12),
-                  Expanded(
-                      child: _QuickAction(
-                          icon: Icons.insert_chart_outlined,
-                          title: 'Full Progress',
-                          subtitle: 'Detailed stats',
-                          onTap: () =>
-                              Navigator.of(context).pushNamed('/progress'))),
-                  const SizedBox(width: 12),
-                  Expanded(
-                      child: _QuickAction(
-                          icon: Icons.menu_book_outlined,
-                          title: 'Meal Plan',
-                          subtitle: 'Edit schedule',
-                          onTap: () =>
-                              Navigator.of(context).pushNamed('/weekly-plan'))),
-                ],
-              ),
-              const SizedBox(height: 12),
-            ],
-          ),
-        ),
-      ),
+      body: _loading
+          ? const Center(child: CircularProgressIndicator())
+          : _error != null
+              ? _buildError()
+              : _buildBody(),
       bottomNavigationBar: FitFuelBottomNav(
         currentIndex: 0,
         onTap: (i) {
-          if (i == 1) Navigator.of(context).pushNamed('/recommendations');
-          if (i == 2) Navigator.of(context).pushNamed('/progress');
+          if (i == 1) Navigator.of(context).pushReplacementNamed('/recommendations');
+          if (i == 2) Navigator.of(context).pushNamed('/chat');
+          if (i == 3) Navigator.of(context).pushReplacementNamed('/progress');
+          if (i == 4) Navigator.of(context).pushReplacementNamed('/profile');
         },
       ),
     );
   }
-}
 
-class _MacroBar extends StatelessWidget {
-  final String label;
-  final double current;
-  final double target;
-  final Color color;
-  const _MacroBar(
-      {required this.label,
-      required this.current,
-      required this.target,
-      required this.color});
-
-  @override
-  Widget build(BuildContext context) {
-    final progress = (current / target).clamp(0, 1).toDouble();
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Row(
-          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+  Widget _buildError() {
+    return Center(
+      child: Padding(
+        padding: const EdgeInsets.all(32),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
           children: [
-            Text(label, style: AppTextStyles.labelMd),
-            Text('${current.round()}g / ${target.round()}g',
-                style: AppTextStyles.labelSm
-                    .copyWith(color: AppColors.onSurfaceVariant)),
+            const Icon(Icons.wifi_off_rounded, size: 56, color: Color(0xFFD1D5DB)),
+            const SizedBox(height: 16),
+            Text(_error!,
+                textAlign: TextAlign.center,
+                style: AppTextStyles.bodyMd.copyWith(color: AppColors.onSurfaceVariant)),
+            const SizedBox(height: 24),
+            ElevatedButton.icon(
+              onPressed: _loadProfile,
+              icon: const Icon(Icons.refresh),
+              label: const Text('Retry'),
+              style: ElevatedButton.styleFrom(shape: const StadiumBorder()),
+            ),
           ],
         ),
-        const SizedBox(height: 6),
-        ClipRRect(
-          borderRadius: BorderRadius.circular(AppRadius.full),
-          child: LinearProgressIndicator(
-            value: progress,
-            minHeight: 8,
-            backgroundColor: AppColors.surfaceContainerHigh,
-            color: color,
-          ),
-        ),
-      ],
+      ),
     );
   }
-}
 
-class _MealCard extends StatelessWidget {
-  final int match;
-  final String title;
-  final String meta;
-  final VoidCallback? onTap;
-  const _MealCard(
-      {required this.match,
-      required this.title,
-      required this.meta,
-      this.onTap});
+  Widget _buildBody() {
+    final p = _profile!;
+    final calTarget = _calorieTarget(p);
 
-  @override
-  Widget build(BuildContext context) {
-    return GestureDetector(
-      onTap: onTap,
+    return SingleChildScrollView(
+      padding: const EdgeInsets.fromLTRB(16, 12, 16, 24),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+
+          // ── Hero banner ──────────────────────────────────────────────────
+          GradientHeroCard(
+            colors: const [Color(0xFF2A9D58), Color(0xFF006C4D)],
+            child: Padding(
+              padding: const EdgeInsets.all(22),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Row(
+                    children: [
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            const Text('Welcome back 👋',
+                                style: TextStyle(
+                                    color: Colors.white70,
+                                    fontSize: 13,
+                                    fontWeight: FontWeight.w500)),
+                            const SizedBox(height: 2),
+                            Text(
+                              'Your daily target',
+                              style: const TextStyle(
+                                  color: Colors.white,
+                                  fontSize: 20,
+                                  fontWeight: FontWeight.w800),
+                            ),
+                          ],
+                        ),
+                      ),
+                      Container(
+                        padding: const EdgeInsets.symmetric(
+                            horizontal: 12, vertical: 6),
+                        decoration: BoxDecoration(
+                          color: Colors.white.withValues(alpha: 0.2),
+                          borderRadius: BorderRadius.circular(AppRadius.full),
+                        ),
+                        child: Text(
+                          p.fitnessGoal.replaceAll('_', ' '),
+                          style: const TextStyle(
+                              color: Colors.white,
+                              fontSize: 11,
+                              fontWeight: FontWeight.w700),
+                        ),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 16),
+                  Row(
+                    crossAxisAlignment: CrossAxisAlignment.end,
+                    children: [
+                      Text(
+                        calTarget != null ? '$calTarget' : '—',
+                        style: const TextStyle(
+                            color: Colors.white,
+                            fontSize: 48,
+                            fontWeight: FontWeight.w900,
+                            height: 1),
+                      ),
+                      const Padding(
+                        padding: EdgeInsets.only(bottom: 8, left: 4),
+                        child: Text('kcal/day',
+                            style: TextStyle(
+                                color: Colors.white70,
+                                fontSize: 14,
+                                fontWeight: FontWeight.w500)),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 14),
+                  // Mini macro chips
+                  Row(
+                    children: [
+                      _heroBadge('🥩', '${p.proteinTargetG?.round() ?? 0}g', 'Protein'),
+                      const SizedBox(width: 8),
+                      _heroBadge('🌾', '${p.carbTargetG ?? 0}g', 'Carbs'),
+                      const SizedBox(width: 8),
+                      _heroBadge('🥑', '${p.fatTargetG?.round() ?? 0}g', 'Fats'),
+                    ],
+                  ),
+                ],
+              ),
+            ),
+          ),
+          const SizedBox(height: 20),
+
+          // ── Stats row ───────────────────────────────────────────────────
+          Row(
+            children: [
+              StatChip(
+                label: 'BMR',
+                value: p.bmr != null ? '${p.bmr!.round()}' : '—',
+                color: const Color(0xFF8B5CF6),
+                icon: Icons.bolt_rounded,
+              ),
+              const SizedBox(width: 10),
+              StatChip(
+                label: 'TDEE',
+                value: p.tdee != null ? '${p.tdee!.round()}' : '—',
+                color: const Color(0xFF3B82F6),
+                icon: Icons.directions_run_rounded,
+              ),
+              const SizedBox(width: 10),
+              StatChip(
+                label: 'BMI',
+                value: p.bmi != null ? p.bmi!.toStringAsFixed(1) : '—',
+                color: const Color(0xFFF59E0B),
+                icon: Icons.monitor_weight_outlined,
+              ),
+            ],
+          ),
+          const SizedBox(height: 20),
+
+          // ── Daily macros card ────────────────────────────────────────────
+          AppCard(
+            radius: 20,
+            padding: const EdgeInsets.all(20),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Row(
+                  children: [
+                    const Text('Daily Macros',
+                        style: TextStyle(
+                            fontSize: 16,
+                            fontWeight: FontWeight.w800,
+                            color: Color(0xFF111827))),
+                    const Spacer(),
+                    Container(
+                      padding: const EdgeInsets.symmetric(
+                          horizontal: 10, vertical: 4),
+                      decoration: BoxDecoration(
+                        color: const Color(0xFF2A9D58).withValues(alpha: 0.1),
+                        borderRadius: BorderRadius.circular(AppRadius.full),
+                      ),
+                      child: const Text('Daily targets',
+                          style: TextStyle(
+                              fontSize: 11,
+                              fontWeight: FontWeight.w600,
+                              color: Color(0xFF2A9D58))),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 18),
+                MacroProgressRow(
+                  label: 'Protein',
+                  current: p.proteinTargetG?.round() ?? 0,
+                  target: p.proteinTargetG?.round() ?? 1,
+                  color: const Color(0xFF2A9D58),
+                ),
+                MacroProgressRow(
+                  label: 'Carbohydrates',
+                  current: p.carbTargetG ?? 0,
+                  target: p.carbTargetG ?? 1,
+                  color: const Color(0xFF3B82F6),
+                ),
+                MacroProgressRow(
+                  label: 'Fats',
+                  current: p.fatTargetG?.round() ?? 0,
+                  target: p.fatTargetG?.round() ?? 1,
+                  color: const Color(0xFFF59E0B),
+                ),
+              ],
+            ),
+          ),
+          const SizedBox(height: 20),
+
+          // ── Quick nav label ──────────────────────────────────────────────
+          const Text('Quick Access',
+              style: TextStyle(
+                  fontSize: 16,
+                  fontWeight: FontWeight.w800,
+                  color: Color(0xFF111827))),
+          const SizedBox(height: 12),
+
+          // 2×2 grid of quick action cards
+          Row(
+            children: [
+              _QuickCard(
+                icon: Icons.auto_awesome_rounded,
+                label: 'Recommendations',
+                sub: 'Ranked meals',
+                gradient: const [Color(0xFF2A9D58), Color(0xFF006C4D)],
+                onTap: () => Navigator.of(context).pushNamed('/recommendations'),
+              ),
+              const SizedBox(width: 12),
+              _QuickCard(
+                icon: Icons.calendar_month_rounded,
+                label: 'Meal Plan',
+                sub: '7-day plan',
+                gradient: const [Color(0xFF8B5CF6), Color(0xFF6D28D9)],
+                onTap: () => Navigator.of(context).pushNamed('/weekly-plan'),
+              ),
+            ],
+          ),
+          const SizedBox(height: 12),
+          Row(
+            children: [
+              _QuickCard(
+                icon: Icons.chat_bubble_rounded,
+                label: 'AI Coach',
+                sub: 'Ask anything',
+                gradient: const [Color(0xFF3B82F6), Color(0xFF1D4ED8)],
+                onTap: () => Navigator.of(context).pushNamed('/chat'),
+              ),
+              const SizedBox(width: 12),
+              _QuickCard(
+                icon: Icons.show_chart_rounded,
+                label: 'Progress',
+                sub: 'Track trends',
+                gradient: const [Color(0xFFF59E0B), Color(0xFFD97706)],
+                onTap: () => Navigator.of(context).pushNamed('/progress'),
+              ),
+            ],
+          ),
+
+          if (p.aiExplanation != null) ...[
+            const SizedBox(height: 20),
+            AppCard(
+              radius: 16,
+              padding: const EdgeInsets.all(16),
+              child: Row(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Container(
+                    width: 36,
+                    height: 36,
+                    decoration: BoxDecoration(
+                      borderRadius: BorderRadius.circular(10),
+                      gradient: const LinearGradient(
+                        colors: [Color(0xFF2A9D58), Color(0xFF006C4D)],
+                      ),
+                    ),
+                    child: const Icon(Icons.smart_toy_rounded,
+                        color: Colors.white, size: 18),
+                  ),
+                  const SizedBox(width: 12),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        const Text('AI Coach says',
+                            style: TextStyle(
+                                fontSize: 13,
+                                fontWeight: FontWeight.w700,
+                                color: Color(0xFF111827))),
+                        const SizedBox(height: 4),
+                        Text(p.aiExplanation!,
+                            style: const TextStyle(
+                                fontSize: 13,
+                                color: Color(0xFF6B7280),
+                                height: 1.5)),
+                      ],
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ],
+        ],
+      ),
+    );
+  }
+
+  Widget _heroBadge(String emoji, String value, String label) {
+    return Expanded(
       child: Container(
-        width: 160,
-        margin: const EdgeInsets.only(right: 12),
+        padding: const EdgeInsets.symmetric(vertical: 8, horizontal: 10),
         decoration: BoxDecoration(
-          color: Colors.white,
-          borderRadius: BorderRadius.circular(AppRadius.lg),
-          boxShadow: kCardShadowLevel1,
+          color: Colors.white.withValues(alpha: 0.15),
+          borderRadius: BorderRadius.circular(10),
         ),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Container(
-              height: 90,
-              decoration: BoxDecoration(
-                borderRadius:
-                    const BorderRadius.vertical(top: Radius.circular(16)),
-                gradient: const LinearGradient(
-                  colors: [AppColors.primaryContainer, AppColors.primary],
-                ),
-              ),
-              child: Stack(
-                children: [
-                  const Center(
-                      child: Icon(Icons.restaurant, color: Colors.white, size: 32)),
-                  Positioned(top: 8, left: 8, child: MatchScoreChip(score: match)),
-                ],
-              ),
-            ),
-            Padding(
-              padding: const EdgeInsets.all(10),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(title,
-                      maxLines: 2,
-                      overflow: TextOverflow.ellipsis,
-                      style: AppTextStyles.bodyMd
-                          .copyWith(fontWeight: FontWeight.w600, fontSize: 13)),
-                  const SizedBox(height: 4),
-                  Text(meta,
-                      style: AppTextStyles.labelSm
-                          .copyWith(color: AppColors.onSurfaceVariant)),
-                ],
-              ),
-            ),
+            Text('$emoji $value',
+                style: const TextStyle(
+                    color: Colors.white,
+                    fontSize: 14,
+                    fontWeight: FontWeight.w800)),
+            Text(label,
+                style: const TextStyle(
+                    color: Colors.white60, fontSize: 10, fontWeight: FontWeight.w500)),
           ],
         ),
       ),
@@ -292,36 +462,69 @@ class _MealCard extends StatelessWidget {
   }
 }
 
-class _QuickAction extends StatelessWidget {
+// ─────────────────────────────────────────────────────────────────────────────
+// Quick action card
+// ─────────────────────────────────────────────────────────────────────────────
+
+class _QuickCard extends StatelessWidget {
   final IconData icon;
-  final String title;
-  final String subtitle;
-  final VoidCallback? onTap;
-  const _QuickAction(
-      {required this.icon,
-      required this.title,
-      required this.subtitle,
-      this.onTap});
+  final String label;
+  final String sub;
+  final List<Color> gradient;
+  final VoidCallback onTap;
+  const _QuickCard({
+    required this.icon,
+    required this.label,
+    required this.sub,
+    required this.gradient,
+    required this.onTap,
+  });
 
   @override
   Widget build(BuildContext context) {
-    return GestureDetector(
-      onTap: onTap,
-      child: AppCard(
-        padding: const EdgeInsets.symmetric(vertical: 16, horizontal: 10),
-        child: Column(
-          children: [
-            Icon(icon, color: AppColors.primary),
-            const SizedBox(height: 8),
-            Text(title,
-                textAlign: TextAlign.center,
-                style: AppTextStyles.labelMd
-                    .copyWith(fontWeight: FontWeight.w700)),
-            Text(subtitle,
-                textAlign: TextAlign.center,
-                style: AppTextStyles.labelSm
-                    .copyWith(color: AppColors.onSurfaceVariant)),
-          ],
+    return Expanded(
+      child: GestureDetector(
+        onTap: onTap,
+        child: Container(
+          padding: const EdgeInsets.all(16),
+          decoration: BoxDecoration(
+            gradient: LinearGradient(
+                colors: gradient,
+                begin: Alignment.topLeft,
+                end: Alignment.bottomRight),
+            borderRadius: BorderRadius.circular(18),
+            boxShadow: [
+              BoxShadow(
+                  color: gradient.first.withValues(alpha: 0.3),
+                  offset: const Offset(0, 6),
+                  blurRadius: 14)
+            ],
+          ),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Container(
+                width: 38,
+                height: 38,
+                decoration: BoxDecoration(
+                  color: Colors.white.withValues(alpha: 0.2),
+                  borderRadius: BorderRadius.circular(10),
+                ),
+                child: Icon(icon, color: Colors.white, size: 20),
+              ),
+              const SizedBox(height: 12),
+              Text(label,
+                  style: const TextStyle(
+                      color: Colors.white,
+                      fontSize: 14,
+                      fontWeight: FontWeight.w800)),
+              Text(sub,
+                  style: const TextStyle(
+                      color: Colors.white70,
+                      fontSize: 11,
+                      fontWeight: FontWeight.w500)),
+            ],
+          ),
         ),
       ),
     );
