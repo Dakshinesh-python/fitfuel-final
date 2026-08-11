@@ -73,7 +73,7 @@ TECH STACK (do not deviate without asking the user first)
   (mobile)
 - CI/CD: GitHub Actions, one workflow per app, path-filtered so each only runs when its
   folder changes
-- Everything must run on FREE tiers: Neon (DB), Render (backend hosting), Vercel
+- Everything must run on FREE tiers: Neon (DB), Render (backend hosting), GitHub Pages
   (web hosting), GitHub Actions artifacts (APK distribution — no Play Store fee needed)
 
 REPO STRUCTURE

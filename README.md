@@ -111,7 +111,7 @@ flutter run --dart-define=API_BASE_URL=http://192.168.x.x:4000
 | `DATABASE_URL` | PostgreSQL connection string | **Yes** |
 | `JWT_SECRET` | Long random secret for JWT signing | **Yes** |
 | `GROQ_API_KEY` | Free API key from [console.groq.com](https://console.groq.com) — for AI chat & meal plan explanations | No (AI features disabled if empty) |
-| `ALLOWED_ORIGINS` | Comma-separated CORS origins (e.g. your Vercel URL) | Yes (production) |
+| `ALLOWED_ORIGINS` | Comma-separated CORS origins (e.g. your GitHub Pages URL) | Yes (production) |
 
 ### Web App (`web/.env`)
 
@@ -244,7 +244,7 @@ Three GitHub Actions workflows — each triggered only when its own folder chang
 | Workflow | File | What it does |
 |---|---|---|
 | Backend CI | `.github/workflows/backend-ci.yml` | Spins up Postgres service container → Prisma migrate → lint → Jest+Supertest tests → TypeScript build → deploy to Render |
-| Web CI | `.github/workflows/web-ci.yml` | ESLint → Vitest + RTL tests → Vite build → deploy to Vercel |
+| Web CI | `.github/workflows/web-ci.yml` | ESLint → Vitest + RTL tests → Vite build → deploy to GitHub Pages |
 | Mobile CI | `.github/workflows/mobile-ci.yml` | `flutter analyze` + `flutter test` → build release APK → upload as artifact |
 
 ---
@@ -309,7 +309,7 @@ Three GitHub Actions workflows — each triggered only when its own folder chang
 | File | Description |
 |---|---|
 | [`docs/ARCHITECTURE.md`](docs/ARCHITECTURE.md) | Full tech stack, data models, algorithm details |
-| [`docs/DEPLOYMENT.md`](docs/DEPLOYMENT.md) | Step-by-step free hosting guide (Neon + Render + Vercel) |
+| [`docs/DEPLOYMENT.md`](docs/DEPLOYMENT.md) | Step-by-step free hosting guide (Neon + Render + GitHub Pages) |
 | [`docs/API_REFERENCE.md`](docs/API_REFERENCE.md) | Every endpoint with request/response examples |
 | [`docs/TESTING_GUIDE.md`](docs/TESTING_GUIDE.md) | How to run all tests across all three apps |
 
@@ -335,7 +335,7 @@ Three GitHub Actions workflows — each triggered only when its own folder chang
 | Mobile fonts | `google_fonts` (Manrope + Inter) |
 | CI/CD | GitHub Actions |
 | Hosting (backend) | Render (free tier) |
-| Hosting (web) | Vercel (free tier) |
+| Hosting (web) | GitHub Pages (free tier) |
 | Hosting (DB) | Neon (free tier) |
 
 ---

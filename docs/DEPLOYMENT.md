@@ -157,41 +157,33 @@ DATABASE_URL="your-neon-url" npx prisma db seed
 
 ---
 
-## 6. Step 4 — Web App: Vercel (free React hosting)
+## 6. Step 4 — Web App: GitHub Pages (free React hosting)
 
-### 6.1 Import the project
+The frontend is configured to deploy automatically to GitHub Pages via a GitHub Actions workflow (`web-ci.yml`) whenever you push to the `main` branch. 
 
-1. Go to [vercel.com/new](https://vercel.com/new)
-2. Import from GitHub → select `fitfuel`
-3. Configure:
+### 6.1 Enable GitHub Pages
 
-| Setting | Value |
+1. Go to your GitHub repository → **Settings**
+2. In the left sidebar, click on **Pages**
+3. Under **Build and deployment**:
+   - Source: **GitHub Actions**
+4. That's it! GitHub Actions will take over the deployment from here.
+
+### 6.2 Set Backend URL Secret
+
+In your GitHub repository → **Settings** → **Secrets and variables** → **Actions** → **New repository secret**:
+
+| Name | Value |
 |---|---|
-| **Framework Preset** | `Vite` |
-| **Root Directory** | `web` |
-| **Build Command** | `npm run build` (auto-detected) |
-| **Output Directory** | `dist` (auto-detected) |
+| `VITE_API_BASE_URL` | `https://fitfuel-backend.onrender.com` |
 
-### 6.2 Add environment variables
+### 6.3 Update Backend CORS
 
-In **Environment Variables** section:
-
-| Key | Value | Environment |
-|---|---|---|
-| `VITE_API_BASE_URL` | `https://fitfuel-backend.onrender.com` | Production |
-
-### 6.3 Deploy
-
-Click **Deploy** — Vercel will build and deploy.
-
-Your web app URL: `https://fitfuel-web.vercel.app` (or your custom subdomain)
-
-### 6.4 Update backend CORS
-
-Now go back to your Render environment variables and update:
+Now go back to your Render environment variables (for the backend) and update the `ALLOWED_ORIGINS` to point to your new GitHub Pages URL:
 ```
-ALLOWED_ORIGINS=https://fitfuel-web.vercel.app
+ALLOWED_ORIGINS=https://your-username.github.io
 ```
+*(e.g., https://Dakshinesh-python.github.io)*
 
 Trigger a manual redeploy on Render after changing env vars.
 
@@ -235,13 +227,8 @@ All CI secrets to add in **GitHub → Settings → Secrets and variables → Act
 | Secret name | Where to get it | Used by |
 |---|---|---|
 | `DATABASE_URL` | Neon connection string | `backend-ci.yml` (runs tests against a temporary DB — actually uses the CI's own Postgres service container, this secret is optional) |
-| `VERCEL_TOKEN` | [vercel.com/account/tokens](https://vercel.com/account/tokens) → Create token | `web-ci.yml` |
-| `VERCEL_ORG_ID` | Vercel project settings → General → `orgId` | `web-ci.yml` |
-| `VERCEL_PROJECT_ID` | Vercel project settings → General → `projectId` | `web-ci.yml` |
 | `VITE_API_BASE_URL` | Your Render backend URL | `web-ci.yml` (build-time env) |
 | `MOBILE_API_BASE_URL` | Your Render backend URL | `mobile-ci.yml` (compile-time `--dart-define`) |
-
-> **Tip**: `VERCEL_ORG_ID` and `VERCEL_PROJECT_ID` can be found in `.vercel/project.json` after running `vercel link` locally, or in your Vercel project dashboard under **Settings → General**.
 
 ---
 
@@ -312,8 +299,8 @@ Neon pauses projects that have been inactive for some time on the free tier. Fix
 - Set up a UptimeRobot or cron job to do a lightweight DB read every few days
 - Or upgrade to a paid plan which disables auto-pause
 
-### Problem: Vercel / Netlify bandwidth
-Free tier allows 100 GB/month on Vercel. For a demo project this is effectively unlimited.
+### Problem: GitHub Pages bandwidth
+Free tier allows 100 GB/month on GitHub Pages. For a demo project this is effectively unlimited.
 
 ---
 
@@ -325,7 +312,7 @@ When you're ready to move beyond free tiers:
 |---|---|---|---|
 | **Render** | Starter plan | $7/month | No sleep, always-on |
 | **Neon** | Launch plan | $19/month | More compute, no throttling |
-| **Vercel** | Pro plan | $20/month | More bandwidth, team features |
+| **GitHub Pages** | Vercel Pro | $20/month | More bandwidth, team features (if you switch to Vercel) |
 | **Railway** | Hobby plan | $5/month credit included | Easy, no cold starts |
 
 ### Moving to a VPS (best long-term value)
@@ -368,8 +355,8 @@ JWT_SECRET="your-very-long-random-secret-here"
 # From https://console.groq.com (leave empty to disable AI)
 GROQ_API_KEY="gsk_xxxxxxxxxxxxxxxxxxxx"
 
-# Your Vercel web app URL
-ALLOWED_ORIGINS="https://fitfuel-web.vercel.app"
+# Your GitHub Pages web app URL
+ALLOWED_ORIGINS="https://Dakshinesh-python.github.io"
 ```
 
 ### web/.env (production)
@@ -397,7 +384,7 @@ After completing all steps, verify the following:
 - [ ] CORS allows your Vercel domain (test in browser Network tab)
 
 ### Web App
-- [ ] `https://fitfuel-web.vercel.app` loads the landing page
+- [ ] `https://Dakshinesh-python.github.io/fitfuel-final/` loads the landing page
 - [ ] Registration and login work (creates a JWT)
 - [ ] Health assessment completes and shows dashboard
 - [ ] Recommendations page shows meals
@@ -423,7 +410,7 @@ After completing all steps, verify the following:
 |---|---|
 | Neon Dashboard | https://console.neon.tech |
 | Render Dashboard | https://dashboard.render.com |
-| Vercel Dashboard | https://vercel.com/dashboard |
+| GitHub Repository | https://github.com/Dakshinesh-python/fitfuel-final |
 | Groq Console | https://console.groq.com |
 | UptimeRobot | https://uptimerobot.com |
 | cron-job.org | https://cron-job.org |
