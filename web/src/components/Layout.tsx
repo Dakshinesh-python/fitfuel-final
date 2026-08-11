@@ -40,7 +40,7 @@ export default function Layout({ title, children }: LayoutProps) {
           <div className="w-10 h-10 rounded-xl flex items-center justify-center flex-shrink-0 overflow-hidden"
             style={{ background: 'rgba(255,255,255,0.1)', border: '1px solid rgba(255,255,255,0.15)' }}
           >
-            <img src="/logo.png" alt="FitFuel AI logo" className="w-full h-full object-contain" />
+            <img src={`${import.meta.env.BASE_URL}logo.png`} alt="FitFuel AI logo" className="w-full h-full object-contain" />
           </div>
           <div>
             <h1 className="font-bold text-white tracking-tight" style={{ fontSize: '18px', lineHeight: '22px' }}>
@@ -132,7 +132,7 @@ export default function Layout({ title, children }: LayoutProps) {
         >
           {/* Mobile brand */}
           <div className="md:hidden flex items-center gap-2">
-            <img src="/logo.png" alt="FitFuel AI" className="w-7 h-7 object-contain" />
+            <img src={`${import.meta.env.BASE_URL}logo.png`} alt="FitFuel AI" className="w-7 h-7 object-contain" />
             <h1 className="font-bold text-primary" style={{ fontSize: '18px' }}>FitFuel AI</h1>
           </div>
 
