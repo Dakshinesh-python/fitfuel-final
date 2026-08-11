@@ -119,236 +119,300 @@ export default function HealthAssessment() {
 
       <main className="max-w-5xl mx-auto p-container-padding-mobile md:p-container-padding-desktop">
         {!result ? (
-          <form onSubmit={handleSubmit} className="space-y-12">
-            <div>
-              <h1 className="font-headline-lg text-headline-lg text-on-background mb-3 tracking-tight">
-                Define your approach.
+          <form onSubmit={handleSubmit} className="max-w-4xl mx-auto space-y-8 animate-in fade-in duration-500">
+            <div className="text-center mb-10">
+              <h1 className="font-headline-lg text-headline-lg text-on-background mb-4 tracking-tight">
+                Define your approach
               </h1>
-              <p className="font-body-lg text-body-lg text-on-surface-variant">
-                Help us tailor your meal plans by sharing your goals, activity level, and
-                dietary preferences.
+              <p className="font-body-lg text-body-lg text-on-surface-variant max-w-2xl mx-auto">
+                Help us tailor your meal plans by sharing your goals, activity level, and dietary preferences.
               </p>
             </div>
 
             {error && (
-              <div className="px-4 py-3 rounded-lg bg-error-container text-on-error-container font-body-sm text-body-sm">
+              <div className="px-5 py-4 rounded-xl bg-error-container/50 border border-error/20 text-on-error-container font-body-sm flex items-center gap-3">
+                <span className="material-symbols-outlined text-error">error</span>
                 {error}
               </div>
             )}
 
-            {/* Weight Goals */}
-            <div className="space-y-4">
-              <h2 className="font-headline-md text-headline-md text-on-background border-b border-outline-variant pb-2 inline-block">
-                Weight Goals
-              </h2>
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-card-gap">
-                <div>
-                  <label className="block font-label-caps text-label-caps text-on-surface-variant mb-2" htmlFor="currentWeight">
-                    Current Weight (kg)
-                  </label>
-                  <input
-                    id="currentWeight"
-                    type="number"
-                    step="0.1"
-                    required
-                    value={currentWeightKg}
-                    onChange={(e) => setCurrentWeightKg(e.target.value)}
-                    className="w-full bg-surface-container-lowest border border-outline-variant rounded-lg py-3 px-4 font-body-sm text-body-sm text-on-surface focus:outline-none focus:ring-2 focus:ring-primary focus:border-primary transition-colors"
-                    placeholder="75"
-                  />
+            <div className="bg-surface-container-lowest rounded-3xl shadow-ambient border border-outline-variant/30 overflow-hidden">
+              
+              {/* Weight Goals Section */}
+              <div className="p-8 md:p-10 border-b border-outline-variant/30 bg-gradient-to-b from-surface-container-lowest to-surface-container-low/30">
+                <div className="flex items-center gap-3 mb-6">
+                  <div className="w-10 h-10 rounded-full bg-primary/10 flex items-center justify-center text-primary">
+                    <span className="material-symbols-outlined">monitor_weight</span>
+                  </div>
+                  <h2 className="font-headline-md text-headline-md text-on-background">
+                    Body Metrics
+                  </h2>
                 </div>
-                <div>
-                  <label className="block font-label-caps text-label-caps text-on-surface-variant mb-2" htmlFor="targetWeight">
-                    Target Weight (kg)
-                  </label>
-                  <input
-                    id="targetWeight"
-                    type="number"
-                    step="0.1"
-                    required
-                    value={targetWeightKg}
-                    onChange={(e) => setTargetWeightKg(e.target.value)}
-                    className="w-full bg-surface-container-lowest border border-outline-variant rounded-lg py-3 px-4 font-body-sm text-body-sm text-on-surface focus:outline-none focus:ring-2 focus:ring-primary focus:border-primary transition-colors"
-                    placeholder="68"
-                  />
+                
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                  <div className="group">
+                    <label className="block font-label-caps text-[13px] text-on-surface-variant mb-2 group-focus-within:text-primary transition-colors" htmlFor="currentWeight">
+                      Current Weight (kg)
+                    </label>
+                    <div className="relative">
+                      <input
+                        id="currentWeight"
+                        type="number"
+                        step="0.1"
+                        required
+                        value={currentWeightKg}
+                        onChange={(e) => setCurrentWeightKg(e.target.value)}
+                        className="w-full bg-surface-container-lowest border border-outline-variant/60 rounded-xl py-3.5 pl-4 pr-12 font-body-lg text-on-surface focus:outline-none focus:ring-2 focus:ring-primary/50 focus:border-primary transition-all shadow-sm"
+                        placeholder="75"
+                      />
+                      <span className="absolute right-4 top-1/2 -translate-y-1/2 text-on-surface-variant/50 font-medium select-none pointer-events-none">
+                        kg
+                      </span>
+                    </div>
+                  </div>
+                  <div className="group">
+                    <label className="block font-label-caps text-[13px] text-on-surface-variant mb-2 group-focus-within:text-primary transition-colors" htmlFor="targetWeight">
+                      Target Weight (kg)
+                    </label>
+                    <div className="relative">
+                      <input
+                        id="targetWeight"
+                        type="number"
+                        step="0.1"
+                        required
+                        value={targetWeightKg}
+                        onChange={(e) => setTargetWeightKg(e.target.value)}
+                        className="w-full bg-surface-container-lowest border border-outline-variant/60 rounded-xl py-3.5 pl-4 pr-12 font-body-lg text-on-surface focus:outline-none focus:ring-2 focus:ring-primary/50 focus:border-primary transition-all shadow-sm"
+                        placeholder="68"
+                      />
+                      <span className="absolute right-4 top-1/2 -translate-y-1/2 text-on-surface-variant/50 font-medium select-none pointer-events-none">
+                        kg
+                      </span>
+                    </div>
+                  </div>
                 </div>
               </div>
-            </div>
 
-            {/* Activity Level */}
-            <div className="space-y-4">
-              <h2 className="font-headline-md text-headline-md text-on-background border-b border-outline-variant pb-2 inline-block">
-                Activity Level
-              </h2>
-              <select
-                aria-label="Activity Level"
-                value={activityLevel}
-                onChange={(e) => setActivityLevel(e.target.value as ActivityLevel)}
-                className="w-full md:w-2/3 bg-surface-container-lowest border border-outline-variant rounded-lg py-3 px-4 font-body-sm text-body-sm text-on-surface focus:outline-none focus:ring-2 focus:ring-primary focus:border-primary transition-colors"
-              >
-                {ACTIVITY_LEVELS.map((level) => (
-                  <option key={level} value={level}>
-                    {ACTIVITY_LABELS[level]}
-                  </option>
-                ))}
-              </select>
-            </div>
+              {/* Activity Level Section */}
+              <div className="p-8 md:p-10 border-b border-outline-variant/30">
+                <div className="flex items-center gap-3 mb-6">
+                  <div className="w-10 h-10 rounded-full bg-primary/10 flex items-center justify-center text-primary">
+                    <span className="material-symbols-outlined">directions_run</span>
+                  </div>
+                  <h2 className="font-headline-md text-headline-md text-on-background">
+                    Activity Level
+                  </h2>
+                </div>
+                <div className="relative group">
+                  <select
+                    aria-label="Activity Level"
+                    value={activityLevel}
+                    onChange={(e) => setActivityLevel(e.target.value as ActivityLevel)}
+                    className="w-full appearance-none bg-surface-container-lowest border border-outline-variant/60 rounded-xl py-4 pl-5 pr-12 font-body-lg text-on-surface focus:outline-none focus:ring-2 focus:ring-primary/50 focus:border-primary transition-all shadow-sm cursor-pointer"
+                  >
+                    {ACTIVITY_LEVELS.map((level) => (
+                      <option key={level} value={level}>
+                        {ACTIVITY_LABELS[level]}
+                      </option>
+                    ))}
+                  </select>
+                  <span className="material-symbols-outlined absolute right-4 top-1/2 -translate-y-1/2 text-on-surface-variant pointer-events-none group-hover:text-primary transition-colors">
+                    expand_more
+                  </span>
+                </div>
+              </div>
 
-            {/* Fitness Goal */}
-            <div className="space-y-4">
-              <h2 className="font-headline-md text-headline-md text-on-background border-b border-outline-variant pb-2 inline-block">
-                Primary Goal
-              </h2>
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-card-gap">
-                {FITNESS_GOALS.map((goal) => {
-                  const meta = GOAL_META[goal];
-                  const checked = fitnessGoal === goal;
-                  return (
-                    <label key={goal} className="relative cursor-pointer group">
-                      <input
-                        type="radio"
-                        name="fitness_goal"
-                        value={goal}
-                        checked={checked}
-                        onChange={() => setFitnessGoal(goal)}
-                        className="peer sr-only"
-                      />
-                      <div
-                        className={[
-                          'h-full p-6 bg-surface-container-lowest border rounded-xl transition-all duration-200',
-                          checked
-                            ? 'border-primary bg-primary/5 ring-1 ring-primary'
-                            : 'border-outline-variant hover:border-outline hover:bg-surface-container-low',
-                        ].join(' ')}
-                      >
+              {/* Fitness Goal Section */}
+              <div className="p-8 md:p-10 border-b border-outline-variant/30 bg-gradient-to-b from-surface-container-lowest to-surface-container-low/30">
+                <div className="flex items-center gap-3 mb-6">
+                  <div className="w-10 h-10 rounded-full bg-primary/10 flex items-center justify-center text-primary">
+                    <span className="material-symbols-outlined">track_changes</span>
+                  </div>
+                  <h2 className="font-headline-md text-headline-md text-on-background">
+                    Primary Goal
+                  </h2>
+                </div>
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                  {FITNESS_GOALS.map((goal) => {
+                    const meta = GOAL_META[goal];
+                    const checked = fitnessGoal === goal;
+                    return (
+                      <label key={goal} className="relative cursor-pointer group">
+                        <input
+                          type="radio"
+                          name="fitness_goal"
+                          value={goal}
+                          checked={checked}
+                          onChange={() => setFitnessGoal(goal)}
+                          className="peer sr-only"
+                        />
                         <div
                           className={[
-                            'w-12 h-12 rounded-full flex items-center justify-center mb-4',
-                            checked ? 'bg-primary-container/20' : 'bg-surface-variant',
+                            'h-full p-6 rounded-2xl transition-all duration-300 border-2',
+                            checked
+                              ? 'border-primary bg-primary/5 shadow-md scale-[1.02]'
+                              : 'border-outline-variant/30 bg-surface-container-lowest hover:border-primary/40 hover:bg-surface hover:scale-[1.01]',
                           ].join(' ')}
                         >
-                          <span
-                            className={[
-                              'material-symbols-outlined text-[28px]',
-                              checked ? 'text-primary fill' : 'text-on-surface-variant',
-                            ].join(' ')}
-                          >
-                            {meta.icon}
-                          </span>
-                        </div>
-                        <h3 className="font-headline-md text-headline-md text-on-background mb-2">
-                          {meta.label}
-                        </h3>
-                        <p className="font-body-sm text-body-sm text-on-surface-variant">
-                          {meta.desc}
-                        </p>
-                        {checked && (
-                          <div className="absolute top-4 right-4 text-primary">
-                            <span className="material-symbols-outlined fill">check_circle</span>
+                          <div className="flex items-start justify-between mb-4">
+                            <div
+                              className={[
+                                'w-12 h-12 rounded-xl flex items-center justify-center transition-colors duration-300',
+                                checked ? 'bg-primary text-on-primary shadow-sm' : 'bg-surface-variant text-on-surface-variant group-hover:bg-primary/10 group-hover:text-primary',
+                              ].join(' ')}
+                            >
+                              <span className="material-symbols-outlined text-[24px]">
+                                {meta.icon}
+                              </span>
+                            </div>
+                            <div className={[
+                              'w-6 h-6 rounded-full border-2 flex items-center justify-center transition-all',
+                              checked ? 'border-primary bg-primary' : 'border-outline-variant'
+                            ].join(' ')}>
+                              {checked && <span className="material-symbols-outlined text-[16px] text-on-primary">check</span>}
+                            </div>
                           </div>
-                        )}
-                      </div>
-                    </label>
-                  );
-                })}
+                          <h3 className="font-headline-md text-headline-md text-on-background mb-2">
+                            {meta.label}
+                          </h3>
+                          <p className="font-body-sm text-[13px] leading-relaxed text-on-surface-variant/80">
+                            {meta.desc}
+                          </p>
+                        </div>
+                      </label>
+                    );
+                  })}
+                </div>
               </div>
-            </div>
 
-            {/* Dietary Preference */}
-            <div className="space-y-4">
-              <h2 className="font-headline-md text-headline-md text-on-background border-b border-outline-variant pb-2 inline-block">
-                Dietary Preference
-              </h2>
-              <div className="flex flex-wrap gap-3">
-                {DIETARY_PREFERENCES.map((pref) => {
-                  const checked = dietaryPreference === pref;
-                  return (
-                    <label key={pref} className="cursor-pointer">
-                      <input
-                        type="radio"
-                        name="dietary_preference"
-                        value={pref}
-                        checked={checked}
-                        onChange={() => setDietaryPreference(pref)}
-                        className="peer sr-only"
-                      />
-                      <div
-                        className={[
-                          'px-5 py-2.5 rounded-full border font-label-caps text-label-caps uppercase transition-all',
-                          checked
-                            ? 'bg-secondary-container text-on-secondary-container border-secondary-container'
-                            : 'border-outline-variant bg-surface-container-lowest text-on-surface-variant hover:bg-surface-container-low',
-                        ].join(' ')}
+              {/* Dietary Preference Section */}
+              <div className="p-8 md:p-10 border-b border-outline-variant/30">
+                <div className="flex items-center gap-3 mb-6">
+                  <div className="w-10 h-10 rounded-full bg-primary/10 flex items-center justify-center text-primary">
+                    <span className="material-symbols-outlined">set_meal</span>
+                  </div>
+                  <h2 className="font-headline-md text-headline-md text-on-background">
+                    Dietary Preference
+                  </h2>
+                </div>
+                <div className="flex flex-wrap gap-3">
+                  {DIETARY_PREFERENCES.map((pref) => {
+                    const checked = dietaryPreference === pref;
+                    return (
+                      <label key={pref} className="cursor-pointer group">
+                        <input
+                          type="radio"
+                          name="dietary_preference"
+                          value={pref}
+                          checked={checked}
+                          onChange={() => setDietaryPreference(pref)}
+                          className="peer sr-only"
+                        />
+                        <div
+                          className={[
+                            'px-6 py-3 rounded-xl border-2 font-label-caps uppercase transition-all duration-300 font-bold tracking-wider',
+                            checked
+                              ? 'bg-primary border-primary text-on-primary shadow-md scale-105'
+                              : 'border-outline-variant/30 bg-surface-container-lowest text-on-surface-variant hover:border-primary/40 hover:bg-primary/5 hover:text-primary',
+                          ].join(' ')}
+                        >
+                          {DIET_LABELS[pref]}
+                        </div>
+                      </label>
+                    );
+                  })}
+                </div>
+              </div>
+
+              {/* Allergies & Budget Section */}
+              <div className="p-8 md:p-10 grid grid-cols-1 md:grid-cols-2 gap-10">
+                <div>
+                  <div className="flex items-center gap-3 mb-2">
+                    <div className="w-10 h-10 rounded-full bg-primary/10 flex items-center justify-center text-primary">
+                      <span className="material-symbols-outlined">medical_information</span>
+                    </div>
+                    <h2 className="font-headline-md text-headline-md text-on-background">
+                      Allergies & Restrictions
+                    </h2>
+                  </div>
+                  <p className="font-body-sm text-[13px] text-on-surface-variant/80 mb-4 pl-13">
+                    Type an allergy and press Enter to add it.
+                  </p>
+                  <div className="flex flex-wrap gap-2 items-center">
+                    {allergies.map((a) => (
+                      <span
+                        key={a}
+                        className="flex items-center gap-1.5 px-4 py-2 rounded-xl bg-error/10 text-error font-label-caps text-label-caps uppercase border border-error/20 shadow-sm animate-in zoom-in-95 duration-200"
                       >
-                        {DIET_LABELS[pref]}
-                      </div>
-                    </label>
-                  );
-                })}
+                        {a}
+                        <button
+                          type="button"
+                          onClick={() => removeAllergy(a)}
+                          aria-label={`Remove ${a}`}
+                          className="material-symbols-outlined text-[16px] hover:text-error-container-on hover:scale-110 transition-transform"
+                        >
+                          close
+                        </button>
+                      </span>
+                    ))}
+                    <input
+                      type="text"
+                      value={allergyInput}
+                      onChange={(e) => setAllergyInput(e.target.value)}
+                      onKeyDown={handleAllergyKeyDown}
+                      onBlur={addAllergy}
+                      placeholder="e.g. Peanuts, Gluten"
+                      className="min-w-[160px] flex-1 bg-surface-container-lowest border border-outline-variant/60 rounded-xl py-3 px-4 font-body-sm text-on-surface focus:outline-none focus:ring-2 focus:ring-primary/50 focus:border-primary transition-all shadow-sm"
+                    />
+                  </div>
+                </div>
+
+                <div>
+                  <div className="flex items-center gap-3 mb-2">
+                    <div className="w-10 h-10 rounded-full bg-primary/10 flex items-center justify-center text-primary">
+                      <span className="material-symbols-outlined">payments</span>
+                    </div>
+                    <h2 className="font-headline-md text-headline-md text-on-background">
+                      Daily Budget
+                    </h2>
+                  </div>
+                  <p className="font-body-sm text-[13px] text-on-surface-variant/80 mb-4 pl-13">
+                    Target maximum cost per day (INR).
+                  </p>
+                  <div className="relative">
+                    <span className="absolute left-4 top-1/2 -translate-y-1/2 text-on-surface-variant font-medium select-none pointer-events-none">
+                      ₹
+                    </span>
+                    <input
+                      id="dailyBudget"
+                      type="number"
+                      step="1"
+                      required
+                      value={dailyBudget}
+                      onChange={(e) => setDailyBudget(e.target.value)}
+                      className="w-full bg-surface-container-lowest border border-outline-variant/60 rounded-xl py-3 pl-9 pr-4 font-body-lg text-on-surface focus:outline-none focus:ring-2 focus:ring-primary/50 focus:border-primary transition-all shadow-sm"
+                      placeholder="500"
+                    />
+                  </div>
+                </div>
               </div>
             </div>
 
-            {/* Allergies */}
-            <div className="space-y-4">
-              <h2 className="font-headline-md text-headline-md text-on-background border-b border-outline-variant pb-2 inline-block">
-                Allergies &amp; Restrictions
-              </h2>
-              <p className="font-body-sm text-body-sm text-on-surface-variant">
-                Type an allergy and press Enter to add it.
-              </p>
-              <div className="flex flex-wrap gap-3 items-center">
-                {allergies.map((a) => (
-                  <span
-                    key={a}
-                    className="flex items-center gap-2 px-4 py-2 rounded-full bg-secondary-container/20 text-on-secondary-container font-label-caps text-label-caps uppercase border border-secondary-container/40"
-                  >
-                    {a}
-                    <button
-                      type="button"
-                      onClick={() => removeAllergy(a)}
-                      aria-label={`Remove ${a}`}
-                      className="material-symbols-outlined text-[16px] hover:text-error"
-                    >
-                      close
-                    </button>
+            <div className="flex justify-end pt-4">
+              <button
+                type="submit"
+                disabled={loading}
+                className="group relative inline-flex items-center justify-center gap-3 w-full md:w-auto px-10 py-4 bg-primary text-on-primary rounded-full font-headline-md hover:bg-primary/90 hover:shadow-lg hover:-translate-y-0.5 transition-all duration-300 disabled:opacity-60 disabled:hover:translate-y-0 disabled:hover:shadow-none overflow-hidden"
+              >
+                <div className="absolute inset-0 bg-white/20 translate-y-full group-hover:translate-y-0 transition-transform duration-300 ease-in-out" />
+                <span className="relative z-10">{loading ? 'Calculating Targets...' : 'Save & See My Targets'}</span>
+                {!loading && (
+                  <span className="material-symbols-outlined relative z-10 transition-transform group-hover:translate-x-1">
+                    arrow_forward
                   </span>
-                ))}
-                <input
-                  type="text"
-                  value={allergyInput}
-                  onChange={(e) => setAllergyInput(e.target.value)}
-                  onKeyDown={handleAllergyKeyDown}
-                  onBlur={addAllergy}
-                  placeholder="e.g. Peanuts"
-                  className="min-w-[160px] flex-1 bg-surface-container-lowest border border-outline-variant rounded-full py-2 px-4 font-body-sm text-body-sm text-on-surface focus:outline-none focus:ring-2 focus:ring-primary focus:border-primary transition-colors"
-                />
-              </div>
+                )}
+              </button>
             </div>
-
-            {/* Budget */}
-            <div className="space-y-4">
-              <h2 className="font-headline-md text-headline-md text-on-background border-b border-outline-variant pb-2 inline-block">
-                Daily Budget
-              </h2>
-              <input
-                id="dailyBudget"
-                type="number"
-                step="1"
-                required
-                value={dailyBudget}
-                onChange={(e) => setDailyBudget(e.target.value)}
-                className="w-full md:w-1/3 bg-surface-container-lowest border border-outline-variant rounded-lg py-3 px-4 font-body-sm text-body-sm text-on-surface focus:outline-none focus:ring-2 focus:ring-primary focus:border-primary transition-colors"
-                placeholder="500"
-              />
-            </div>
-
-            <button
-              type="submit"
-              disabled={loading}
-              className="w-full md:w-auto px-10 py-4 bg-primary text-on-primary rounded-full font-headline-md text-headline-md hover:bg-primary-container transition-colors duration-200 disabled:opacity-60"
-            >
-              {loading ? 'Calculating…' : 'Save & See My Targets'}
-            </button>
           </form>
         ) : (
           <div className="space-y-8">
