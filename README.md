@@ -50,7 +50,7 @@ fitfuel/
 | Node.js | 20+ |
 | npm | 9+ |
 | Flutter SDK | 3.24+ |
-| PostgreSQL | Any (or use free Supabase/Neon cloud) |
+| PostgreSQL | Any (or use free Neon cloud) |
 | Git | Any |
 
 ### 1. Clone & configure environment
@@ -171,7 +171,7 @@ cd fitfuel_mobile && flutter analyze   # 0 errors, 0 warnings expected
                     ┌───────────────────┼─────────────────┐
                     │                  │  Prisma ORM      │
                     │  ┌───────────────▼─────────────┐   │
-                    │  │  PostgreSQL (Supabase/Neon)  │   │
+                    │  │  PostgreSQL (Neon)           │   │
                     │  └─────────────────────────────┘   │
                     │                                      │
                     │  ┌───────────────────────────────┐  │
@@ -309,7 +309,7 @@ Three GitHub Actions workflows — each triggered only when its own folder chang
 | File | Description |
 |---|---|
 | [`docs/ARCHITECTURE.md`](docs/ARCHITECTURE.md) | Full tech stack, data models, algorithm details |
-| [`docs/DEPLOYMENT.md`](docs/DEPLOYMENT.md) | Step-by-step free hosting guide (Supabase + Render + Vercel) |
+| [`docs/DEPLOYMENT.md`](docs/DEPLOYMENT.md) | Step-by-step free hosting guide (Neon + Render + Vercel) |
 | [`docs/API_REFERENCE.md`](docs/API_REFERENCE.md) | Every endpoint with request/response examples |
 | [`docs/TESTING_GUIDE.md`](docs/TESTING_GUIDE.md) | How to run all tests across all three apps |
 
@@ -336,7 +336,7 @@ Three GitHub Actions workflows — each triggered only when its own folder chang
 | CI/CD | GitHub Actions |
 | Hosting (backend) | Render (free tier) |
 | Hosting (web) | Vercel (free tier) |
-| Hosting (DB) | Supabase or Neon (free tier) |
+| Hosting (DB) | Neon (free tier) |
 
 ---
 

@@ -57,7 +57,7 @@ THE 7 PROJECT PHASES (for reference across all tasks)
    goal achievement %, meal history, personalized insights
 
 TECH STACK (do not deviate without asking the user first)
-- Backend: Node.js + TypeScript + Express, Prisma ORM, PostgreSQL (Supabase or Neon free
+- Backend: Node.js + TypeScript + Express, Prisma ORM, PostgreSQL (Neon free
   tier), JWT auth (jsonwebtoken + bcryptjs), Zod for request validation
 - Web app: React + TypeScript + Vite + Tailwind CSS, React Router, Axios
 - Mobile app: Flutter (Dart), Provider for state management, http package for API calls,
@@ -73,7 +73,7 @@ TECH STACK (do not deviate without asking the user first)
   (mobile)
 - CI/CD: GitHub Actions, one workflow per app, path-filtered so each only runs when its
   folder changes
-- Everything must run on FREE tiers: Supabase/Neon (DB), Render (backend hosting), Vercel
+- Everything must run on FREE tiers: Neon (DB), Render (backend hosting), Vercel
   (web hosting), GitHub Actions artifacts (APK distribution — no Play Store fee needed)
 
 REPO STRUCTURE
@@ -192,7 +192,7 @@ TESTING
 DEFINITION OF DONE
 - `npm run lint`, `npm test`, `npm run build` all pass with zero errors in `backend/`
 - `npx prisma generate` and `npx prisma migrate dev` succeed against a real Postgres
-  connection (local Docker Postgres or a free Supabase/Neon instance)
+  connection (local Docker Postgres or a free Neon instance)
 - Registering then logging in with the same credentials via curl/Postman returns a valid
   JWT both times
 ```

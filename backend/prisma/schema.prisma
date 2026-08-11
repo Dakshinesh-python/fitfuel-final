@@ -1,5 +1,5 @@
 // FitFuel database schema
-// Provider: PostgreSQL (Supabase / Neon free tier)
+// Provider: PostgreSQL (Neon free tier)
 
 generator client {
   provider = "prisma-client-js"

@@ -38,7 +38,7 @@ fitfuel/
 **Request flow:**
 
 ```
-Flutter / React  →  Express API (:4000)  →  PostgreSQL (Supabase / Neon)
+Flutter / React  →  Express API (:4000)  →  PostgreSQL (Neon)
                                          →  Groq LLM (AI chat & explanation)
 ```
 
@@ -52,7 +52,7 @@ Flutter / React  →  Express API (:4000)  →  PostgreSQL (Supabase / Neon)
 |---|---|---|
 | **Node.js** | 18 LTS | Backend + web build |
 | **npm** | 9+ | Comes with Node |
-| **PostgreSQL** | any | Supabase or Neon free tier recommended — no local install needed |
+| **PostgreSQL** | any | Neon free tier recommended — no local install needed |
 | **Flutter SDK** | 3.3.0+ | Mobile app |
 | **Dart SDK** | included with Flutter | |
 | **Android Studio** / Xcode | latest stable | For emulator / simulator |
@@ -62,7 +62,7 @@ Flutter / React  →  Express API (:4000)  →  PostgreSQL (Supabase / Neon)
 
 | Service | What for | Sign-up URL |
 |---|---|---|
-| **Supabase** or **Neon** | PostgreSQL database (free tier) | https://supabase.com or https://neon.tech |
+| **Neon** | PostgreSQL database (free tier) | https://neon.tech |
 | **Groq** | AI meal explanations & chat (free tier, no credit card) | https://console.groq.com |
 
 ---
@@ -118,11 +118,8 @@ fitfuel/
 
 ### 4.1 Get a PostgreSQL connection string
 
-**Option A — Neon (recommended, instant)**
+**1. Set up Neon (recommended, instant)**
 1. Go to https://neon.tech → Create free account → Create project → Copy the connection string.
-
-**Option B — Supabase**
-1. Go to https://supabase.com → Create project → Settings → Database → Copy the URI (use the `postgresql://` URI, not the pooled one for migrations).
 
 The connection string looks like:
 ```
@@ -158,7 +155,7 @@ Then edit `.env`:
 PORT=4000
 NODE_ENV=development
 
-# Paste your Neon / Supabase connection string here
+# Paste your Neon connection string here
 DATABASE_URL="postgresql://user:password@host/fitfuel?sslmode=require"
 
 # Generate a strong random secret (e.g. openssl rand -hex 32)

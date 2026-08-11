@@ -8,13 +8,13 @@
 
 1. [Overview](#1-overview)
 2. [Prerequisites](#2-prerequisites)
-3. [Step 1 — Database: Supabase (free PostgreSQL)](#3-step-1--database-supabase-free-postgresql)
+3. [Step 1 — Database: Neon (free PostgreSQL)](#3-step-1--database-neon-free-postgresql)
 4. [Step 2 — Push to GitHub](#4-step-2--push-to-github)
 5. [Step 3 — Backend: Render (free Node.js hosting)](#5-step-3--backend-render-free-nodejs-hosting)
 6. [Step 4 — Web App: Vercel (free React hosting)](#6-step-4--web-app-vercel-free-react-hosting)
 7. [Step 5 — Mobile APK: GitHub Actions (free CI build)](#7-step-5--mobile-apk-github-actions-free-ci-build)
 8. [Step 6 — Wire Up GitHub Actions Secrets](#8-step-6--wire-up-github-actions-secrets)
-9. [Alternative: Neon (instead of Supabase)](#9-alternative-neon-instead-of-supabase)
+9. [Alternative: Supabase (instead of Neon)](#9-alternative-supabase-instead-of-neon)
 10. [Alternative: Railway (instead of Render)](#10-alternative-railway-instead-of-render)
 11. [Alternative: Netlify (instead of Vercel)](#11-alternative-netlify-instead-of-vercel)
 12. [Keeping Everything Alive (Free Tier Limitations)](#12-keeping-everything-alive-free-tier-limitations)
@@ -28,7 +28,7 @@
 
 | Service | Purpose | Free Tier Limit |
 |---|---|---|
-| **Supabase** | PostgreSQL database | 500 MB storage, 2 projects |
+| **Neon** | PostgreSQL database | 512 MB storage, 1 project |
 | **Render** | Backend Node.js API | 750 hrs/month (1 free service), sleeps after 15 min |
 | **Vercel** | React web app | Unlimited projects, 100 GB bandwidth/month |
 | **GitHub Actions** | CI/CD + APK build | 2000 min/month (public repos: unlimited) |
@@ -38,7 +38,7 @@
 ## 2. Prerequisites
 
 - A **GitHub account** (to host the repo and run CI)
-- A **Supabase account** — [supabase.com](https://supabase.com) (sign in with GitHub)
+- A **Neon account** — [neon.tech](https://neon.tech) (sign in with GitHub)
 - A **Render account** — [render.com](https://render.com) (sign in with GitHub)
 - A **Vercel account** — [vercel.com](https://vercel.com) (sign in with GitHub)
 - A **Groq account** (optional, for AI features) — [console.groq.com](https://console.groq.com)
@@ -46,36 +46,32 @@
 
 ---
 
-## 3. Step 1 — Database: Supabase (free PostgreSQL)
+## 3. Step 1 — Database: Neon (free PostgreSQL)
 
-### 3.1 Create a Supabase project
+### 3.1 Create a Neon project
 
-1. Go to [app.supabase.com](https://app.supabase.com) → **New project**
-2. Choose a name (e.g. `fitfuel`) and a strong database password
+1. Go to [neon.tech](https://neon.tech) → **Sign up**
+2. Create a new project (e.g. `fitfuel`) and database
 3. Select the region closest to your users
-4. Click **Create new project** (takes ~2 minutes)
+4. Click **Create Project**
 
 ### 3.2 Get the connection string
 
-1. In your project dashboard → **Settings** (left sidebar) → **Database**
-2. Scroll to **Connection string**
-3. Select **URI** tab and choose **Transaction pooler** (port `6543`)
-4. Copy the connection string — it looks like:
+1. In your project dashboard → **Connection Details**
+2. Select **Prisma** for the correct format
+3. Copy the connection string — it looks like:
    ```
-   postgresql://postgres.xxxx:YOUR_PASSWORD@aws-0-ap-south-1.pooler.supabase.com:6543/postgres
+   postgresql://USER:PASSWORD@ep-xxx.ap-southeast-1.aws.neon.tech/neondb?sslmode=require
    ```
-5. Replace `[YOUR-PASSWORD]` with your database password
-
-> **Why Transaction pooler?** The session pooler (port 5432) is fine for local dev but can exhaust connections on Render's free tier. The transaction pooler (port 6543) handles short-lived connections better.
 
 ### 3.3 Add the URL to your .env
 
 ```bash
 # backend/.env
-DATABASE_URL="postgresql://postgres.xxxx:PASSWORD@aws-0-ap-south-1.pooler.supabase.com:6543/postgres?pgbouncer=true&connection_limit=1"
+DATABASE_URL="postgresql://USER:PASSWORD@ep-xxx.ap-southeast-1.aws.neon.tech/neondb?sslmode=require"
 ```
 
-> **Note the query params**: `pgbouncer=true&connection_limit=1` — required for Prisma to work correctly with PgBouncer.
+> With Neon, you **do not** need `pgbouncer=true` — the standard connection string works.
 
 ---
 
@@ -127,7 +123,7 @@ In the **Environment** section, add:
 | Key | Value |
 |---|---|
 | `NODE_ENV` | `production` |
-| `DATABASE_URL` | Your Supabase connection string (with `?pgbouncer=true&connection_limit=1`) |
+| `DATABASE_URL` | Your Neon connection string |
 | `JWT_SECRET` | A long random string — generate with: `openssl rand -base64 32` |
 | `GROQ_API_KEY` | Your Groq API key (or leave blank to disable AI) |
 | `ALLOWED_ORIGINS` | Your Vercel app URL (added after Step 4) |
@@ -152,7 +148,7 @@ npx prisma db seed
 Or do it locally while pointing at the production database:
 ```bash
 cd backend
-DATABASE_URL="your-supabase-url" npx prisma db seed
+DATABASE_URL="your-neon-url" npx prisma db seed
 ```
 
 ### 5.5 Free tier limitation — cold starts
@@ -238,7 +234,7 @@ All CI secrets to add in **GitHub → Settings → Secrets and variables → Act
 
 | Secret name | Where to get it | Used by |
 |---|---|---|
-| `DATABASE_URL` | Supabase connection string | `backend-ci.yml` (runs tests against a temporary DB — actually uses the CI's own Postgres service container, this secret is optional) |
+| `DATABASE_URL` | Neon connection string | `backend-ci.yml` (runs tests against a temporary DB — actually uses the CI's own Postgres service container, this secret is optional) |
 | `VERCEL_TOKEN` | [vercel.com/account/tokens](https://vercel.com/account/tokens) → Create token | `web-ci.yml` |
 | `VERCEL_ORG_ID` | Vercel project settings → General → `orgId` | `web-ci.yml` |
 | `VERCEL_PROJECT_ID` | Vercel project settings → General → `projectId` | `web-ci.yml` |
@@ -249,19 +245,18 @@ All CI secrets to add in **GitHub → Settings → Secrets and variables → Act
 
 ---
 
-## 9. Alternative: Neon (instead of Supabase)
+## 9. Alternative: Supabase (instead of Neon)
 
-[Neon](https://neon.tech) is another excellent free PostgreSQL provider:
+[Supabase](https://supabase.com) is another excellent free PostgreSQL provider:
 
-- **Free tier**: 512 MB storage, 1 project, branches
-- Advantage over Supabase: serverless scaling, branching for dev/prod
-- Get connection string: Neon dashboard → **Connection Details** → select **Prisma** for the correct format
+- **Free tier**: 500 MB storage, 2 projects
+- Get connection string: Supabase dashboard → **Settings** → **Database** → **Connection string** → **URI** (Transaction pooler)
 
 ```bash
-DATABASE_URL="postgresql://USER:PASSWORD@ep-xxx.ap-southeast-1.aws.neon.tech/neondb?sslmode=require"
+DATABASE_URL="postgresql://postgres.xxxx:PASSWORD@aws-0-ap-south-1.pooler.supabase.com:6543/postgres?pgbouncer=true&connection_limit=1"
 ```
 
-> With Neon, you **do not** need `pgbouncer=true` — the standard connection string works.
+> **Note the query params**: `pgbouncer=true&connection_limit=1` — required for Prisma to work correctly with PgBouncer on Render's free tier.
 
 ---
 
@@ -312,10 +307,10 @@ Free Render services sleep after 15 min of inactivity. Fix options:
 
 > ⚠️ Note: Render's Terms of Service technically disallow using external pings purely to avoid sleeping. Use for demo/project purposes only — upgrade to a paid plan for production use.
 
-### Problem: Supabase project pause
-Supabase pauses projects that have been **inactive for 7 days** on the free tier. Fix:
+### Problem: Neon project pause
+Neon pauses projects that have been inactive for some time on the free tier. Fix:
 - Set up a UptimeRobot or cron job to do a lightweight DB read every few days
-- Or upgrade to Pro ($25/month) which disables auto-pause
+- Or upgrade to a paid plan which disables auto-pause
 
 ### Problem: Vercel / Netlify bandwidth
 Free tier allows 100 GB/month on Vercel. For a demo project this is effectively unlimited.
@@ -329,7 +324,6 @@ When you're ready to move beyond free tiers:
 | Service | Free → Paid | Monthly Cost | Benefit |
 |---|---|---|---|
 | **Render** | Starter plan | $7/month | No sleep, always-on |
-| **Supabase** | Pro plan | $25/month | No auto-pause, 8 GB storage |
 | **Neon** | Launch plan | $19/month | More compute, no throttling |
 | **Vercel** | Pro plan | $20/month | More bandwidth, team features |
 | **Railway** | Hobby plan | $5/month credit included | Easy, no cold starts |
@@ -365,8 +359,8 @@ For long-term self-hosting, a VPS is more cost-effective:
 PORT=4000
 NODE_ENV=production
 
-# Supabase (with pgbouncer params)
-DATABASE_URL="postgresql://postgres.xxx:PASSWORD@aws-0-ap-south-1.pooler.supabase.com:6543/postgres?pgbouncer=true&connection_limit=1"
+# Neon
+DATABASE_URL="postgresql://USER:PASSWORD@ep-xxx.ap-southeast-1.aws.neon.tech/neondb?sslmode=require"
 
 # Generate with: openssl rand -base64 32
 JWT_SECRET="your-very-long-random-secret-here"
@@ -398,8 +392,8 @@ After completing all steps, verify the following:
 
 ### Backend
 - [ ] `GET https://fitfuel-backend.onrender.com/api/health` returns `{ "status": "ok" }`
-- [ ] Database tables exist (check Supabase Table Editor)
-- [ ] Meals are seeded (check Supabase → Table Editor → Meal)
+- [ ] Database tables exist (check Neon Console)
+- [ ] Meals are seeded (check Neon → SQL Editor or Table data)
 - [ ] CORS allows your Vercel domain (test in browser Network tab)
 
 ### Web App
@@ -427,7 +421,7 @@ After completing all steps, verify the following:
 
 | Resource | URL |
 |---|---|
-| Supabase Dashboard | https://app.supabase.com |
+| Neon Dashboard | https://console.neon.tech |
 | Render Dashboard | https://dashboard.render.com |
 | Vercel Dashboard | https://vercel.com/dashboard |
 | Groq Console | https://console.groq.com |
