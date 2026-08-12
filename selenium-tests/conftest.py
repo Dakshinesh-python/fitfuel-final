@@ -25,7 +25,7 @@ Key rules encoded here (learned from the suite's first real CI run):
    execution across a 4-job GitHub Actions matrix using pytest-split, which
    turned out to be silently broken (each shard ran the full suite instead
    of 1/4 of it) and required a fragile merge step. That's gone: CI now runs
-   pytest once, in one job, using `-n auto` (pytest-xdist) purely for
+   pytest once, in one job, using `-n 4` (pytest-xdist) purely for
    in-process parallelism across CPU cores - not across separate jobs. This
    file's result-writing logic works identically whether or not xdist is
    active (results are still deduped by nodeid, still exactly one row per

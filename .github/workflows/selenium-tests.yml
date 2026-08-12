@@ -27,7 +27,9 @@ name: FitFuel Web - Selenium Test Suite
 #    the reported total to 2210+ "attempts" even though there are only 525
 #    real, unique tests. That whole matrix + pytest-split + merge-reports
 #    job has been removed. This workflow now runs pytest exactly ONCE, in
-#    ONE job, using `-n auto` (pytest-xdist) purely for in-process
+#    ONE job, using `-n 4` (pytest-xdist, pinned rather than "auto" for
+#    predictable resource usage across different runner sizes) purely for
+#    in-process
 #    parallelism across CPU cores. Combined with conftest.py's final-status
 #    -only result capture (reruns are absorbed into a test's final outcome,
 #    never reported as separate rows), every report this workflow produces
@@ -78,6 +80,7 @@ jobs:
   selenium-tests:
     name: Build, run 525 Selenium tests, generate reports
     runs-on: ubuntu-latest
+    timeout-minutes: 45
     steps:
       - uses: actions/checkout@v4
 
@@ -152,7 +155,7 @@ jobs:
           echo "Chrome: $CHROME_PATH"
           echo "ChromeDriver: $CHROMEDRIVER_PATH"
           pytest \
-            -n auto \
+            -n 4 \
             --reruns "${{ github.event.inputs.reruns || 2 }}" \
             --reruns-delay 2 \
             -v \

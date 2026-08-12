@@ -23,6 +23,7 @@ from selenium.webdriver.support import expected_conditions as EC
 from selenium.webdriver.support.ui import WebDriverWait
 
 from config import (
+    AUTH_UI_TIMEOUT,
     BASE_URL,
     DEFAULT_TIMEOUT,
     FAKE_JWT_TOKEN,
@@ -189,7 +190,7 @@ class BasePage:
         except Exception:
             return None
 
-    def login_via_ui_or_inject(self, email: str, password: str, timeout: int = LONG_TIMEOUT) -> str:
+    def login_via_ui_or_inject(self, email: str, password: str, timeout: int = AUTH_UI_TIMEOUT) -> str:
         """
         Two-tier login fixture.
 
@@ -199,6 +200,14 @@ class BasePage:
         exist in this ephemeral environment - expected in the default CI
         configuration, see config.py docstring), inject a token directly and
         hard-navigate to /dashboard.
+
+        `timeout` defaults to AUTH_UI_TIMEOUT (short - 5s by default), NOT
+        LONG_TIMEOUT. This fixture runs on every `authenticated_driver`-based
+        test (roughly 300+ of the suite's 525), and in the default CI
+        configuration the backend is unreachable by design, so a long
+        timeout here is pure wasted wall-clock time multiplied across the
+        whole suite. Override AUTH_UI_TIMEOUT (env var) higher for a real
+        end-to-end run against a live, possibly slow-to-wake backend.
 
         Returns "ui" or "injected" so tests / logs can record which path ran.
         """

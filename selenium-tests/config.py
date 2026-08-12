@@ -37,6 +37,23 @@ DEFAULT_TIMEOUT = int(os.environ.get("SELENIUM_TIMEOUT", "12"))
 SHORT_TIMEOUT = 4
 LONG_TIMEOUT = 20
 
+# How long the two-tier login helper waits for a REAL backend redirect
+# before falling back to token injection (see base_page.py). This is
+# separate from LONG_TIMEOUT and deliberately short by default: in the
+# default CI configuration the backend is unreachable ON PURPOSE (see
+# module docstring above), so this wait is pure dead time paid by every
+# single test that uses the `authenticated_driver` fixture - roughly 300+
+# of the suite's 525 tests. At the old 20s default that was ~25 minutes of
+# wall-clock time wasted waiting for a redirect that can never happen,
+# tripled again for any test that got rerun. 5s is generous enough to catch
+# a real redirect if it happens fast, while cutting that tax by 4x.
+#
+# If you run this suite with `base_url`/a real reachable backend (e.g. a
+# workflow_dispatch production smoke run) and want the real-login path to
+# get a fair, longer chance to actually succeed (e.g. Render free-tier cold
+# starts can take 20-30s), override this via the AUTH_UI_TIMEOUT env var.
+AUTH_UI_TIMEOUT = int(os.environ.get("AUTH_UI_TIMEOUT", "5"))
+
 # ---------------------------------------------------------------------------
 # Routes (BrowserRouter - no leading '#')
 # ---------------------------------------------------------------------------
