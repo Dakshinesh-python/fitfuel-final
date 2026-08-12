@@ -1,0 +1,239 @@
+name: FitFuel Web - Selenium Test Suite
+
+# Runs entirely inside GitHub Actions. Nothing here requires (or expects) a
+# local machine: the web app is built and served by `vite preview` inside
+# the runner, Chrome is installed on the runner, and every report/artifact
+# is produced and uploaded by the workflow itself.
+#
+# See selenium-tests/config.py and selenium-tests/README.md for why the app
+# is built WITHOUT a live backend on purpose (VITE_API_BASE_URL is left
+# unset, so it falls back to the app's own dead-by-default
+# http://localhost:4000 - see web/src/api/client.ts). That keeps this
+# pipeline green and safe on every push without ever touching the real
+# Render production database, while still exercising every real UI path via
+# the suite's two-tier auth fallback (real login attempt -> token
+# injection).
+
+on:
+  push:
+    branches: [main, master]
+    paths:
+      - "web/**"
+      - "selenium-tests/**"
+      - ".github/workflows/selenium-tests.yml"
+  pull_request:
+    branches: [main, master]
+    paths:
+      - "web/**"
+      - "selenium-tests/**"
+      - ".github/workflows/selenium-tests.yml"
+  workflow_dispatch:
+    inputs:
+      base_url:
+        description: "Override BASE_URL (e.g. the real deployed GitHub Pages URL for a production smoke run)"
+        required: false
+        default: ""
+      shards:
+        description: "Number of parallel pytest-xdist workers"
+        required: false
+        default: "4"
+      reruns:
+        description: "Automatic reruns per failed test (absorbs one-off flakiness)"
+        required: false
+        default: "2"
+      headless:
+        description: "Run Chrome headless"
+        required: false
+        default: "true"
+
+env:
+  PYTHON_VERSION: "3.12"
+  NODE_VERSION: "20"
+
+jobs:
+  build-web:
+    name: Build web app (vite build)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: "npm"
+          cache-dependency-path: web/package-lock.json
+
+      - name: Install web dependencies
+        working-directory: web
+        run: npm ci
+
+      - name: Build (VITE_API_BASE_URL intentionally left unset)
+        working-directory: web
+        run: npm run build
+
+      - name: Upload build artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: web-dist
+          path: web/dist
+          retention-days: 3
+
+  selenium-tests:
+    name: Selenium shard ${{ matrix.shard }}/${{ github.event.inputs.shards || 4 }}
+    needs: build-web
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        shard: [1, 2, 3, 4]
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: "npm"
+          cache-dependency-path: web/package-lock.json
+
+      - name: Download build artifact
+        uses: actions/download-artifact@v4
+        with:
+          name: web-dist
+          path: web/dist
+
+      - name: Install web dependencies (for `vite preview`)
+        working-directory: web
+        run: npm ci
+
+      - name: Serve the built app with vite preview
+        working-directory: web
+        run: |
+          nohup npx vite preview --port 4173 --strictPort > ../preview.log 2>&1 &
+          echo $! > ../preview.pid
+
+      - name: Wait for preview server to be ready
+        run: |
+          for i in $(seq 1 30); do
+            if curl -sf http://localhost:4173/fitfuel-final/login >/dev/null; then
+              echo "Preview server is up."
+              exit 0
+            fi
+            echo "Waiting for preview server ($i/30)..."
+            sleep 2
+          done
+          echo "Preview server never became ready."
+          cat preview.log || true
+          exit 1
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: ${{ env.PYTHON_VERSION }}
+          cache: "pip"
+          cache-dependency-path: selenium-tests/requirements.txt
+
+      - name: Install Python test dependencies
+        working-directory: selenium-tests
+        run: pip install -r requirements.txt
+
+      - name: Install Chrome
+        uses: browser-actions/setup-chrome@v1
+        id: setup-chrome
+        with:
+          chrome-version: stable
+
+      - name: Run Selenium suite (this shard)
+        working-directory: selenium-tests
+        env:
+          CHROME_PATH: ${{ steps.setup-chrome.outputs.chrome-path }}
+          HEADLESS: ${{ github.event.inputs.headless || 'true' }}
+          BASE_URL: ${{ github.event.inputs.base_url || '' }}
+          MATRIX_SHARD: ${{ matrix.shard }}
+        run: |
+          mkdir -p reports/screenshots reports/logs reports/results
+          pytest \
+            -n auto \
+            --splits "${{ github.event.inputs.shards || 4 }}" \
+            --group "${{ matrix.shard }}" \
+            --reruns "${{ github.event.inputs.reruns || 2 }}" \
+            --reruns-delay 2 \
+            -v \
+            --continue-on-collection-errors \
+            tests/
+        continue-on-error: true
+
+      - name: Upload shard reports
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: reports-shard-${{ matrix.shard }}
+          path: |
+            selenium-tests/reports/results/*.json
+            selenium-tests/reports/screenshots/**
+            selenium-tests/reports/logs/**
+          retention-days: 14
+          if-no-files-found: warn
+
+      - name: Stop preview server
+        if: always()
+        run: kill "$(cat preview.pid)" 2>/dev/null || true
+
+  merge-reports:
+    name: Merge reports & enforce pass-rate gate
+    needs: selenium-tests
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: ${{ env.PYTHON_VERSION }}
+          cache: "pip"
+          cache-dependency-path: selenium-tests/requirements.txt
+
+      - name: Install Python dependencies
+        working-directory: selenium-tests
+        run: pip install -r requirements.txt
+
+      - name: Download all shard reports
+        uses: actions/download-artifact@v4
+        with:
+          pattern: reports-shard-*
+          path: selenium-tests/reports
+          merge-multiple: false
+
+      - name: Flatten downloaded shard directories into reports/results, screenshots, logs
+        working-directory: selenium-tests
+        run: |
+          mkdir -p reports/results reports/screenshots reports/logs
+          find reports -path "*/reports-shard-*/results/*.json" -exec cp {} reports/results/ \;
+          find reports -path "*/reports-shard-*/screenshots/*" -type f -exec cp {} reports/screenshots/ \;
+          find reports -path "*/reports-shard-*/logs/*" -type f -exec cp {} reports/logs/ \;
+          echo "Result files:"; ls -la reports/results/
+
+      - name: Generate merged Excel / HTML / dashboard / summary reports
+        id: generate
+        working-directory: selenium-tests
+        env:
+          PASS_RATE_GATE: "90"
+        run: python3 generate_reports.py
+
+      - name: Post summary to job log
+        if: always()
+        working-directory: selenium-tests
+        run: cat reports/summary.md >> "$GITHUB_STEP_SUMMARY" || true
+
+      - name: Upload final merged report bundle
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: selenium-reports
+          path: |
+            selenium-tests/reports/execution-results.json
+            selenium-tests/reports/Automation_Test_Report.xlsx
+            selenium-tests/reports/execution-report.html
+            selenium-tests/reports/dashboard.html
+            selenium-tests/reports/summary.md
+            selenium-tests/reports/screenshots/**
+            selenium-tests/reports/logs/**
+          retention-days: 30
