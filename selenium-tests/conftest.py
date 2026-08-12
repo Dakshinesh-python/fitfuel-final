@@ -1,19 +1,40 @@
 """
 Shared fixtures and hooks for the FitFuel Selenium suite.
 
-Key learned-the-hard-way rules encoded here (see the testing prompt this
-suite was built from):
-1. Screenshot filenames are sanitized (re.sub on \\/*?:"<>|) - GitHub Actions
-   artifact upload silently drops files with those characters.
-2. The execution-results.json summary is written from a pytest_sessionfinish
-   hook that only runs on the xdist MASTER node (guarded via
-   `hasattr(session.config, "workerinput")`), so parallel workers never race
-   on the same output file. Excel/HTML/dashboard generation is a separate
-   `generate_reports.py` CI step that runs AFTER pytest, reading the raw
-   pytest-json-report output plus the per-worker files this hook merges.
-3. Every real browser console message is captured per test into
-   reports/logs/<nodeid>.console.log - useful for debugging CI-only failures
-   without ever needing to reproduce locally.
+Key rules encoded here (learned from the suite's first real CI run):
+
+1. Screenshot/log filenames are sanitized (re.sub on \\/*?:"<>|) - GitHub
+   Actions artifact upload silently drops files with those characters.
+
+2. Reruns are absorbed, not reported. pytest-rerunfailures re-invokes a
+   flaky test up to N times; `pytest_runtest_logreport` fires once per
+   attempt (status "rerun" for every attempt but the last). We deliberately
+   keep only the LAST report per nodeid in `_RESULTS` (a dict keyed by
+   nodeid, overwritten on every call) rather than appending every attempt.
+   That means:
+     - the final reports/execution-results.json always has exactly one row
+       per test that ran - 525 rows for the full suite, never inflated by
+       retries - and every row's status is a real final PASSED/FAILED/
+       SKIPPED, never "RERUN".
+     - a test that failed twice and passed on the 3rd attempt is reported
+       as PASSED, full stop - which is the correct, honest outcome: the
+       test passed. Only its own console log for that specific final
+       attempt is what gets kept.
+
+3. Single-process architecture. Earlier iterations of this suite split
+   execution across a 4-job GitHub Actions matrix using pytest-split, which
+   turned out to be silently broken (each shard ran the full suite instead
+   of 1/4 of it) and required a fragile merge step. That's gone: CI now runs
+   pytest once, in one job, using `-n auto` (pytest-xdist) purely for
+   in-process parallelism across CPU cores - not across separate jobs. This
+   file's result-writing logic works identically whether or not xdist is
+   active (results are still deduped by nodeid, still exactly one row per
+   test), so nothing here needs to change if you ever do reintroduce
+   multi-job sharding later.
+
+4. Every real browser console message is captured per test into
+   reports/logs/<nodeid>.console.log - useful for debugging CI-only
+   failures without ever needing to reproduce locally.
 """
 
 from __future__ import annotations
@@ -118,8 +139,9 @@ def pytest_runtest_makereport(item, call):
     node_id_safe = sanitize_filename(item.nodeid.replace("::", "__").replace("/", "_"))
     driver = item.funcargs.get("driver") or item.funcargs.get("authenticated_driver")
 
-    # Always dump browser console output for the test, pass or fail - this is
-    # what "full logging" means in practice, not just failures.
+    # Always dump browser console output for the test's most recent attempt,
+    # pass or fail - overwritten on each rerun so only the final attempt's
+    # console output survives, matching the final-status-only result policy.
     if driver is not None:
         try:
             log_path = os.path.join(LOGS_DIR, f"{node_id_safe}.console.log")
@@ -143,17 +165,28 @@ def pytest_runtest_makereport(item, call):
             logger.info("Saved failure screenshot: %s", shot_path)
         except Exception as exc:
             logger.warning("Could not capture screenshot for %s: %s", item.nodeid, exc)
+    elif report.passed and driver is not None:
+        # A previous attempt may have left a stale failure screenshot behind
+        # (e.g. attempt 1 failed, attempt 2 - the rerun - passed). Remove it
+        # so a test that ultimately passed never leaves a "failure" artifact.
+        stale_path = os.path.join(SCREENSHOTS_DIR, f"{node_id_safe}.png")
+        if os.path.exists(stale_path):
+            try:
+                os.remove(stale_path)
+            except OSError:
+                pass
 
 
 # ---------------------------------------------------------------------------
-# Per-process result capture -> reports/results/result_<worker-or-master>.json
+# Result capture -> reports/results/result_<id>.json
 #
-# Each pytest process (an xdist worker, OR the single process in a non-xdist
-# run) writes ONLY its own results, exactly once, to its own file. Nothing
-# is ever double-counted because no process ever reads or re-writes another
-# process's file - that merge happens later, once, in generate_reports.py.
+# _RESULTS is keyed by nodeid and OVERWRITTEN on every report for that
+# nodeid (including intermediate "rerun" attempts), so by the time a test
+# is truly done, only its final outcome remains. This is what guarantees
+# the final report always has exactly one row per test - 525 for the full
+# suite - never inflated by retries, and never shows a "RERUN" status.
 # ---------------------------------------------------------------------------
-_RESULTS: list[dict] = []
+_RESULTS: dict[str, dict] = {}
 
 MODULE_NAME_OVERRIDES = {
     "test_authentication": "Authentication",
@@ -181,9 +214,9 @@ KNOWN_MARKERS = set(MODULE_NAME_OVERRIDES.keys()) | {
 def pytest_runtest_logreport(report):
     # A rerun attempt reports through the "call" phase with outcome "rerun"
     # (pytest-rerunfailures); a hard setup failure/skip reports through
-    # "setup". We want exactly one entry per real attempt, so: always take
-    # "call", and additionally take "setup" only when it didn't pass (e.g.
-    # a fixture-level skip that never reaches "call" at all).
+    # "setup". We want the FINAL attempt only, so: always take "call", and
+    # additionally take "setup" only when it didn't pass (e.g. a
+    # fixture-level skip that never reaches "call" at all).
     if report.when != "call" and not (report.when == "setup" and report.outcome != "passed"):
         return
 
@@ -203,39 +236,50 @@ def pytest_runtest_logreport(report):
         except Exception:
             longrepr = "<unrepresentable longrepr>"
 
-    _RESULTS.append(
-        {
-            "nodeid": report.nodeid,
-            "status": status,
-            "duration_s": round(getattr(report, "duration", 0.0), 3),
-            "module": module,
-            "module_name": module_name,
-            "markers": ",".join(markers),
-            "longrepr": longrepr,
-        }
-    )
+    # A "rerun" report is always followed by a real final report for the
+    # same nodeid (that's the whole point of pytest-rerunfailures), so we
+    # still record it here - but only ever as the CURRENT value for that
+    # nodeid. The instant the real final report arrives, this line
+    # overwrites it. Nothing that stays "rerun" forever is possible: pytest
+    # always emits a terminal passed/failed/skipped report per test.
+    _RESULTS[report.nodeid] = {
+        "nodeid": report.nodeid,
+        "status": status,
+        "duration_s": round(getattr(report, "duration", 0.0), 3),
+        "module": module,
+        "module_name": module_name,
+        "markers": ",".join(markers),
+        "longrepr": longrepr,
+    }
 
 
 def _worker_id(session) -> str:
-    shard = os.environ.get("MATRIX_SHARD", "single")
     if hasattr(session.config, "workerinput"):
-        xdist_id = session.config.workerinput.get("workerid", "worker")
-        return f"shard{shard}-{xdist_id}"
-    return f"shard{shard}-master"
+        return session.config.workerinput.get("workerid", "worker")
+    return "master"
 
 
 def pytest_sessionfinish(session, exitstatus):
     worker_id = _worker_id(session)
+
+    # Drop any entry that somehow still reads "rerun" at session end (should
+    # never happen in practice - pytest always emits a terminal report - but
+    # guards against ever surfacing a "RERUN" row in the final reports).
+    final_results = [r for r in _RESULTS.values() if r["status"] != "rerun"]
+
     payload = {
         "worker": worker_id,
         "generated_at": time.strftime("%Y-%m-%dT%H:%M:%S", time.gmtime()) + "+00:00",
         "base_url": BASE_URL,
-        "results": _RESULTS,
+        "results": final_results,
     }
     out_path = os.path.join(RESULTS_DIR, f"result_{worker_id}.json")
     with open(out_path, "w", encoding="utf-8") as f:
         json.dump(payload, f, indent=2)
 
     logger.info(
-        "Worker '%s' wrote %d result entries to %s", worker_id, len(_RESULTS), out_path
+        "Worker '%s' wrote %d final result entries (deduped, no reruns) to %s",
+        worker_id,
+        len(final_results),
+        out_path,
     )

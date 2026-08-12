@@ -2,10 +2,17 @@
 Chrome WebDriver factory.
 
 Learned-the-hard-way rules baked in here:
-- Never manually install chromedriver. Selenium 4.6+ ships Selenium Manager,
-  which resolves a matching driver automatically. CI installs Chrome itself
-  via browser-actions/setup-chrome@v1 (see .github/workflows/selenium-tests.yml)
-  and exports CHROME_PATH; we honor that env var if present.
+- GitHub's ubuntu-latest runner ships a pre-installed /usr/bin/chromedriver
+  that is frequently version-mismatched against whatever Chrome version gets
+  installed alongside it. Selenium Manager can end up preferring that stale
+  PATH binary, which causes exactly the kind of widespread, non-deterministic
+  TimeoutExceptions this suite hit in its first CI run (elements "never
+  becoming visible" on completely standard, correct locators - even on
+  public, unauthenticated pages). The fix: never let Selenium Manager guess.
+  CI installs Chrome AND a version-matched chromedriver together via
+  browser-actions/setup-chrome's `install-chromedriver: true`, exports both
+  paths, and we wire the driver path explicitly via Service(executable_path=...)
+  below so there's no ambiguity about which binary gets used.
 - Headless uses the new `--headless=new` flag (old `--headless` renders
   differently for some layout/responsive assertions).
 - A fixed, deterministic window size is set explicitly rather than relying on
@@ -16,6 +23,7 @@ import os
 
 from selenium import webdriver
 from selenium.webdriver.chrome.options import Options
+from selenium.webdriver.chrome.service import Service
 
 from config import HEADLESS
 
@@ -47,6 +55,15 @@ def build_chrome_options(window_size: tuple[int, int] = (1440, 900)) -> Options:
 
 def build_driver(window_size: tuple[int, int] = (1440, 900)) -> webdriver.Chrome:
     options = build_chrome_options(window_size)
-    driver = webdriver.Chrome(options=options)
+
+    # Explicit, version-matched driver takes priority over Selenium Manager's
+    # own resolution (which is what caused the chromedriver/Chrome version
+    # mismatch instability in CI). Falls back to plain Service() - and
+    # therefore Selenium Manager - only when CHROMEDRIVER_PATH isn't set,
+    # e.g. for local runs on a developer machine.
+    chromedriver_path = os.environ.get("CHROMEDRIVER_PATH")
+    service = Service(executable_path=chromedriver_path) if chromedriver_path else Service()
+
+    driver = webdriver.Chrome(service=service, options=options)
     driver.set_page_load_timeout(30)
     return driver

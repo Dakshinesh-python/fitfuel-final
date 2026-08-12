@@ -1,20 +1,24 @@
 """
 generate_reports.py
 
-Runs as a SEPARATE step AFTER `pytest` finishes (see the CI workflow). It
-merges every reports/results/result_*.json file (one per xdist worker, or a
-single result_master.json for a non-distributed run) into:
+Runs AFTER `pytest` finishes, in the same CI job (see the workflow). It
+merges every reports/results/result_*.json file (one per xdist worker - or
+a single result_master.json if xdist wasn't used) into:
 
   reports/execution-results.json      - merged raw + summary, machine-readable
   reports/Automation_Test_Report.xlsx - Executed Tests / Passed / Failed /
                                           Skipped / Execution Metrics / Defect
                                           Summary sheets
-  reports/execution-report.html       - full per-test table, one row per attempt
+  reports/execution-report.html       - full per-test table
   reports/dashboard.html              - pass-rate gate + per-module bar chart
   reports/summary.md                  - short markdown summary for a PR comment
 
-No process ever writes more than one result_*.json (see conftest.py), so
-merging here is a plain concatenation - no de-duplication logic needed.
+Every result entry conftest.py writes is already a test's FINAL outcome
+(reruns are absorbed there - see conftest.py's docstring), so there is
+exactly one row per test that ran, and no "RERUN" status ever appears here.
+A single pytest run of the 525-test suite therefore produces exactly 525
+rows in every report below (fewer only if pytest crashed before finishing
+some tests, in which case a WARNING is printed).
 """
 
 from __future__ import annotations
@@ -27,6 +31,8 @@ import sys
 sys.path.insert(0, os.path.dirname(__file__))
 
 from config import PASS_RATE_GATE, REPORTS_DIR, RESULTS_DIR  # noqa: E402
+
+EXPECTED_TEST_COUNT = 525
 
 MODULE_SEVERITY = {
     "Authentication": "HIGH",
@@ -47,7 +53,6 @@ STATUS_COLORS = {
     "passed": "#1e8e4a",
     "failed": "#d64545",
     "skipped": "#b58900",
-    "rerun": "#333333",
 }
 
 
@@ -57,18 +62,33 @@ def load_all_results() -> tuple[list[dict], str]:
         print(f"No result files found under {RESULTS_DIR}/ - did pytest run first?", file=sys.stderr)
         sys.exit(1)
 
-    combined: list[dict] = []
+    by_nodeid: dict[str, dict] = {}
     base_url = ""
     generated_ats = []
     for path in files:
         with open(path, encoding="utf-8") as f:
             payload = json.load(f)
-        combined.extend(payload.get("results", []))
+        for r in payload.get("results", []):
+            # Each xdist worker only ever runs a given test once within a
+            # single pytest session, so nodeids shouldn't collide across
+            # result files - but dedupe defensively by nodeid anyway so a
+            # rerun of this script, or an accidental double-run of pytest,
+            # can never inflate the final count above one row per test.
+            by_nodeid[r["nodeid"]] = r
         base_url = payload.get("base_url", base_url)
         generated_ats.append(payload.get("generated_at", ""))
 
     generated_at = max(generated_ats) if generated_ats else ""
-    print(f"Loaded {len(combined)} result entries from {len(files)} file(s): {[os.path.basename(f) for f in files]}")
+    combined = list(by_nodeid.values())
+
+    print(f"Loaded {len(combined)} unique test results from {len(files)} file(s): {[os.path.basename(f) for f in files]}")
+    if len(combined) != EXPECTED_TEST_COUNT:
+        print(
+            f"WARNING: expected exactly {EXPECTED_TEST_COUNT} test results, got {len(combined)}. "
+            f"This usually means pytest crashed/was killed before finishing, or --collect-only "
+            f"filters (-k/-m) were applied. Check the pytest job log.",
+            file=sys.stderr,
+        )
     return combined, base_url
 
 
@@ -76,7 +96,6 @@ def build_summary(results: list[dict], base_url: str) -> dict:
     passed = sum(1 for r in results if r["status"] == "passed")
     failed = sum(1 for r in results if r["status"] == "failed")
     skipped = sum(1 for r in results if r["status"] == "skipped")
-    reran = sum(1 for r in results if r["status"] == "rerun")
     total = len(results)
     total_duration = round(sum(r.get("duration_s", 0.0) for r in results), 3)
 
@@ -93,10 +112,10 @@ def build_summary(results: list[dict], base_url: str) -> dict:
         "base_url": base_url,
         "summary": {
             "total": total,
+            "expected_total": EXPECTED_TEST_COUNT,
             "passed": passed,
             "failed": failed,
             "skipped": skipped,
-            "rerun": reran,
             "pass_rate": pass_rate,
             "total_duration_s": total_duration,
             "gate_threshold_pct": PASS_RATE_GATE,
@@ -136,7 +155,6 @@ def write_excel_report(summary: dict, generated_at: str):
         "passed": PatternFill(start_color="EAF7EE", end_color="EAF7EE", fill_type="solid"),
         "failed": PatternFill(start_color="FDECEB", end_color="FDECEB", fill_type="solid"),
         "skipped": PatternFill(start_color="FDF3D9", end_color="FDF3D9", fill_type="solid"),
-        "rerun": PatternFill(start_color="F2F2F2", end_color="F2F2F2", fill_type="solid"),
     }
 
     def autosize(ws):
@@ -150,7 +168,7 @@ def write_excel_report(summary: dict, generated_at: str):
             cell.font = header_font
             cell.fill = header_fill
 
-    # --- Executed Tests (every attempt, including reruns) ---
+    # --- Executed Tests (exactly one row per test - 525 for the full suite) ---
     ws = wb.active
     ws.title = "Executed Tests"
     header_row(ws, ["#", "Test ID", "Module", "Markers", "Status", "Duration (s)"])
@@ -174,28 +192,23 @@ def write_excel_report(summary: dict, generated_at: str):
     ws3.append(["Run At", generated_at])
     ws3.append(["Base URL", summary["base_url"]])
     ws3.append(["Total Tests", s["total"]])
+    ws3.append(["Expected Total", s["expected_total"]])
     ws3.append(["Passed", s["passed"]])
     ws3.append(["Failed", s["failed"]])
     ws3.append(["Skipped", s["skipped"]])
-    ws3.append(["Reruns", s["rerun"]])
     ws3.append(["Pass Rate (%)", s["pass_rate"]])
     ws3.append(["Gate Threshold (%)", s["gate_threshold_pct"]])
     ws3.append(["Gate Passed", "YES" if s["gate_passed"] else "NO"])
     ws3.append(["Total Duration (s)", s["total_duration_s"]])
     autosize(ws3)
 
-    # --- Defect Summary (failed tests, deduplicated by test id) ---
+    # --- Defect Summary (failed tests) ---
     ws4 = wb.create_sheet("Defect Summary")
     header_row(ws4, ["#", "Defect / Test ID", "Module", "Severity"])
-    seen = set()
     i = 0
     for r in results:
         if r["status"] != "failed":
             continue
-        key = r["nodeid"]
-        if key in seen:
-            continue
-        seen.add(key)
         i += 1
         severity = MODULE_SEVERITY.get(r["module_name"], "MEDIUM")
         ws4.append([i, short_test_id(r["nodeid"]), r["module_name"], severity])
@@ -241,7 +254,6 @@ th {{ background: #fafafa; position: sticky; top: 0; }}
   <div class="card" style="background:#eaf7ee">Passed<b style="color:#1e8e4a">{s['passed']}</b></div>
   <div class="card" style="background:#fdeceb">Failed<b style="color:#d64545">{s['failed']}</b></div>
   <div class="card" style="background:#fdf3d9">Skipped<b style="color:#b58900">{s['skipped']}</b></div>
-  <div class="card">Reruns<b>{s['rerun']}</b></div>
   <div class="card">Pass rate<b>{s['pass_rate']}%</b></div>
   <div class="card">Duration<b>{s['total_duration_s']}s</b></div>
 </div>
@@ -298,6 +310,7 @@ h1 {{ margin-bottom: 0.25rem; }}
   {s['pass_rate']}%
 </p>
 <p>Gate: {s['gate_threshold_pct']}% required to pass CI &middot;
+   {s['total']} tests total &middot;
    {s['passed']} passed / {s['failed']} failed / {s['skipped']} skipped &middot;
    {s['total_duration_s']}s total</p>
 <h2>By module</h2>
@@ -315,11 +328,10 @@ def write_summary_md(summary: dict):
     lines = [
         "# FitFuel - Selenium Web Test Summary",
         "",
-        f"- **Total executed:** {s['total']}",
+        f"- **Total tests:** {s['total']}",
         f"- **Passed:** {s['passed']}",
         f"- **Failed:** {s['failed']}",
         f"- **Skipped:** {s['skipped']}",
-        f"- **Reruns:** {s['rerun']}",
         f"- **Pass rate:** {s['pass_rate']}% (threshold: {s['gate_threshold_pct']}%)",
         f"- **Gate:** {'PASSED' if s['gate_passed'] else 'FAILED'}",
         f"- **Total duration:** {s['total_duration_s']}s",
@@ -355,8 +367,9 @@ def main():
 
     s = summary["summary"]
     print(
-        f"\n=== SUMMARY: total={s['total']} passed={s['passed']} failed={s['failed']} "
-        f"skipped={s['skipped']} rerun={s['rerun']} pass_rate={s['pass_rate']}% "
+        f"\n=== SUMMARY: total={s['total']} (expected {s['expected_total']}) "
+        f"passed={s['passed']} failed={s['failed']} skipped={s['skipped']} "
+        f"pass_rate={s['pass_rate']}% "
         f"gate={'PASS' if s['gate_passed'] else 'FAIL'} (threshold {s['gate_threshold_pct']}%) ==="
     )
 

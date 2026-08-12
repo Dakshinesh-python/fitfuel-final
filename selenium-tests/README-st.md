@@ -34,7 +34,7 @@ selenium-tests/
     ├── test_accessibility.py       (29 cases)
     └── test_responsive.py          (56 cases)
 
-.github/workflows/selenium-tests.yml   # the CI pipeline (build -> 4-way shard -> merge)
+.github/workflows/selenium-tests.yml   # the CI pipeline (single job: build -> run -> report)
 ```
 
 Run `pytest --collect-only -q selenium-tests/tests/` yourself and you'll
@@ -43,7 +43,54 @@ zipped up) — comfortably over your "above 400" requirement, with real
 assertions on every one (no `assert True` placeholders anywhere — grep for
 `"or True"` / `"assert True"` in `tests/` if you want to double check).
 
+**Every report this suite produces shows exactly 525 rows — one per test,
+its final outcome only.** Automatic reruns (`--reruns 2`) exist purely to
+absorb one-off flakiness during execution; a test that fails twice and
+passes on its 3rd attempt is reported simply as PASSED. No "RERUN" status
+or inflated attempt-count ever appears in the Excel/HTML/JSON output.
+
 ---
+
+## What changed since the first CI run (fixed issues)
+
+The first real CI run of this suite surfaced two bugs, both fixed in this
+version:
+
+1. **chromedriver/Chrome version mismatch.** `ubuntu-latest` ships a
+   pre-installed `/usr/bin/chromedriver` that can be version-mismatched
+   against whatever Chrome gets installed alongside it. Selenium Manager
+   sometimes preferred that stale binary, causing widespread flaky
+   `TimeoutException`s across nearly the whole suite (92% of all failures
+   in that run shared this exact symptom — confirmed via 255 occurrences of
+   a "chromedriver version might not be compatible" warning in the logs).
+   **Fixed:** CI now installs Chrome and a version-matched chromedriver
+   together (`browser-actions/setup-chrome` with `install-chromedriver:
+   true`), and `utils/driver_factory.py` wires that exact matched driver
+   path into Selenium explicitly via `Service(executable_path=...)` —
+   no ambiguity left for Selenium Manager to get wrong.
+
+2. **Broken 4-way matrix sharding.** The original workflow split execution
+   across 4 GitHub Actions matrix jobs using `pytest-split`, which turned
+   out to silently not partition anything — every contributing shard ran
+   the *entire* 525-test suite instead of 1/4 of it, and only 2 of the 4
+   shards even produced results. That inflated the reported total to
+   2210+ "attempts" even though there are only 525 real, unique tests.
+   **Fixed:** the matrix + `pytest-split` + merge-reports job is gone.
+   CI now runs `pytest` exactly once, in one job, using `-n auto`
+   (`pytest-xdist`) purely for in-process parallelism across CPU cores.
+
+3. **Reruns no longer show up as extra rows.** `conftest.py` now keeps only
+   each test's *final* outcome (a dict keyed by nodeid, overwritten on every
+   attempt) instead of appending every rerun attempt. Combined with fix #2,
+   every report — Excel, HTML, JSON, dashboard, summary — now shows exactly
+   525 rows, one per test, with a real final PASSED/FAILED/SKIPPED status.
+   `--reruns 2` is still applied during execution (it's what actually makes
+   one-off flakiness resolve to PASSED instead of FAILED), it just no
+   longer appears as separate "RERUN" rows in the output.
+
+`generate_reports.py` also now prints a `WARNING` if the merged result
+count doesn't land on exactly 525 — that's your signal something crashed
+mid-run rather than completing normally.
 
 ## Why "no local execution" actually works here
 
@@ -137,36 +184,41 @@ axe-core or Lighthouse audit, just a pragmatic Selenium-level pass.
    **Actions** tab (`workflow_dispatch`) at any time.
 3. Watch it run: **Actions tab → FitFuel Web - Selenium Test Suite**.
 
-The pipeline has three job stages:
+The pipeline is a single job:
 
-| Stage | What it does |
+| Step | What it does |
 |---|---|
-| `build-web` | `npm ci && npm run build`, uploads `web/dist` as an artifact |
-| `selenium-tests` (×4, matrix) | Downloads the build, serves it with `vite preview`, installs Chrome, runs its 1/4 slice of the suite (further split across CPU cores with `pytest-xdist`), uploads its raw results |
-| `merge-reports` | Downloads all 4 shards' results, merges them, generates the Excel/HTML/dashboard/summary reports, enforces the 90% pass-rate gate, uploads the final `selenium-reports` artifact |
+| Build | `npm ci && npm run build` in `web/` |
+| Serve | `npx vite preview --port 4173 --strictPort`, health-checked with `curl` before tests start |
+| Install Chrome | `browser-actions/setup-chrome` with `install-chromedriver: true` — Chrome and a version-matched driver installed together, wired explicitly into Selenium |
+| Test | `pytest -n auto --reruns 2 tests/` — all 525 tests, parallelized across CPU cores in this one process |
+| Report | `python3 generate_reports.py` — merges results (already deduped to final-status-only by `conftest.py`), writes Excel/HTML/dashboard/summary, enforces the 90% pass-rate gate |
+| Upload | the `selenium-reports` artifact |
 
 ### Downloading your results
 
 After a run finishes, go to the workflow run page → **Artifacts** →
 download **`selenium-reports`**. Inside you'll find:
 
-- **`Automation_Test_Report.xlsx`** — 6 sheets: `Executed Tests` (every
-  attempt including reruns), `Passed`, `Failed`, `Skipped`,
-  `Execution Metrics` (run metadata + pass rate), `Defect Summary`
-  (deduplicated failures with a severity rating).
-- **`execution-report.html`** — every test attempt in one scrollable table,
+- **`Automation_Test_Report.xlsx`** — 6 sheets: `Executed Tests` (exactly
+  525 rows, one per test, final status only — no reruns shown), `Passed`,
+  `Failed`, `Skipped`, `Execution Metrics` (run metadata + pass rate),
+  `Defect Summary` (failures with a severity rating).
+- **`execution-report.html`** — all 525 tests in one scrollable table,
   color-coded by status. Open it directly in a browser.
 - **`dashboard.html`** — the big pass-rate number plus a per-module bar
   chart. Good for a quick "is it healthy" glance or to show your guide.
 - **`execution-results.json`** — the same data as machine-readable JSON, if
-  you want to build anything else on top of it.
+  you want to build anything else on top of it. Its `summary.total` should
+  always read `525`; `generate_reports.py` prints a warning if it doesn't.
 - **`summary.md`** — a short markdown summary (also posted straight into
   the GitHub Actions job summary page — no need to even open the artifact
   for a quick check).
-- **`screenshots/`** — one PNG per *failed* test, filename matches the test
-  ID.
-- **`logs/`** — one real browser-console log per test (pass or fail) plus
-  the full `selenium-tests.log` execution log.
+- **`screenshots/`** — one PNG per test that ultimately *failed* (a test
+  that failed once but passed on rerun has its screenshot cleaned up
+  automatically), filename matches the test ID.
+- **`logs/`** — one real browser-console log per test (its final attempt
+  only) plus the full `selenium-tests.log` execution log.
 
 ### Adjusting behavior without touching code
 
@@ -174,15 +226,16 @@ All of these are `workflow_dispatch` inputs (Actions tab → Run workflow):
 
 - **`base_url`** — point the suite at a different deployment (e.g. the real
   GitHub Pages URL, or a staging preview).
-- **`shards`** — how many parallel matrix jobs to split across (default 4).
-- **`reruns`** — automatic reruns per failed test to absorb one-off
-  flakiness (default 2).
+- **`reruns`** — automatic reruns per failed test, absorbed into that
+  test's final reported status (default 2; set to `0` to disable and see
+  raw first-attempt results).
 - **`headless`** — set to `false` if you ever need a debugging run (not
   useful in CI itself, since there's no display, but the option is there).
 
-The pass-rate gate (default 90%) lives in the `merge-reports` job's
-`PASS_RATE_GATE` env var — change it there if you want a stricter/looser
-threshold. `pass_rate` is computed as `passed / (passed + failed) * 100`
+The pass-rate gate (default 90%) lives in the `PASS_RATE_GATE` env var on
+the "Generate reports" step — change it there if you want a
+stricter/looser threshold. `pass_rate` is computed as
+`passed / (passed + failed) * 100`
 (reruns and skips excluded from the denominator, matching how the sample
 report you provided computes it).
 
