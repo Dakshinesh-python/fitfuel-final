@@ -152,6 +152,17 @@ severity and a companion test for `GET /api/recommendations`'s identical
 bug -- re-run it in CI after applying the fix in `security-review.md`
 (DOS-1) to confirm 467/467 against real Postgres.
 
+**Second CI run, after a fix attempt (`backend-test-reports__1_.zip`):**
+145/467 passed. The companion test added specifically to check
+`GET /api/recommendations` was the very first failure, with the same
+crash signature as run 1 -- confirming `recommendation.routes.ts` was
+**not** fixed (only `meal.routes.ts`, or possibly neither, was touched).
+Every other failure in that run is a downstream `Connection refused` from
+that one crash, including the original `GET /api/meals` tests -- so this
+run does not prove `meal.routes.ts` either way. Fix
+`recommendation.routes.ts` with the same validation + try/catch approach,
+then re-run once more for a clean signal on both routes.
+
 ## A note on the "400+ test cases" ask
 
 This suite has 465 test cases, all real and independently meaningful (not
