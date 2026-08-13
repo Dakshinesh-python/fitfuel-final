@@ -14,11 +14,18 @@ export default function Register() {
   const [weightKg, setWeightKg] = useState('');
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
+  const [wakingUp, setWakingUp] = useState(false);
 
   async function handleSubmit(e: FormEvent) {
     e.preventDefault();
     setError(null);
     setLoading(true);
+    setWakingUp(false);
+    
+    const wakeTimer = setTimeout(() => {
+      setWakingUp(true);
+    }, 4000);
+
     try {
       const res = await apiClient.post<AuthResponse>('/api/auth/register', {
         name,
@@ -34,7 +41,9 @@ export default function Register() {
     } catch (err: unknown) {
       setError(extractErrorMessage(err, 'Unable to create your account. Please try again.'));
     } finally {
+      clearTimeout(wakeTimer);
       setLoading(false);
+      setWakingUp(false);
     }
   }
 
@@ -211,12 +220,17 @@ export default function Register() {
 
             <div className="pt-4">
               <button
-                className="w-full bg-primary text-on-primary font-headline-md text-headline-md rounded-full py-4 transition-transform hover:scale-[0.98] focus:outline-none focus:ring-2 focus:ring-primary/50 flex justify-center items-center shadow-ambient disabled:opacity-60"
+                className="w-full py-3 px-6 bg-primary text-on-primary rounded-full font-headline-md text-body-lg hover:bg-primary-container transition-colors duration-200 mt-4 disabled:opacity-60"
                 type="submit"
                 disabled={loading}
               >
-                {loading ? 'Creating account…' : 'Register Now'}
+                {loading ? 'Creating Account…' : 'Create Account'}
               </button>
+              {wakingUp && (
+                <p className="text-center font-body-sm text-primary mt-2">
+                  Waking up the server, this might take a minute...
+                </p>
+              )}
             </div>
           </form>
 

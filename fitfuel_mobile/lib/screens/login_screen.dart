@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'package:flutter/material.dart';
 import '../theme/app_theme.dart';
 import '../services/auth_service.dart';
@@ -16,10 +17,13 @@ class _LoginScreenState extends State<LoginScreen> {
   final _passwordController = TextEditingController();
   bool _obscure = true;
   bool _loading = false;
+  bool _wakingUp = false;
+  Timer? _wakeTimer;
   String? _error;
 
   @override
   void dispose() {
+    _wakeTimer?.cancel();
     _emailController.dispose();
     _passwordController.dispose();
     super.dispose();
@@ -29,8 +33,15 @@ class _LoginScreenState extends State<LoginScreen> {
     if (!_formKey.currentState!.validate()) return;
     setState(() {
       _loading = true;
+      _wakingUp = false;
       _error = null;
     });
+
+    _wakeTimer?.cancel();
+    _wakeTimer = Timer(const Duration(seconds: 4), () {
+      if (mounted) setState(() => _wakingUp = true);
+    });
+
     try {
       await AuthService.instance.login(
         email: _emailController.text.trim(),
@@ -43,7 +54,13 @@ class _LoginScreenState extends State<LoginScreen> {
     } catch (e) {
       setState(() => _error = 'Something went wrong. Please try again.');
     } finally {
-      if (mounted) setState(() => _loading = false);
+      _wakeTimer?.cancel();
+      if (mounted) {
+        setState(() {
+          _loading = false;
+          _wakingUp = false;
+        });
+      }
     }
   }
 
@@ -184,18 +201,7 @@ class _LoginScreenState extends State<LoginScreen> {
                             : null,
                       ),
                       const SizedBox(height: 20),
-                      Row(
-                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                        children: [
-                          Text('Password', style: AppTextStyles.labelMd),
-                          GestureDetector(
-                            onTap: () {},
-                            child: Text('Forgot password?',
-                                style: AppTextStyles.labelMd
-                                    .copyWith(color: AppColors.primary)),
-                          ),
-                        ],
-                      ),
+                      Text('Password', style: AppTextStyles.labelMd),
                       const SizedBox(height: 8),
                       TextFormField(
                         controller: _passwordController,
@@ -244,33 +250,16 @@ class _LoginScreenState extends State<LoginScreen> {
                                 ],
                               ),
                       ),
-                      const SizedBox(height: 28),
-                      Row(
-                        children: [
-                          const Expanded(
-                              child: Divider(color: AppColors.outlineVariant)),
-                          Padding(
-                            padding: const EdgeInsets.symmetric(horizontal: 8),
-                            child: Text('Or continue with',
-                                style: AppTextStyles.labelSm
-                                    .copyWith(color: AppColors.outline)),
+                      if (_wakingUp)
+                        Padding(
+                          padding: const EdgeInsets.only(top: 12),
+                          child: Text(
+                            'Waking up the server, this might take a minute...',
+                            textAlign: TextAlign.center,
+                            style: AppTextStyles.labelMd.copyWith(color: AppColors.primary),
                           ),
-                          const Expanded(
-                              child: Divider(color: AppColors.outlineVariant)),
-                        ],
-                      ),
-                      const SizedBox(height: 20),
-                      Row(
-                        children: [
-                          Expanded(
-                              child: _SocialButton(
-                                  label: 'Google', icon: Icons.g_mobiledata)),
-                          const SizedBox(width: 12),
-                          Expanded(
-                              child: _SocialButton(
-                                  label: 'Apple', icon: Icons.apple)),
-                        ],
-                      ),
+                        ),
+                      const SizedBox(height: 8),
                       const SizedBox(height: 28),
                       Center(
                         child: Wrap(
@@ -310,28 +299,3 @@ class _LoginScreenState extends State<LoginScreen> {
   }
 }
 
-class _SocialButton extends StatelessWidget {
-  final String label;
-  final IconData icon;
-  const _SocialButton({required this.label, required this.icon});
-
-  @override
-  Widget build(BuildContext context) {
-    return OutlinedButton(
-      onPressed: () {},
-      style: OutlinedButton.styleFrom(
-        foregroundColor: AppColors.onSurface,
-        side: const BorderSide(color: AppColors.outlineVariant),
-        backgroundColor: AppColors.surfaceContainerLowest,
-      ),
-      child: Row(
-        mainAxisAlignment: MainAxisAlignment.center,
-        children: [
-          Icon(icon, size: 20),
-          const SizedBox(width: 6),
-          Text(label, style: AppTextStyles.labelMd.copyWith(color: AppColors.onSurface)),
-        ],
-      ),
-    );
-  }
-}

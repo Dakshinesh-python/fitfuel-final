@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'package:flutter/material.dart';
 import '../theme/app_theme.dart';
 import '../services/auth_service.dart';
@@ -21,10 +22,13 @@ class _RegisterScreenState extends State<RegisterScreen> {
   final _weightController = TextEditingController();
   String _gender = 'female';
   bool _loading = false;
+  bool _wakingUp = false;
+  Timer? _wakeTimer;
   String? _error;
 
   @override
   void dispose() {
+    _wakeTimer?.cancel();
     _nameController.dispose();
     _emailController.dispose();
     _passwordController.dispose();
@@ -38,8 +42,15 @@ class _RegisterScreenState extends State<RegisterScreen> {
     if (!_formKey.currentState!.validate()) return;
     setState(() {
       _loading = true;
+      _wakingUp = false;
       _error = null;
     });
+
+    _wakeTimer?.cancel();
+    _wakeTimer = Timer(const Duration(seconds: 4), () {
+      if (mounted) setState(() => _wakingUp = true);
+    });
+
     try {
       await AuthService.instance.register(
         name: _nameController.text.trim(),
@@ -57,7 +68,13 @@ class _RegisterScreenState extends State<RegisterScreen> {
     } catch (e) {
       setState(() => _error = 'Something went wrong. Please try again.');
     } finally {
-      if (mounted) setState(() => _loading = false);
+      _wakeTimer?.cancel();
+      if (mounted) {
+        setState(() {
+          _loading = false;
+          _wakingUp = false;
+        });
+      }
     }
   }
 
@@ -259,6 +276,15 @@ class _RegisterScreenState extends State<RegisterScreen> {
                                 ],
                               ),
                       ),
+                      if (_wakingUp)
+                        Padding(
+                          padding: const EdgeInsets.only(top: 12),
+                          child: Text(
+                            'Waking up the server, this might take a minute...',
+                            textAlign: TextAlign.center,
+                            style: AppTextStyles.labelMd.copyWith(color: AppColors.primary),
+                          ),
+                        ),
                     ],
                   ),
                 ),

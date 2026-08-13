@@ -9,11 +9,18 @@ export default function Login() {
   const [password, setPassword] = useState('');
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
+  const [wakingUp, setWakingUp] = useState(false);
 
   async function handleSubmit(e: FormEvent) {
     e.preventDefault();
     setError(null);
     setLoading(true);
+    setWakingUp(false);
+    
+    const wakeTimer = setTimeout(() => {
+      setWakingUp(true);
+    }, 4000);
+
     try {
       const res = await apiClient.post<AuthResponse>('/api/auth/login', { email, password });
       saveToken(res.data.token);
@@ -21,7 +28,9 @@ export default function Login() {
     } catch (err: unknown) {
       setError(extractErrorMessage(err, 'Unable to sign in. Please check your credentials.'));
     } finally {
+      clearTimeout(wakeTimer);
       setLoading(false);
+      setWakingUp(false);
     }
   }
 
@@ -113,12 +122,6 @@ export default function Login() {
                 >
                   Password
                 </label>
-                <a
-                  className="font-body-sm text-body-sm text-primary hover:text-primary-container transition-colors"
-                  href="#"
-                >
-                  Forgot password?
-                </a>
               </div>
               <div className="relative">
                 <span className="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none">
@@ -145,6 +148,11 @@ export default function Login() {
             >
               {loading ? 'Signing in…' : 'Sign In'}
             </button>
+            {wakingUp && (
+              <p className="text-center font-body-sm text-primary mt-2">
+                Waking up the server, this might take a minute...
+              </p>
+            )}
           </form>
 
           <div className="mt-8 text-center">
