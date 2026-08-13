@@ -12,17 +12,17 @@ class HealthAssessmentGoalsScreen extends StatefulWidget {
 
 class _HealthAssessmentGoalsScreenState
     extends State<HealthAssessmentGoalsScreen> {
-  String _selected = 'weight_loss';
+  String _selected = 'WEIGHT_LOSS';
 
   static const _goals = [
-    ('weight_loss', 'Weight Loss',
+    ('WEIGHT_LOSS', 'Weight Loss',
         'Burn fat and lean out safely and sustainably.', Icons.trending_down),
-    ('muscle_gain', 'Muscle Gain',
+    ('MUSCLE_GAIN', 'Muscle Gain',
         'Build strength, size, and powerful functionality.',
         Icons.fitness_center),
-    ('weight_gain', 'Weight Gain',
+    ('WEIGHT_GAIN', 'Weight Gain',
         'Increase mass healthily with proper nutrition.', Icons.trending_up),
-    ('maintenance', 'Maintenance',
+    ('MAINTENANCE', 'Maintenance',
         'Maintain current weight while improving overall health.',
         Icons.balance),
   ];

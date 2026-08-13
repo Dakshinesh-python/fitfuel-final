@@ -12,14 +12,14 @@ class HealthAssessmentPrefsScreen extends StatefulWidget {
 
 class _HealthAssessmentPrefsScreenState
     extends State<HealthAssessmentPrefsScreen> {
-  String _diet = 'vegetarian';
+  String _diet = 'VEGETARIAN';
   final Set<String> _allergies = {};
   double _budget = 45;
 
   static const _diets = [
-    ('vegetarian', 'Vegetarian', Icons.eco_outlined),
-    ('non_vegetarian', 'Non-Vegetarian', Icons.set_meal_outlined),
-    ('vegan', 'Vegan', Icons.spa_outlined),
+    ('VEGETARIAN', 'Vegetarian', Icons.eco_outlined),
+    ('NON_VEGETARIAN', 'Non-Vegetarian', Icons.set_meal_outlined),
+    ('VEGAN', 'Vegan', Icons.spa_outlined),
   ];
 
   static const _allergyOptions = [

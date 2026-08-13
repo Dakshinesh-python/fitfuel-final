@@ -22,26 +22,26 @@ class _ActivityOption {
 
 class _HealthAssessmentActivityScreenState
     extends State<HealthAssessmentActivityScreen> {
-  String _selected = 'moderate';
+  String _selected = 'MODERATE';
 
   static const _options = [
-    _ActivityOption('sedentary', 'Sedentary',
+    _ActivityOption('SEDENTARY', 'Sedentary',
         'Little to no exercise. Mostly desk work or resting.', '1.2',
         Icons.chair_outlined),
-    _ActivityOption('light', 'Lightly Active',
+    _ActivityOption('LIGHT', 'Lightly Active',
         'Light exercise or sports 1-3 days a week. E.g., walking.', '1.375',
         Icons.directions_walk),
-    _ActivityOption('moderate', 'Moderately Active',
+    _ActivityOption('MODERATE', 'Moderately Active',
         'Moderate exercise or sports 3-5 days a week.', '1.55',
         Icons.fitness_center),
-    _ActivityOption('active', 'Very Active',
+    _ActivityOption('ACTIVE', 'Very Active',
         'Hard exercise or sports 6-7 days a week.', '1.725', Icons.pool),
     _ActivityOption(
-        'extra_active',
+        'VERY_ACTIVE',
         'Extra Active',
-        'Very hard exercise, physical job, or training twice a day.',
+        'Very hard exercise, physical job, or 2x training.',
         '1.9',
-        Icons.directions_run),
+        Icons.local_fire_department),
   ];
 
   @override

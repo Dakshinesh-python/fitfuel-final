@@ -46,7 +46,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
         email: _emailController.text.trim(),
         password: _passwordController.text,
         age: int.tryParse(_ageController.text),
-        gender: _gender,
+        gender: _gender.toUpperCase(),
         heightCm: double.tryParse(_heightController.text),
         weightKg: double.tryParse(_weightController.text),
       );
