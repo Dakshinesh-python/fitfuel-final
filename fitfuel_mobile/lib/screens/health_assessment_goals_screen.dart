@@ -34,7 +34,13 @@ class _HealthAssessmentGoalsScreenState
         title: 'Step 3 of 4',
         actions: [
           TextButton(
-            onPressed: () => Navigator.of(context).pushNamed('/health-prefs'),
+            onPressed: () {
+              final args = ModalRoute.of(context)?.settings.arguments as Map<String, dynamic>? ?? {};
+              Navigator.of(context).pushNamed(
+                '/health-prefs',
+                arguments: {...args, 'fitnessGoal': _selected},
+              );
+            },
             child: Text('Skip',
                 style: AppTextStyles.labelMd.copyWith(color: AppColors.primary)),
           ),
@@ -129,8 +135,13 @@ class _HealthAssessmentGoalsScreenState
               ),
               const SizedBox(height: 32),
               ElevatedButton(
-                onPressed: () =>
-                    Navigator.of(context).pushNamed('/health-prefs'),
+                onPressed: () {
+                  final args = ModalRoute.of(context)?.settings.arguments as Map<String, dynamic>? ?? {};
+                  Navigator.of(context).pushNamed(
+                    '/health-prefs',
+                    arguments: {...args, 'fitnessGoal': _selected},
+                  );
+                },
                 style: ElevatedButton.styleFrom(
                     shape: RoundedRectangleBorder(
                         borderRadius: BorderRadius.circular(AppRadius.full))),

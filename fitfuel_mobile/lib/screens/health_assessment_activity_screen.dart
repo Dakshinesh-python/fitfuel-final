@@ -158,8 +158,13 @@ class _HealthAssessmentActivityScreenState
                 children: [
                   Expanded(
                     child: OutlinedButton(
-                      onPressed: () =>
-                          Navigator.of(context).pushNamed('/health-goals'),
+                      onPressed: () {
+                        final args = ModalRoute.of(context)?.settings.arguments as Map<String, dynamic>? ?? {};
+                        Navigator.of(context).pushNamed(
+                          '/health-goals',
+                          arguments: {...args, 'activityLevel': _selected},
+                        );
+                      },
                       style: OutlinedButton.styleFrom(
                           shape: RoundedRectangleBorder(
                               borderRadius:
@@ -170,8 +175,13 @@ class _HealthAssessmentActivityScreenState
                   const SizedBox(width: 12),
                   Expanded(
                     child: ElevatedButton(
-                      onPressed: () =>
-                          Navigator.of(context).pushNamed('/health-goals'),
+                      onPressed: () {
+                        final args = ModalRoute.of(context)?.settings.arguments as Map<String, dynamic>? ?? {};
+                        Navigator.of(context).pushNamed(
+                          '/health-goals',
+                          arguments: {...args, 'activityLevel': _selected},
+                        );
+                      },
                       style: ElevatedButton.styleFrom(
                           shape: RoundedRectangleBorder(
                               borderRadius:

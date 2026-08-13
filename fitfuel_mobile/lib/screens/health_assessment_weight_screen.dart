@@ -112,8 +112,17 @@ class _HealthAssessmentWeightScreenState
               ),
               const SizedBox(height: 40),
               ElevatedButton(
-                onPressed: () =>
-                    Navigator.of(context).pushNamed('/health-activity'),
+                onPressed: () {
+                  final currentLbs = double.tryParse(_currentWeightController.text) ?? 0;
+                  final targetLbs = double.tryParse(_targetWeightController.text) ?? 0;
+                  Navigator.of(context).pushNamed(
+                    '/health-activity',
+                    arguments: {
+                      'currentWeightKg': currentLbs / 2.20462,
+                      'targetWeightKg': targetLbs / 2.20462,
+                    },
+                  );
+                },
                 style: ElevatedButton.styleFrom(
                     shape: RoundedRectangleBorder(
                         borderRadius: BorderRadius.circular(AppRadius.full))),

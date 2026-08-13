@@ -7,6 +7,29 @@ class PlanReadyScreen extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final args = ModalRoute.of(context)?.settings.arguments as Map<String, dynamic>?;
+    final targets = args?['targets'] as Map<String, dynamic>?;
+    final explanation = args?['explanation'] as String?;
+
+    final calorieTarget = (targets?['calorieTarget'] as num?)?.round().toString() ?? '2,450';
+    final bmi = (targets?['bmi'] as num?)?.toStringAsFixed(1) ?? '23.4';
+    
+    final proteinTargetG = (targets?['proteinTargetG'] as num?)?.toDouble() ?? 180.0;
+    final carbTargetG = (targets?['carbTargetG'] as num?)?.toDouble() ?? 250.0;
+    final fatTargetG = (targets?['fatTargetG'] as num?)?.toDouble() ?? 80.0;
+    
+    final proteinStr = proteinTargetG.round().toString();
+    final carbsStr = carbTargetG.round().toString();
+    final fatStr = fatTargetG.round().toString();
+    
+    final totalG = proteinTargetG + carbTargetG + fatTargetG;
+    final proteinProgress = totalG > 0 ? proteinTargetG / totalG : 0.40;
+    final carbsProgress = totalG > 0 ? carbTargetG / totalG : 0.45;
+    final fatProgress = totalG > 0 ? fatTargetG / totalG : 0.15;
+
+    final defaultExplanation = "Based on your goal to build lean muscle while maintaining low body fat, we've prioritized a moderate caloric surplus heavily weighted towards high-quality proteins and complex carbohydrates.";
+    final displayExplanation = explanation ?? defaultExplanation;
+
     return Scaffold(
       body: SafeArea(
         child: SingleChildScrollView(
@@ -55,7 +78,7 @@ class PlanReadyScreen extends StatelessWidget {
                             center: Column(
                               mainAxisSize: MainAxisSize.min,
                               children: [
-                                Text('2,450',
+                                Text(calorieTarget,
                                     style: AppTextStyles.headlineMd
                                         .copyWith(fontSize: 22)),
                                 Text('kcal / day',
@@ -80,7 +103,7 @@ class PlanReadyScreen extends StatelessWidget {
                               style: AppTextStyles.labelMd.copyWith(
                                   color: AppColors.onSurfaceVariant)),
                           const SizedBox(height: 12),
-                          Text('23.4',
+                          Text(bmi,
                               style: AppTextStyles.headlineLg
                                   .copyWith(fontSize: 30)),
                           const SizedBox(height: 4),
@@ -119,7 +142,7 @@ class PlanReadyScreen extends StatelessWidget {
                                   fontWeight: FontWeight.w700)),
                           const SizedBox(height: 4),
                           Text(
-                              "Based on your goal to build lean muscle while maintaining low body fat, we've prioritized a moderate caloric surplus heavily weighted towards high-quality proteins and complex carbohydrates.",
+                              displayExplanation,
                               style: AppTextStyles.labelMd.copyWith(
                                   color: AppColors.onSurfaceVariant)),
                         ],
@@ -135,23 +158,23 @@ class PlanReadyScreen extends StatelessWidget {
                   _MacroStat(
                       icon: Icons.fitness_center,
                       label: 'Protein',
-                      value: '180',
+                      value: proteinStr,
                       unit: 'g',
-                      progress: 0.40,
+                      progress: proteinProgress,
                       color: AppColors.primary),
                   _MacroStat(
                       icon: Icons.grass,
                       label: 'Carbs',
-                      value: '250',
+                      value: carbsStr,
                       unit: 'g',
-                      progress: 0.45,
+                      progress: carbsProgress,
                       color: AppColors.secondaryContainer),
                   _MacroStat(
                       icon: Icons.water_drop,
                       label: 'Fats',
-                      value: '80',
+                      value: fatStr,
                       unit: 'g',
-                      progress: 0.15,
+                      progress: fatProgress,
                       color: AppColors.tertiaryContainer),
                 ],
               ),

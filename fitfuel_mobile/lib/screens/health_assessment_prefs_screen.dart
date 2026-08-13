@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import '../theme/app_theme.dart';
 import '../widgets/app_widgets.dart';
+import '../services/api_service.dart';
 
 class HealthAssessmentPrefsScreen extends StatefulWidget {
   const HealthAssessmentPrefsScreen({super.key});
@@ -15,6 +16,36 @@ class _HealthAssessmentPrefsScreenState
   String _diet = 'VEGETARIAN';
   final Set<String> _allergies = {};
   double _budget = 45;
+  bool _loading = false;
+  String? _error;
+
+  Future<void> _submit() async {
+    final args = ModalRoute.of(context)?.settings.arguments as Map<String, dynamic>? ?? {};
+    
+    setState(() {
+      _loading = true;
+      _error = null;
+    });
+
+    try {
+      final payload = {
+        ...args,
+        'dietaryPreference': _diet,
+        'allergies': _allergies.toList(),
+        'dailyBudget': _budget,
+      };
+      final data = await ApiService.instance.post('/api/health-profile', body: payload);
+      
+      if (!mounted) return;
+      Navigator.of(context).pushReplacementNamed('/plan-ready', arguments: data);
+    } on ApiException catch (e) {
+      setState(() => _error = e.message);
+    } catch (e) {
+      setState(() => _error = 'Something went wrong.');
+    } finally {
+      if (mounted) setState(() => _loading = false);
+    }
+  }
 
   static const _diets = [
     ('VEGETARIAN', 'Vegetarian', Icons.eco_outlined),
@@ -185,12 +216,20 @@ class _HealthAssessmentPrefsScreenState
                   style: AppTextStyles.labelMd
                       .copyWith(color: AppColors.onSurfaceVariant)),
               const SizedBox(height: 28),
+              if (_error != null) ...[
+                Text(_error!, style: AppTextStyles.labelMd.copyWith(color: AppColors.error)),
+                const SizedBox(height: 16),
+              ],
               Row(
                 children: [
                   Expanded(
                     child: OutlinedButton(
-                      onPressed: () =>
-                          Navigator.of(context).pushNamed('/plan-ready'),
+                      onPressed: _loading ? null : () {
+                        // Skip could send default data or just push without API call, 
+                        // but here we just go to dashboard or plan-ready? 
+                        // Actually let's just push /plan-ready directly without data (will fail if no args handled gracefully)
+                        Navigator.of(context).pushNamed('/plan-ready');
+                      },
                       style: OutlinedButton.styleFrom(
                           shape: RoundedRectangleBorder(
                               borderRadius:
@@ -202,18 +241,21 @@ class _HealthAssessmentPrefsScreenState
                   Expanded(
                     flex: 2,
                     child: ElevatedButton(
-                      onPressed: () =>
-                          Navigator.of(context).pushNamed('/plan-ready'),
+                      onPressed: _loading ? null : _submit,
                       style: ElevatedButton.styleFrom(
                           shape: RoundedRectangleBorder(
                               borderRadius:
                                   BorderRadius.circular(AppRadius.full))),
-                      child: const Row(
+                      child: Row(
                         mainAxisAlignment: MainAxisAlignment.center,
                         children: [
-                          Text('Complete Profile'),
-                          SizedBox(width: 8),
-                          Icon(Icons.check_circle, size: 18),
+                          if (_loading)
+                            const SizedBox(width: 16, height: 16, child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2))
+                          else ...[
+                            const Text('Complete Profile'),
+                            const SizedBox(width: 8),
+                            const Icon(Icons.check_circle, size: 18),
+                          ]
                         ],
                       ),
                     ),
