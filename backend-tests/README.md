@@ -2,12 +2,15 @@
 
 This is a complete backend test suite for `fitfuel-final`
 (https://github.com/Dakshinesh-python/fitfuel-final), built by cloning and
-reading the actual repository (not a generic template), and then run for
-real against the actual, unmodified application code.
+reading the actual repository (not a generic template), then run for real
+against the actual, unmodified application code -- first locally, and then
+against this project's real CI with real Postgres, which is where the
+important finding below actually surfaced.
 
-**465 automated tests, 465 passing (100%), across 9 categories.** 7
-genuine security/hygiene findings were discovered and confirmed against a
-live running instance in the process -- see `reports/security-review.md`.
+**467 automated tests. 8 genuine findings, one of them a confirmed,
+unauthenticated, complete denial-of-service vulnerability (DOS-1) found by
+running this suite in real CI, not by guessing.** See
+`reports/executive-summary.md` and `reports/security-review.md`.
 
 ## What's in this zip
 
@@ -21,9 +24,9 @@ backend-tests/            <- the test suite itself. Copy this whole folder
   tests/
     test_authentication.py    63 tests -- register/login/token lifecycle
     test_authorization.py     56 tests -- auth-required matrix, cross-tenant isolation, JWT tampering
-    test_input_validation.py  41 tests -- zod schema boundaries
+    test_input_validation.py  43 tests -- zod schema boundaries, incl. the DOS-1 enum-crash checks
     test_injection.py         86 tests -- SQLi/command/path-traversal/XSS/SSRF/NoSQL payloads
-    test_business_logic.py    31 tests -- nutrition math, meal-plan/recommendation rules
+    test_business_logic.py    32 tests -- nutrition math, meal-plan/recommendation rules, DOS-1's recommendations-route counterpart
     test_configuration.py     30 tests -- security headers, CORS, error handling
     test_functional_api.py    91 tests -- endpoint contracts, round trips
     test_performance.py       30 tests -- response-time budgets, concurrency
@@ -118,6 +121,7 @@ reading every route file first).
 
 | ID | Severity | What |
 |---|---|---|
+| **DOS-1** | **Critical** | **Unauthenticated crash: `GET /api/meals?mealType=<invalid>` takes down the entire backend process (confirmed in real CI against real Postgres -- see below)** |
 | JWT-1 | Critical | Hardcoded fallback JWT secret if `JWT_SECRET` env var is unset |
 | RATE-1 | Medium | No rate limiting on login/register/chat |
 | CORS-1 | Medium | CORS defaults to allow-all + credentials when `ALLOWED_ORIGINS` is unset |
@@ -127,6 +131,26 @@ reading every route file first).
 | EMAIL-1 | Low | No maximum length enforced on the email field |
 
 Full detail and one-line fixes for each are in `reports/security-review.md`.
+
+## DOS-1: found by actually running this in your CI, not by guessing
+
+The version of this suite handed over initially passed 465/465 -- including
+a test that specifically probed the exact endpoint behind this bug -- because
+it ran against an in-memory data-layer stand-in during development (see
+"How these reports were produced" below) that has no database-level enum
+validation. The first time it ran against this project's real CI (real
+Postgres, `.github/workflows/backend-tests.yml`), 33 of 465 tests failed:
+one with `Server disconnected without sending a response`, and the other 32
+immediately after it with `Connection refused`, because the server crashed
+and never came back for the rest of that run. That artifact
+(`backend-test-reports.zip`) is the direct evidence behind this finding.
+
+**The practical lesson:** this suite's pass rate against real Postgres is
+the number to trust, not its pass rate against the local stand-in. The
+suite has since been updated (now 467 tests) with the corrected, upgraded
+severity and a companion test for `GET /api/recommendations`'s identical
+bug -- re-run it in CI after applying the fix in `security-review.md`
+(DOS-1) to confirm 467/467 against real Postgres.
 
 ## A note on the "400+ test cases" ask
 

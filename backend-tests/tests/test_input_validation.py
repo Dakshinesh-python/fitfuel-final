@@ -387,20 +387,78 @@ class TestMealQueryValidation:
         r = client.get(MEALS, params={"sort": "price_desc", "foo": "bar"})
         assert r.status_code == 200
 
-    def test_meals_invalid_meal_type_returns_empty_list_not_error(self, client):
+    def test_meals_invalid_meal_type_crashes_the_server_process(self, client):
         """
         CATEGORY: Input Validation
-        TITLE: Out-of-enum mealType filter degrades gracefully
-        OBJECTIVE: The route casts req.query.mealType directly to the MealType
-            type without validating it's a real enum value before passing to
-            Prisma's `where`. Confirm an invalid value doesn't 500.
-        EXPECTED: 200 with an empty (or at least non-crashing) meals array,
-            since no row has mealType == the bogus string.
-        SEVERITY: MEDIUM
+        TITLE: [FINDING] Invalid mealType/platform query value crashes the entire backend process (unauthenticated DoS)
+        OBJECTIVE: meal.routes.ts casts req.query.mealType and req.query.platform
+            directly to their Prisma enum types with no runtime validation
+            (`mealType as MealType`) before passing them into a `where` filter.
+            mealType and platform are native Postgres enum columns
+            (`enum MealType {...}` / `enum Platform {...}` in schema.prisma).
+            An out-of-enum string causes Postgres/Prisma to reject the query
+            with a real error; the async route handler has no try/catch, and
+            Express 4 does not auto-catch rejected promises from async
+            handlers, so the rejection is unhandled at the process level --
+            which crashes the whole Node process under Node's default
+            `--unhandled-rejections=throw` behavior.
+            CONFIRMED IN CI against real Postgres (not the in-memory stand-in
+            used to build this suite): after this exact request, every
+            subsequent request in the same run got
+            `httpcore.ConnectError: Connection refused` -- the server never
+            came back until manually restarted. The in-memory stub used
+            during initial development didn't reproduce this because it has
+            no enum-type validation layer at all, which is exactly why this
+            class of bug needs a real database to catch -- see
+            reports/backend-inventory.md for the full incident writeup.
+        EXPECTED (documents the confirmed, real, unauthenticated vulnerability):
+            **This should return 200 with an empty (or 400 with a validation
+            error) result and never take the server down.** As currently
+            deployed, it takes the whole process down with a single
+            unauthenticated GET request -- repeatable in a loop for a
+            trivial, complete denial of service against every endpoint,
+            not just this one. Remediation: validate mealType/platform
+            against the enum's allowed values (e.g. via a small zod enum
+            check) before building the Prisma `where` clause, and wrap this
+            handler's body in try/catch (or adopt a global async-handler
+            wrapper) so a bad query string degrades to a 400, never a crash.
+            The identical pattern exists in recommendation.routes.ts's
+            mealType query param too -- see test_business_logic.py /
+            security-review.md for that companion finding.
+        SEVERITY: CRITICAL
         """
         r = client.get(MEALS, params={"mealType": "MIDNIGHT_SNACK"})
-        assert r.status_code == 200
-        assert r.json()["meals"] == []
+        assert r.status_code in (200, 400), (
+            f"got {r.status_code} (or the request failed at the transport level entirely) -- "
+            f"if this test errored rather than failed, the server likely crashed. "
+            f"See the CRITICAL finding in security-review.md (DOS-1)."
+        )
+        if r.status_code == 200:
+            assert r.json()["meals"] == []
+
+        # If the process survived, confirm it's still actually serving requests
+        # (a partial crash/restart-loop would still be a serious problem even
+        # if this one response looks fine).
+        health = client.get("/health")
+        assert health.status_code == 200
+
+    def test_meals_invalid_platform_does_not_crash_the_server(self, client):
+        """
+        CATEGORY: Input Validation
+        TITLE: [FINDING] Invalid platform query value has the same unvalidated-enum crash risk as mealType
+        OBJECTIVE: Same root cause as the mealType finding above --
+            `platform: platform as Platform` on the same GET /api/meals
+            route, also cast with zero runtime validation. Tested
+            separately since it's a distinct query parameter an attacker
+            (or a confused client) could hit independently.
+        EXPECTED: 200 with an empty list, or 400 -- never a crash.
+        SEVERITY: CRITICAL
+        """
+        r = client.get(MEALS, params={"platform": "UBEREATS_NOT_A_REAL_PLATFORM"})
+        assert r.status_code in (200, 400)
+        if r.status_code == 200:
+            assert r.json()["meals"] == []
+        assert client.get("/health").status_code == 200
 
     def test_meal_by_id_nonexistent_uuid_returns_404(self, client):
         """

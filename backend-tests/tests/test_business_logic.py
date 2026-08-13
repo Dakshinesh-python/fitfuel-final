@@ -421,6 +421,30 @@ class TestRecommendations:
         r = client.get(RECOMMENDATIONS, headers=user["headers"])
         assert r.status_code == 400
 
+    def test_recommendations_invalid_meal_type_does_not_crash_the_server(self, client):
+        """
+        CATEGORY: Business Logic
+        TITLE: [FINDING] Invalid mealType on /recommendations has the same unvalidated-enum crash risk as GET /meals
+        OBJECTIVE: recommendation.routes.ts does the identical unsafe cast as
+            meal.routes.ts: `mealType: mealType as MealType` with no runtime
+            validation, against the same native Postgres MealType enum. The
+            GET /api/meals version of this bug is CONFIRMED to crash the
+            entire Node process when run against real Postgres (see
+            test_input_validation.py::test_meals_invalid_meal_type_crashes_the_server_process
+            and security-review.md, DOS-1) -- this route shares the exact
+            same root cause and is reached by any authenticated user (i.e.
+            anyone who can self-register, which is anyone).
+        EXPECTED: 200 or 400, never a crash. Same remediation as DOS-1:
+            validate mealType against the enum's allowed values before
+            querying, and wrap the handler in try/catch.
+        SEVERITY: CRITICAL
+        """
+        user = _register_with_metrics(client, 29, "FEMALE", 165, 60)
+        _submit_profile(client, user["headers"], 60, 58, "MODERATE", "MAINTENANCE")
+        r = client.get(RECOMMENDATIONS, params={"mealType": "MIDNIGHT_SNACK"}, headers=user["headers"])
+        assert r.status_code in (200, 400)
+        assert client.get("/health").status_code == 200
+
 
 class TestOrderDeepLinks:
     def test_swiggy_order_deep_link_uses_swiggy_search_format(self, client, any_meal_id):

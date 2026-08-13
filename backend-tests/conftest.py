@@ -214,6 +214,14 @@ def pytest_sessionfinish(session, exitstatus):
     if hasattr(session.config, "workerinput"):
         return
 
+    # Guard against --collect-only (or any run that collects but executes
+    # nothing) silently overwriting a previous real run's results with an
+    # empty summary.
+    if session.config.getoption("--collect-only", default=False):
+        return
+    if not _collected_results:
+        return
+
     total = len(_collected_results)
     passed = sum(1 for r in _collected_results if r["status"] == "passed")
     failed = sum(1 for r in _collected_results if r["status"] == "failed")
