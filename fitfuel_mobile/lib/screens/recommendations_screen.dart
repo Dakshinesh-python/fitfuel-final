@@ -68,10 +68,29 @@ class _RecommendationsScreenState extends State<RecommendationsScreen> {
         'platform': platform,
       });
       final result = OrderResult.fromJson(data as Map<String, dynamic>);
-      final uri = Uri.parse(result.deepLink);
-      if (await canLaunchUrl(uri)) {
-        await launchUrl(uri, mode: LaunchMode.externalApplication);
-      } else if (mounted) {
+      final httpsUri = Uri.parse(result.deepLink);
+      
+      // Extract the query we sent from the backend URL
+      final q = httpsUri.queryParameters['q'] ?? httpsUri.queryParameters['query'] ?? '';
+      
+      // Try native deep link first to bypass Chrome and force the app
+      final nativeUri = platform == 'ZOMATO' 
+          ? Uri.parse('zomato://search?keyword=$q') 
+          : Uri.parse('swiggy://search?q=$q');
+
+      bool launched = false;
+      try {
+        launched = await launchUrl(nativeUri, mode: LaunchMode.externalApplication);
+      } catch (_) {}
+
+      // Fallback to HTTPS app link / browser
+      if (!launched) {
+        try {
+          launched = await launchUrl(httpsUri, mode: LaunchMode.externalApplication);
+        } catch (_) {}
+      }
+
+      if (!launched && mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(content: Text('Could not open ${platform == 'SWIGGY' ? 'Swiggy' : 'Zomato'}')),
         );
