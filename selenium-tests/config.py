@@ -1,27 +1,39 @@
 """
 Central configuration for the FitFuel Selenium suite.
 
-CI ARCHITECTURE DECISION (read this before changing BASE_URL):
+CORRECTION - ROUTER TYPE (read this before touching route_url/BASE_URL):
 ----------------------------------------------------------------
-FitFuel web is a Vite + React SPA using react-router-dom's BrowserRouter
-(NOT HashRouter) and it is deployed to GitHub Pages with base "/fitfuel-final/".
-GitHub Pages serves static files with no server-side rewrite, and this repo's
-web-deploy.yml does not publish a 404.html SPA-fallback trick. That means a
-direct hit on a deep link such as https://<user>.github.io/fitfuel-final/dashboard
-returns a real GitHub Pages 404 - it never reaches React Router at all.
+An earlier version of this suite incorrectly assumed the app used
+react-router-dom's BrowserRouter. It actually uses HashRouter
+(web/src/main.tsx: `<HashRouter><App /></HashRouter>`), which was only
+discovered after CI runs showed nearly every test failing/timing out with
+no clear cause. Every real route lives after a '#/' fragment - e.g. the
+dashboard is at BASE_URL + '#/dashboard', never BASE_URL + 'dashboard'.
+route_url() builds hash-based URLs accordingly; don't hand-build a route URL
+elsewhere without going through it.
 
-`vite preview` DOES serve an SPA fallback (any unknown path returns index.html),
-so this suite builds the app in CI and serves it with `vite preview` on
-http://localhost:4173/fitfuel-final/ and runs the whole suite against that.
-This is also why the suite never depends on the live Render backend: the
-production API base URL is intentionally pointed at a dead local address at
-build time (see web-ci workflow) so every real network call fails fast and
+One consequence worth knowing: because HashRouter never sends the fragment
+to the server, GitHub Pages' lack of a 404.html SPA-fallback trick was
+actually never a problem for this app - the server only ever needs to serve
+the same index.html at the bare BASE_URL, and 100% of routing happens
+client-side off the hash. That's different from what an earlier version of
+this file claimed.
+
+CI ARCHITECTURE DECISION (unaffected by the above, still applies):
+----------------------------------------------------------------
+This suite builds the app in CI and serves it with `vite preview` on
+http://localhost:4173/fitfuel-final/ and runs the whole suite against that,
+rather than the live GitHub Pages deployment, so it never depends on the
+live Render backend or the live deployment being up to date: the production
+API base URL is intentionally pointed at a dead local address at build time
+(VITE_API_BASE_URL is left unset - see web/src/api/client.ts's own
+localhost:4000 fallback) so every real network call fails fast and
 deterministically, and the suite's two-tier auth fixture (see conftest.py)
 falls back to localStorage token injection. This keeps the pipeline green on
 every push without ever writing test accounts into the real production
-database. A `base_url` / `api_base_url` workflow_dispatch input lets you point
-the same suite at the real deployed GitHub Pages site + live backend when you
-want an end-to-end smoke run against production.
+database. A `base_url` workflow_dispatch input lets you point the same
+suite at the real deployed GitHub Pages site + live backend when you want an
+end-to-end smoke run against production.
 """
 
 import os
@@ -55,7 +67,8 @@ LONG_TIMEOUT = 20
 AUTH_UI_TIMEOUT = int(os.environ.get("AUTH_UI_TIMEOUT", "5"))
 
 # ---------------------------------------------------------------------------
-# Routes (BrowserRouter - no leading '#')
+# Routes (values are bare path segments - route_url() adds the HashRouter
+# '#/' prefix; don't add a leading '/' or '#' here)
 # ---------------------------------------------------------------------------
 ROUTES = {
     "root": "",
@@ -102,9 +115,20 @@ NAV_LABELS = {
 
 
 def route_url(name: str) -> str:
-    """Build a full URL for a named route against BASE_URL."""
+    """Build a full URL for a named route against BASE_URL.
+
+    The app uses react-router-dom's HashRouter (web/src/main.tsx), NOT
+    BrowserRouter - every real route lives after a '#/' fragment, e.g. the
+    dashboard is reachable at BASE_URL + '#/dashboard', never
+    BASE_URL + 'dashboard'. Getting this wrong (which an earlier version of
+    this suite did) means every direct navigation actually loads the app at
+    an empty/root hash, which the app then client-side-redirects away from
+    - producing URLs like '.../chat#/login' and making nearly every test
+    that navigates directly to a route fail, regardless of chromedriver,
+    timeouts, or anything else.
+    """
     path = ROUTES.get(name, name)
-    return BASE_URL + path
+    return BASE_URL + "#/" + path
 
 
 # ---------------------------------------------------------------------------

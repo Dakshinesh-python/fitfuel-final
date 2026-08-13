@@ -53,8 +53,21 @@ class BasePage:
         return self
 
     def current_path(self) -> str:
-        """Return the path portion of the current URL relative to BASE_URL."""
+        """Return the route path portion of the current URL.
+
+        The app uses HashRouter, so the real route lives after '#/' (e.g.
+        '.../fitfuel-final/#/dashboard'), not as the URL's actual pathname.
+        Extract from the hash fragment, not BASE_URL - a plain prefix strip
+        would silently return the wrong thing (or the whole URL unchanged)
+        for every hash-routed page.
+        """
         url = self.driver.current_url
+        if "#" in url:
+            return url.split("#", 1)[1].lstrip("/")
+        # No hash at all means we're sitting at the bare root (e.g. right
+        # after open_base()), which the app's own "/" route immediately
+        # redirects away from - by the time anything inspects current_path()
+        # there should normally be a hash present.
         if url.startswith(BASE_URL):
             return url[len(BASE_URL):]
         return url
@@ -166,7 +179,7 @@ class BasePage:
         independent of whether the live API is reachable from CI.
         """
         # localStorage is only reachable once we're on an app origin.
-        self.driver.get(BASE_URL + "login")
+        self.driver.get(route_url("login"))
         self.driver.execute_script(
             "window.localStorage.setItem(arguments[0], arguments[1]);",
             TOKEN_STORAGE_KEY,
@@ -176,7 +189,7 @@ class BasePage:
 
     def clear_auth_token(self):
         if not self.driver.current_url.startswith("http"):
-            self.driver.get(BASE_URL + "login")
+            self.driver.get(route_url("login"))
         self.driver.execute_script(
             "window.localStorage.removeItem(arguments[0]);", TOKEN_STORAGE_KEY
         )
@@ -227,7 +240,7 @@ class BasePage:
             email,
         )
         self.inject_auth_token()
-        self.driver.get(BASE_URL + "dashboard")
+        self.driver.get(route_url("dashboard"))
         return "injected"
 
     def is_authenticated_client_side(self) -> bool:
