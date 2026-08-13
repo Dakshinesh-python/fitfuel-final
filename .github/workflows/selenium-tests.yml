@@ -2,39 +2,61 @@ name: FitFuel Web - Selenium Test Suite
 
 # Runs entirely inside GitHub Actions, in a single job. Nothing here
 # requires (or expects) a local machine: the web app is built and served by
-# `vite preview` inside the runner, Chrome + a VERSION-MATCHED chromedriver
-# are installed on the runner, pytest-xdist parallelizes across CPU cores
-# within this one job, and every report/artifact is produced and uploaded
-# by the workflow itself.
+# `vite preview` inside the runner, Chrome is installed on the runner with
+# Selenium Manager left to resolve a matching chromedriver against it,
+# pytest-xdist parallelizes across CPU cores within this one job, and every
+# report/artifact is produced and uploaded by the workflow itself.
 #
-# Two fixes baked in after the suite's first real CI run:
+# Fixes baked in after real CI runs, in the order they were found:
 #
-# 1. chromedriver/Chrome version mismatch. ubuntu-latest ships a
-#    pre-installed /usr/bin/chromedriver that can be a different version
-#    than whatever Chrome gets installed alongside it. Selenium Manager can
-#    end up preferring that stale binary, which caused widespread flaky
-#    TimeoutExceptions across nearly the whole suite in the first run (92%
-#    of all failures shared this exact symptom). Fixed by installing Chrome
-#    AND a version-matched chromedriver together via
-#    browser-actions/setup-chrome's `install-chromedriver: true`, and wiring
-#    the matched driver path explicitly into Selenium
-#    (selenium-tests/utils/driver_factory.py) so there's no ambiguity.
+# 1. chromedriver/Chrome version mismatch (found via widespread
+#    TimeoutExceptions - 92% of all failures in that run shared this exact
+#    symptom, even on completely standard, unauthenticated pages).
+#    ubuntu-latest ships a pre-installed /usr/bin/chromedriver that Selenium
+#    Manager can end up preferring over a correctly matched one. First fix
+#    attempt used browser-actions/setup-chrome's `install-chromedriver:
+#    true` to install a "matched" pair - this INTRODUCED A NEW BUG (see #3).
 #
-# 2. Broken 4-way matrix sharding. The previous version of this workflow
-#    split execution across 4 matrix jobs using pytest-split, which turned
-#    out to silently not partition anything - each contributing shard ran
-#    the FULL suite, and only 2 of 4 shards even contributed data, inflating
-#    the reported total to 2210+ "attempts" even though there are only 525
-#    real, unique tests. That whole matrix + pytest-split + merge-reports
-#    job has been removed. This workflow now runs pytest exactly ONCE, in
-#    ONE job, using `-n 4` (pytest-xdist, pinned rather than "auto" for
-#    predictable resource usage across different runner sizes) purely for
-#    in-process
-#    parallelism across CPU cores. Combined with conftest.py's final-status
-#    -only result capture (reruns are absorbed into a test's final outcome,
-#    never reported as separate rows), every report this workflow produces
-#    shows exactly 525 rows for the full suite - no duplication, no "RERUN"
-#    status anywhere.
+# 2. Broken 4-way matrix sharding. Execution was split across 4 matrix jobs
+#    using pytest-split, which turned out to silently not partition
+#    anything - each contributing shard ran the FULL suite, and only 2 of 4
+#    shards even contributed data, inflating the reported total to 2210+
+#    "attempts" even though there are only 525 real, unique tests. Fixed by
+#    removing the matrix + pytest-split + merge-reports job entirely. This
+#    workflow now runs pytest exactly ONCE, in ONE job, using `-n 4`
+#    (pytest-xdist, pinned rather than "auto" for predictable resource
+#    usage) purely for in-process parallelism. Combined with conftest.py's
+#    final-status-only result capture (reruns are absorbed into a test's
+#    final outcome, never reported as separate rows), every report this
+#    workflow produces shows exactly 525 rows for the full suite.
+#
+# 3. `install-chromedriver: true` (from fix #1) is itself a known, currently
+#    open bug in browser-actions/setup-chrome
+#    (browser-actions/setup-chrome#619): the Chrome build and the bundled
+#    chromedriver build can resolve to DIFFERENT, mismatched versions
+#    independently of each other, which is a different bug that produces the
+#    same class of symptom - except worse, because it now fails 100% of
+#    tests immediately at browser-launch time with a hard
+#    `session not created: This version of ChromeDriver only supports
+#    Chrome version X` error (525 failed / 0 passed, ~206s total - every
+#    test dying at driver setup, never even reaching a page). Fixed by
+#    dropping `install-chromedriver: true` entirely and going back to
+#    Selenium Manager (bundled with Selenium 4.6+), which is specifically
+#    designed for this: given an explicit `binary_location` (CHROME_PATH,
+#    wired into utils/driver_factory.py), it inspects THAT exact Chrome
+#    binary's real version and downloads a matching driver from the
+#    official Chrome for Testing endpoint at runtime, rather than trusting a
+#    separate action output that may not actually correspond to it. Step 1's
+#    PATH cleanup (removing /usr/bin/chromedriver) is still required and
+#    kept - that part of fix #1 was correct, only the "also bundle a
+#    chromedriver via the action" part was the mistake.
+#
+# 4. Wrong router assumption. This suite originally assumed the app used
+#    React Router's BrowserRouter; it actually uses HashRouter
+#    (web/src/main.tsx). Every route must be addressed as BASE_URL + '#/...'
+#    - see config.py#route_url() and its docstring for the full story. This
+#    was the root cause of nearly every navigation-dependent test failure
+#    across every prior run, independent of the chromedriver issues above.
 #
 # See selenium-tests/config.py for why the app is built WITHOUT a live
 # backend on purpose (VITE_API_BASE_URL is left unset, so it falls back to
@@ -130,30 +152,44 @@ jobs:
         run: pip install -r requirements.txt
 
       - name: Remove any pre-installed chromedriver from PATH
-        # Defensive: ensures nothing on this runner can shadow the
-        # version-matched driver installed below, even if
-        # CHROMEDRIVER_PATH were ever unset.
+        # Critical, not just defensive: ubuntu-latest ships a pre-installed
+        # /usr/bin/chromedriver that Selenium Manager can end up preferring
+        # over a correctly-resolved one, causing "session not created:
+        # This version of ChromeDriver only supports Chrome version X"
+        # errors that fail 100% of tests at browser-launch time. Must run
+        # BEFORE Selenium Manager ever gets a chance to see it.
         run: sudo rm -f /usr/bin/chromedriver /usr/local/bin/chromedriver || true
 
-      - name: Install Chrome + matching ChromeDriver
+      - name: Install Chrome
+        # Only Chrome itself, deliberately WITHOUT install-chromedriver.
+        # browser-actions/setup-chrome's `install-chromedriver: true` has a
+        # known, currently-open bug (browser-actions/setup-chrome#619) where
+        # the Chrome build and the bundled chromedriver build can resolve to
+        # mismatched versions independently, producing the exact
+        # "session not created: This version of ChromeDriver only supports
+        # Chrome version X" failure this suite hit when that flag was used.
+        # Selenium Manager (bundled with Selenium 4.6+) is a more reliable
+        # fix: given an explicit binary_location (CHROME_PATH, wired below),
+        # it inspects THAT exact Chrome binary's real version and downloads
+        # a matching driver from the official Chrome for Testing endpoint at
+        # runtime - no separate, independently-versioned action output to
+        # trust.
         uses: browser-actions/setup-chrome@v1
         id: setup-chrome
         with:
           chrome-version: stable
-          install-chromedriver: true
 
       - name: Run the 525-test Selenium suite
         working-directory: selenium-tests
         env:
           CHROME_PATH: ${{ steps.setup-chrome.outputs.chrome-path }}
-          CHROMEDRIVER_PATH: ${{ steps.setup-chrome.outputs.chromedriver-path }}
           HEADLESS: ${{ github.event.inputs.headless || 'true' }}
           BASE_URL: ${{ github.event.inputs.base_url || '' }}
           SELENIUM_TIMEOUT: "15"
         run: |
           mkdir -p reports/screenshots reports/logs reports/results
           echo "Chrome: $CHROME_PATH"
-          echo "ChromeDriver: $CHROMEDRIVER_PATH"
+          "$CHROME_PATH" --version
           pytest \
             -n 4 \
             --reruns "${{ github.event.inputs.reruns || 2 }}" \
