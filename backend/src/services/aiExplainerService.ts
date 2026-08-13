@@ -69,7 +69,9 @@ export async function chatWithNutritionAssistant(
 
   const systemPrompt =
     `You are FitFuel's nutrition assistant. Be concise, encouraging, and practical. ` +
-    `Never invent medical claims. Here is the user's current profile summary: ${contextSummary}`;
+    `Never invent medical claims. Your reply should be concise and accurate (around 2-4 sentences), not too big, not too small. ` +
+    `CRITICAL: Do NOT use any markdown formatting (no asterisks, no bold, no italics, no lists). Reply in plain text ONLY. ` +
+    `Here is the user's current profile summary: ${contextSummary}`;
 
   const response = await fetch(GROQ_API_URL, {
     method: "POST",
@@ -83,7 +85,7 @@ export async function chatWithNutritionAssistant(
         { role: "system", content: systemPrompt },
         { role: "user", content: userMessage },
       ],
-      max_tokens: 300,
+      max_tokens: 600,
       temperature: 0.7,
     }),
   });
