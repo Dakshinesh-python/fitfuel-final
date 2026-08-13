@@ -1,26 +1,42 @@
 import { Router, Request, Response } from "express";
+import { z } from "zod";
 import { MealType, Platform, Prisma } from "@prisma/client";
 import { prisma } from "../config/prisma";
 
 const router = Router();
 
+const mealTypeSchema = z.nativeEnum(MealType).optional();
+const platformSchema = z.nativeEnum(Platform).optional();
+
 // GET /api/meals?mealType=BREAKFAST&cuisine=Indian&platform=SWIGGY
 router.get("/", async (req: Request, res: Response) => {
   const { mealType, cuisine, platform } = req.query;
 
+  const mealTypeResult = mealTypeSchema.safeParse(mealType);
+  const platformResult = platformSchema.safeParse(platform);
+
+  if (!mealTypeResult.success || !platformResult.success) {
+    return res.status(400).json({ error: "Invalid mealType or platform value" });
+  }
+
   const where: Prisma.MealWhereInput = {
-    ...(mealType ? { mealType: mealType as MealType } : {}),
+    ...(mealTypeResult.data ? { mealType: mealTypeResult.data } : {}),
     ...(cuisine ? { cuisine: cuisine as string } : {}),
-    ...(platform ? { platform: platform as Platform } : {}),
+    ...(platformResult.data ? { platform: platformResult.data } : {}),
   };
 
-  const meals = await prisma.meal.findMany({
-    where,
-    orderBy: { healthScore: "desc" },
-    take: 100,
-  });
+  try {
+    const meals = await prisma.meal.findMany({
+      where,
+      orderBy: { healthScore: "desc" },
+      take: 100,
+    });
 
-  return res.json({ meals });
+    return res.json({ meals });
+  } catch (err) {
+    console.error(err);
+    return res.status(400).json({ error: "Invalid query parameters" });
+  }
 });
 
 router.get("/:id", async (req: Request, res: Response) => {

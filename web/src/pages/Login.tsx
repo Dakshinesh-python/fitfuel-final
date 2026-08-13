@@ -1,6 +1,6 @@
-import { FormEvent, useState } from 'react';
+import { FormEvent, useState, useEffect } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
-import { apiClient, extractErrorMessage, saveToken } from '../api/client';
+import { apiClient, extractErrorMessage, saveToken, getToken } from '../api/client';
 import { AuthResponse } from '../types';
 
 export default function Login() {
@@ -10,6 +10,12 @@ export default function Login() {
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
   const [wakingUp, setWakingUp] = useState(false);
+
+  useEffect(() => {
+    if (getToken()) {
+      navigate('/dashboard');
+    }
+  }, [navigate]);
 
   async function handleSubmit(e: FormEvent) {
     e.preventDefault();
