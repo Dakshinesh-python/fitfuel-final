@@ -56,18 +56,16 @@ or inflated attempt-count ever appears in the Excel/HTML/JSON output.
 The first real CI run of this suite surfaced two bugs, both fixed in this
 version:
 
-1. **chromedriver/Chrome version mismatch.** `ubuntu-latest` ships a
-   pre-installed `/usr/bin/chromedriver` that can be version-mismatched
+1. **chromedriver/Chrome version mismatch (round 1).** `ubuntu-latest` ships
+   a pre-installed `/usr/bin/chromedriver` that can be version-mismatched
    against whatever Chrome gets installed alongside it. Selenium Manager
    sometimes preferred that stale binary, causing widespread flaky
    `TimeoutException`s across nearly the whole suite (92% of all failures
    in that run shared this exact symptom — confirmed via 255 occurrences of
    a "chromedriver version might not be compatible" warning in the logs).
-   **Fixed:** CI now installs Chrome and a version-matched chromedriver
-   together (`browser-actions/setup-chrome` with `install-chromedriver:
-   true`), and `utils/driver_factory.py` wires that exact matched driver
-   path into Selenium explicitly via `Service(executable_path=...)` —
-   no ambiguity left for Selenium Manager to get wrong.
+   **First fix attempt:** installed Chrome and a "matched" chromedriver
+   together via `browser-actions/setup-chrome`'s `install-chromedriver:
+   true`. This introduced a *worse* bug — see #6 below for the real fix.
 
 2. **Broken 4-way matrix sharding.** The original workflow split execution
    across 4 GitHub Actions matrix jobs using `pytest-split`, which turned
@@ -141,6 +139,27 @@ mid-run rather than completing normally.
    rather than the live site (see below), but for a different, still-valid
    reason: isolating CI from the live Render backend and live deployment
    state, not working around a routing gap that doesn't exist.
+
+6. **chromedriver/Chrome version mismatch (round 2) — the "fix" for #1
+   backfired.** After #1–#5 were fixed, the next real CI run failed 525/525
+   with `session not created: This version of ChromeDriver only supports
+   Chrome version X` — every single test dying instantly at browser launch
+   (~206s total, no test ever reached a page). The `install-chromedriver:
+   true` flag used in fix #1 turned out to be a known, currently open bug in
+   `browser-actions/setup-chrome`
+   ([#619](https://github.com/browser-actions/setup-chrome/issues/619)):
+   the action can resolve the Chrome build and the "matching" chromedriver
+   build to genuinely different versions independently of each other.
+   **Fixed properly this time:** dropped `install-chromedriver: true`
+   entirely. `utils/driver_factory.py` no longer wires an explicit
+   `CHROMEDRIVER_PATH` in CI — instead it sets Chrome's `binary_location` to
+   the exact Chrome the workflow installed (`CHROME_PATH`) and lets Selenium
+   Manager (bundled with Selenium 4.6+, purpose-built for exactly this) read
+   that binary's real version and fetch a correctly matched driver from the
+   official Chrome for Testing endpoint at runtime. The PATH-cleanup part of
+   fix #1 (removing `/usr/bin/chromedriver` before Chrome installs) was
+   correct and is kept — only the "bundle a second, separately-versioned
+   driver" part was the mistake.
 
 ## Why this suite runs against `vite preview` instead of the live site
 

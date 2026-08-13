@@ -1,22 +1,43 @@
 """
 Chrome WebDriver factory.
 
-Learned-the-hard-way rules baked in here:
-- GitHub's ubuntu-latest runner ships a pre-installed /usr/bin/chromedriver
-  that is frequently version-mismatched against whatever Chrome version gets
-  installed alongside it. Selenium Manager can end up preferring that stale
-  PATH binary, which causes exactly the kind of widespread, non-deterministic
-  TimeoutExceptions this suite hit in its first CI run (elements "never
-  becoming visible" on completely standard, correct locators - even on
-  public, unauthenticated pages). The fix: never let Selenium Manager guess.
-  CI installs Chrome AND a version-matched chromedriver together via
-  browser-actions/setup-chrome's `install-chromedriver: true`, exports both
-  paths, and we wire the driver path explicitly via Service(executable_path=...)
-  below so there's no ambiguity about which binary gets used.
-- Headless uses the new `--headless=new` flag (old `--headless` renders
-  differently for some layout/responsive assertions).
-- A fixed, deterministic window size is set explicitly rather than relying on
-  the OS default, so responsive/breakpoint tests are reproducible in CI.
+Learned-the-hard-way rules baked in here (in the order they were found):
+
+1. GitHub's ubuntu-latest runner ships a pre-installed /usr/bin/chromedriver
+   that is frequently version-mismatched against whatever Chrome gets
+   installed alongside it, and Selenium Manager can end up preferring that
+   stale PATH binary. The CI workflow removes it before Chrome/tests ever
+   run (see .github/workflows/selenium-tests.yml) - that part matters
+   regardless of anything below.
+
+2. Do NOT rely on a third-party action to bundle a "matched" chromedriver.
+   An earlier version of this file explicitly wired CHROMEDRIVER_PATH from
+   browser-actions/setup-chrome's `install-chromedriver: true` output,
+   trying to route around Selenium Manager entirely. That backfired hard:
+   it's a known, currently open bug in that action
+   (browser-actions/setup-chrome#619) where the Chrome build and the
+   bundled chromedriver build can resolve to different versions
+   independently of each other - which produced a hard
+   `session not created: This version of ChromeDriver only supports
+   Chrome version X` error and failed 100% of the suite immediately at
+   driver-launch time (worse than the original PATH-shadowing problem it
+   was meant to fix, since nothing even reached a page).
+
+   The fix: trust Selenium Manager (bundled with Selenium 4.6+) as the
+   PRIMARY path, not something to avoid. Given an explicit
+   `binary_location` (CHROME_PATH, set below from the actual Chrome the
+   workflow installed), Selenium Manager inspects THAT EXACT binary's real
+   version and downloads a correctly matched driver from the official
+   Chrome for Testing endpoint at runtime - it doesn't need a second,
+   separately-versioned "matched pair" from anywhere else. CHROMEDRIVER_PATH
+   is still supported below as an optional manual override (e.g. for a
+   pinned local install), but CI no longer sets it.
+
+3. Headless uses the new `--headless=new` flag (old `--headless` renders
+   differently for some layout/responsive assertions).
+
+4. A fixed, deterministic window size is set explicitly rather than relying
+   on the OS default, so responsive/breakpoint tests are reproducible in CI.
 """
 
 import os
@@ -46,6 +67,9 @@ def build_chrome_options(window_size: tuple[int, int] = (1440, 900)) -> Options:
     opts.add_argument("--remote-allow-origins=*")
     opts.set_capability("goog:loggingPrefs", {"browser": "ALL"})
 
+    # Points Selenium Manager at the exact Chrome binary this run should
+    # use (set by CI to the browser-actions/setup-chrome install). Selenium
+    # Manager reads this to determine which driver version to fetch.
     chrome_path = os.environ.get("CHROME_PATH")
     if chrome_path:
         opts.binary_location = chrome_path
@@ -56,11 +80,9 @@ def build_chrome_options(window_size: tuple[int, int] = (1440, 900)) -> Options:
 def build_driver(window_size: tuple[int, int] = (1440, 900)) -> webdriver.Chrome:
     options = build_chrome_options(window_size)
 
-    # Explicit, version-matched driver takes priority over Selenium Manager's
-    # own resolution (which is what caused the chromedriver/Chrome version
-    # mismatch instability in CI). Falls back to plain Service() - and
-    # therefore Selenium Manager - only when CHROMEDRIVER_PATH isn't set,
-    # e.g. for local runs on a developer machine.
+    # CHROMEDRIVER_PATH is an optional manual override only - CI does not
+    # set it. Default path is plain Service(), which hands resolution to
+    # Selenium Manager against the CHROME_PATH binary configured above.
     chromedriver_path = os.environ.get("CHROMEDRIVER_PATH")
     service = Service(executable_path=chromedriver_path) if chromedriver_path else Service()
 
