@@ -1,0 +1,226 @@
+name: Backend Test Suite (Security / Functional / Performance)
+
+# Drop this file into .github/workflows/ at the repo root (alongside the
+# existing backend-ci.yml). Runs the 465-case backend-tests/ suite against
+# a REAL running instance of the backend, backed by a real ephemeral
+# Postgres service container -- consistent with how backend-ci.yml already
+# tests this repo, just against the full backend-tests/ suite instead of
+# the Jest unit tests.
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - "backend/**"
+      - "backend-tests/**"
+      - ".github/workflows/backend-tests.yml"
+  pull_request:
+    branches: [main]
+    paths:
+      - "backend/**"
+      - "backend-tests/**"
+      - ".github/workflows/backend-tests.yml"
+  workflow_dispatch:
+    inputs:
+      run_stress_load_test:
+        description: "Also run the k6 stress scenario (100 VUs) -- slow, opt-in"
+        type: boolean
+        default: false
+
+jobs:
+  backend-tests:
+    runs-on: ubuntu-latest
+
+    services:
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_USER: fitfuel
+          POSTGRES_PASSWORD: fitfuel
+          POSTGRES_DB: fitfuel_test
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+
+    env:
+      DATABASE_URL: postgresql://fitfuel:fitfuel@localhost:5432/fitfuel_test?schema=public
+      JWT_SECRET: ci-test-secret-do-not-use-in-prod
+      ALLOWED_ORIGINS: http://localhost:5173
+      NODE_ENV: test
+      PORT: 4000
+      BASE_URL: http://127.0.0.1:4000
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+          cache: "npm"
+          cache-dependency-path: backend/package-lock.json
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Install backend dependencies
+        working-directory: backend
+        run: npm install
+
+      - name: Generate Prisma client
+        working-directory: backend
+        run: npx prisma generate
+
+      - name: Run database migrations
+        working-directory: backend
+        run: npx prisma migrate deploy
+
+      - name: Seed meal catalog
+        working-directory: backend
+        run: npx prisma db seed || npx ts-node prisma/seed.ts || true
+        continue-on-error: true # some endpoints work with an empty catalog; don't hard-fail CI on seed script drift
+
+      - name: Install backend-tests dependencies
+        working-directory: backend-tests
+        run: pip install -r requirements.txt
+
+      - name: Start backend server in the background
+        working-directory: backend
+        run: |
+          npm run build
+          nohup node dist/server.js > /tmp/backend.log 2>&1 &
+          echo "Started backend, waiting for /health..."
+          for i in $(seq 1 30); do
+            if curl -sf http://127.0.0.1:4000/health > /dev/null; then
+              echo "Backend is healthy."
+              exit 0
+            fi
+            sleep 1
+          done
+          echo "Backend never became healthy. Server log:"
+          cat /tmp/backend.log
+          exit 1
+
+      # --- Static analysis (SAST-style), non-blocking but surfaced in the summary ---
+      - name: Bandit / pip-audit (backend-tests suite's own Python dependencies)
+        working-directory: backend-tests
+        run: |
+          pip install bandit pip-audit
+          bandit -r . -x tests -f txt || true
+          pip-audit || true
+        continue-on-error: true
+
+      # --- The 465-case suite itself ---
+      - name: Run backend-tests suite
+        working-directory: backend-tests
+        run: python3 -m pytest -q --tb=short -p no:cacheprovider
+
+      - name: Generate reports (Excel + Markdown)
+        if: always()
+        working-directory: backend-tests
+        run: python3 scripts/generate_reports.py
+
+      - name: Write job summary
+        if: always()
+        run: |
+          if [ -f reports/summary.md ]; then
+            cat reports/summary.md >> "$GITHUB_STEP_SUMMARY"
+          fi
+
+      - name: Upload reports
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: backend-test-reports
+          path: |
+            reports/
+          retention-days: 30
+
+      - name: Fail build on any CRITICAL finding
+        if: always()
+        working-directory: backend-tests
+        run: |
+          python3 - <<'PY'
+          import json, sys
+          from pathlib import Path
+          p = Path("../reports/execution-results.json")
+          if not p.exists():
+              sys.exit(0)  # suite didn't even produce results; the pytest step above already failed the build
+          data = json.loads(p.read_text())
+          critical_failures = [
+              r for r in data["results"]
+              if r["status"] == "failed" and r["severity"] == "CRITICAL"
+          ]
+          if critical_failures:
+              print(f"::error::{len(critical_failures)} CRITICAL-severity test(s) failed:")
+              for r in critical_failures:
+                  print(f"  - {r['title']} ({r['nodeid']})")
+              sys.exit(1)
+          print("No CRITICAL-severity failures.")
+          PY
+
+  load-test-baseline:
+    needs: backend-tests
+    if: github.event_name == 'workflow_dispatch'
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_USER: fitfuel
+          POSTGRES_PASSWORD: fitfuel
+          POSTGRES_DB: fitfuel_test
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+    env:
+      DATABASE_URL: postgresql://fitfuel:fitfuel@localhost:5432/fitfuel_test?schema=public
+      JWT_SECRET: ci-test-secret-do-not-use-in-prod
+      ALLOWED_ORIGINS: http://localhost:5173
+      NODE_ENV: test
+      PORT: 4000
+      BASE_URL: http://127.0.0.1:4000
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+          cache: "npm"
+          cache-dependency-path: backend/package-lock.json
+      - name: Install, migrate, build, start
+        working-directory: backend
+        run: |
+          npm install
+          npx prisma generate
+          npx prisma migrate deploy
+          npx prisma db seed || true
+          npm run build
+          nohup node dist/server.js > /tmp/backend.log 2>&1 &
+          for i in $(seq 1 30); do curl -sf http://127.0.0.1:4000/health && break; sleep 1; done
+      - name: Install k6
+        run: |
+          curl -s https://dl.k6.io/key.gpg | sudo gpg --dearmor -o /usr/share/keyrings/k6-archive-keyring.gpg
+          echo "deb [signed-by=/usr/share/keyrings/k6-archive-keyring.gpg] https://dl.k6.io/deb stable main" | sudo tee /etc/apt/sources.list.d/k6.list
+          sudo apt-get update && sudo apt-get install -y k6
+      - name: Run k6 baseline scenario
+        working-directory: backend-tests
+        run: SCENARIO=baseline k6 run --out json=/tmp/k6-results.json load/k6-load-test.js
+      - name: Run k6 stress scenario (opt-in)
+        if: ${{ github.event.inputs.run_stress_load_test == 'true' }}
+        working-directory: backend-tests
+        run: SCENARIO=stress k6 run load/k6-load-test.js
+      - name: Upload k6 results
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: k6-load-test-results
+          path: /tmp/k6-results.json
+          retention-days: 30
