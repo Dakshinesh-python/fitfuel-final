@@ -16,12 +16,12 @@ const router = Router();
  *          (without it Zomato defaults to restaurant search)
  */
 function buildDeepLink(platform: "SWIGGY" | "ZOMATO", _restaurant: string, query: string): string {
-  const q = encodeURIComponent(query);
   if (platform === "SWIGGY") {
-    return `https://www.swiggy.com/search?query=${q}`;
+    return `https://www.swiggy.com/search?query=${encodeURIComponent(query)}`;
   }
-  // Zomato global restaurants search
-  return `https://www.zomato.com/restaurants?q=${q}`;
+  // Hardcoded for Chennai testing: format dish query with hyphens (e.g. "Chicken Breast" -> "chicken-breast")
+  const formattedDish = encodeURIComponent(query.toLowerCase().replace(/\s+/g, '-'));
+  return `https://www.zomato.com/chennai/delivery/dish-${formattedDish}`;
 }
 
 const orderSchema = z.object({

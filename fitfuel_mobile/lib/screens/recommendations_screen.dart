@@ -70,20 +70,13 @@ class _RecommendationsScreenState extends State<RecommendationsScreen> {
       final result = OrderResult.fromJson(data as Map<String, dynamic>);
       final httpsUri = Uri.parse(result.deepLink);
       
-      // Extract the query we sent from the backend URL
-      final q = httpsUri.queryParameters['q'] ?? httpsUri.queryParameters['query'] ?? '';
-      
-      // Try native deep link first to bypass Chrome and force the app
-      final nativeUri = platform == 'ZOMATO' 
-          ? Uri.parse('zomato://search?keyword=$q') 
-          : Uri.parse('swiggy://search?q=$q');
-
       bool launched = false;
       try {
-        launched = await launchUrl(nativeUri, mode: LaunchMode.externalApplication);
+        // Use externalNonBrowserApplication to force Android to open the native app (via App Links)
+        launched = await launchUrl(httpsUri, mode: LaunchMode.externalNonBrowserApplication);
       } catch (_) {}
 
-      // Fallback to HTTPS app link / browser
+      // Fallback to regular external application (opens Chrome if app not installed)
       if (!launched) {
         try {
           launched = await launchUrl(httpsUri, mode: LaunchMode.externalApplication);

@@ -140,9 +140,9 @@ describe("POST /api/orders", () => {
     expect(res.status).toBe(201);
     const url = res.body.deepLink as string;
     // Must open Zomato's search page — never a fake order endpoint
-    expect(url).toContain("zomato.com/restaurants");
-    // Dish name must be URL-encoded (not restaurant name)
-    expect(url).toContain(encodeURIComponent("Grilled Chicken Bowl"));
+    expect(url).toContain("zomato.com/chennai/delivery/dish-");
+    // Dish name must be URL-encoded (not restaurant name), lowercased with hyphens
+    expect(url).toContain("grilled-chicken-bowl");
   });
 
   it("deepLink never contains 'order' or 'checkout' paths (handoff only, never fake API call)", async () => {
