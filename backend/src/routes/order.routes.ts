@@ -20,9 +20,8 @@ function buildDeepLink(platform: "SWIGGY" | "ZOMATO", _restaurant: string, query
   if (platform === "SWIGGY") {
     return `https://www.swiggy.com/search?query=${q}`;
   }
-  // Zomato web routing generally prefers a region in the path. 
-  // 'india' serves as a generic region that Zomato auto-corrects based on user location.
-  return `https://www.zomato.com/india/restaurants?q=${q}`;
+  // Zomato global restaurants search
+  return `https://www.zomato.com/restaurants?q=${q}`;
 }
 
 const orderSchema = z.object({

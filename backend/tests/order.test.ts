@@ -140,7 +140,7 @@ describe("POST /api/orders", () => {
     expect(res.status).toBe(201);
     const url = res.body.deepLink as string;
     // Must open Zomato's search page — never a fake order endpoint
-    expect(url).toContain("zomato.com/india/restaurants");
+    expect(url).toContain("zomato.com/restaurants");
     // Dish name must be URL-encoded (not restaurant name)
     expect(url).toContain(encodeURIComponent("Grilled Chicken Bowl"));
   });
