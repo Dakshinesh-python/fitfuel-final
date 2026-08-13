@@ -19,9 +19,8 @@ function buildDeepLink(platform: "SWIGGY" | "ZOMATO", _restaurant: string, query
   if (platform === "SWIGGY") {
     return `https://www.swiggy.com/search?query=${encodeURIComponent(query)}`;
   }
-  // Hardcoded for Chennai testing: format dish query with hyphens (e.g. "Chicken Breast" -> "chicken-breast")
-  const formattedDish = encodeURIComponent(query.toLowerCase().replace(/\s+/g, '-'));
-  return `https://www.zomato.com/chennai/delivery/dish-${formattedDish}`;
+  // For now, Zomato dish search is broken. Defaulting to Chennai delivery home page.
+  return `https://www.zomato.com/chennai/delivery`;
 }
 
 const orderSchema = z.object({
