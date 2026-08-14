@@ -396,18 +396,18 @@ class TestRecommendations:
         for rec in r.json()["recommendations"]:
             assert rec["meal"]["mealType"] == "LUNCH"
 
-    def test_recommendations_returns_at_most_five(self, client):
+    def test_recommendations_returns_at_most_twenty(self, client):
         """
         CATEGORY: Business Logic
-        TITLE: Recommendations are capped at top 5
-        OBJECTIVE: rankMeals(candidates, ctx, 5) hardcodes topN=5 for this route.
-        EXPECTED: len(recommendations) <= 5.
+        TITLE: Recommendations are capped at top 20
+        OBJECTIVE: rankMeals(candidates, ctx, 20) hardcodes topN=20 for this route.
+        EXPECTED: len(recommendations) <= 20.
         SEVERITY: LOW
         """
         user = _register_with_metrics(client, 29, "MALE", 178, 78)
         _submit_profile(client, user["headers"], 78, 75, "MODERATE", "MAINTENANCE")
         r = client.get(RECOMMENDATIONS, params={"mealType": "BREAKFAST"}, headers=user["headers"])
-        assert len(r.json()["recommendations"]) <= 5
+        assert len(r.json()["recommendations"]) <= 20
 
     def test_recommendations_requires_completed_health_assessment(self, client):
         """

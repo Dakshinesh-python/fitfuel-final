@@ -159,7 +159,7 @@ export default function MealDetailModal({ item, similar, onClose, onSelectSimila
     `Approx. ${meal.proteinG}g protein serving`,
     meal.isVegetarian ? 'Vegetarian preparation' : null,
     meal.isVegan ? 'Vegan ingredients' : null,
-    `Available on ${meal.platform === 'SWIGGY' ? 'Swiggy' : 'Zomato'} — ${meal.restaurant}`,
+    `Available on ${meal.platform === 'SWIGGY' ? 'Swiggy' : 'Zomato'}`,
   ].filter(Boolean) as string[];
 
   // Dynamic tags based on meal data
@@ -240,8 +240,8 @@ export default function MealDetailModal({ item, similar, onClose, onSelectSimila
 
             {/* Description */}
             <p className="font-body-sm text-on-surface-variant mb-5 leading-relaxed">
-              {meal.cuisine} cuisine from {meal.restaurant} ·{' '}
-              {meal.isVegan ? 'Vegan' : meal.isVegetarian ? 'Vegetarian' : 'Non-Vegetarian'}
+              {meal.cuisine} cuisine ·{' '}
+              {meal.isVegan ? 'Vegan' : meal.isVegetarian ? 'Vegetarian' : 'Non-vegetarian'}
             </p>
 
             {/* Order buttons */}

@@ -134,7 +134,7 @@ function MealCard({
           <h3 className="text-white font-bold text-[17px] leading-tight drop-shadow-sm">
             {meal.name}
           </h3>
-          <p className="text-white/75 text-[12px] mt-0.5">{meal.restaurant} · {meal.cuisine}</p>
+          <p className="text-white/75 text-[12px] mt-0.5">{meal.cuisine}</p>
         </div>
       </div>
 
