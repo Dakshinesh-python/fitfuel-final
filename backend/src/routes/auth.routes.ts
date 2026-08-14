@@ -127,4 +127,12 @@ router.patch("/password", requireAuth, async (req: AuthRequest, res: Response) =
   return res.json({ message: "Password updated successfully" });
 });
 
+// ─── DELETE /api/auth/account ─────────────────────────────────────────────────
+// Deletes the user account and all associated data.
+
+router.delete("/account", requireAuth, async (req: AuthRequest, res: Response) => {
+  await prisma.user.delete({ where: { id: req.userId } });
+  return res.json({ message: "Account deleted successfully" });
+});
+
 export default router;

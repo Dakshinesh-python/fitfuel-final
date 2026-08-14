@@ -24,6 +24,7 @@ router.post("/", requireAuth, async (req: AuthRequest, res: Response) => {
   // Build a context string even if the user has no profile yet
   const contextSummary = profile
     ? `Goal: ${profile.fitnessGoal}, dietary preference: ${profile.dietaryPreference}, ` +
+      `current weight: ${profile.currentWeightKg} kg, target weight: ${profile.targetWeightKg} kg, ` +
       `daily calorie target: ${profile.tdee ? Math.round(profile.tdee) : "unknown"} kcal, ` +
       `protein target: ${profile.proteinTargetG ?? "unknown"}g.`
     : "The user has not yet completed their health assessment.";

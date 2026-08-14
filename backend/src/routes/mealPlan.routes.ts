@@ -65,17 +65,35 @@ router.post("/generate", requireAuth, async (req: AuthRequest, res: Response) =>
   });
 
   const items: Array<{ dayOfWeek: number; mealType: MealType; mealId: string; matchScore: number }> = [];
+  const usedIdsThisWeek = new Set<string>();
 
   for (let day = 0; day < 7; day++) {
     const usedIdsToday = new Set<string>();
 
     for (const mealType of MEAL_TYPES) {
       const candidates = mealsByType.get(mealType) ?? [];
-      // Try full ranking first; if top pick is already used today, take next
-      const ranked = rankMeals(candidates, ctx, 10);
-      const pick = ranked.find((r) => !usedIdsToday.has(r.mealId)) ?? ranked[0];
+      const ranked = rankMeals(candidates, ctx, 50);
+      
+      const unusedThisWeek = ranked.filter(r => !usedIdsThisWeek.has(r.mealId));
+      let pick: typeof ranked[0] | undefined;
+
+      if (unusedThisWeek.length > 0) {
+        // Pick randomly from the top 3 unused to add variety across different generations
+        const poolSize = Math.min(3, unusedThisWeek.length);
+        pick = unusedThisWeek[Math.floor(Math.random() * poolSize)];
+      } else {
+        // Fallback: allow reuse but try to avoid reusing on the same day
+        const unusedToday = ranked.filter(r => !usedIdsToday.has(r.mealId));
+        if (unusedToday.length > 0) {
+          const poolSize = Math.min(3, unusedToday.length);
+          pick = unusedToday[Math.floor(Math.random() * poolSize)];
+        } else {
+          pick = ranked[0];
+        }
+      }
 
       if (pick) {
+        usedIdsThisWeek.add(pick.mealId);
         usedIdsToday.add(pick.mealId);
         items.push({ dayOfWeek: day, mealType, mealId: pick.mealId, matchScore: pick.score });
       }

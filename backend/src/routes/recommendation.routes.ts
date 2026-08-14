@@ -54,7 +54,7 @@ router.get("/", requireAuth, async (req: AuthRequest, res: Response) => {
         dietaryPreference: profile.dietaryPreference,
         allergies: profile.allergies,
       },
-      5
+      20
     );
 
     const mealsById = new Map(candidateMeals.map((m) => [m.id, m]));
