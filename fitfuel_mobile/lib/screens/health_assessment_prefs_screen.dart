@@ -15,9 +15,28 @@ class _HealthAssessmentPrefsScreenState
     extends State<HealthAssessmentPrefsScreen> {
   String _diet = 'VEGETARIAN';
   final Set<String> _allergies = {};
-  double _budget = 45;
+  double _budget = 500;
+  final TextEditingController _budgetController =
+      TextEditingController(text: '500');
   bool _loading = false;
   String? _error;
+
+  @override
+  void initState() {
+    super.initState();
+    _budgetController.addListener(() {
+      final val = double.tryParse(_budgetController.text);
+      if (val != null && val > 0 && val != _budget) {
+        setState(() => _budget = val);
+      }
+    });
+  }
+
+  @override
+  void dispose() {
+    _budgetController.dispose();
+    super.dispose();
+  }
 
   Future<void> _submit() async {
     final args =
@@ -64,6 +83,41 @@ class _HealthAssessmentPrefsScreenState
     'Nuts',
     'Shellfish'
   ];
+
+  Future<void> _showAddAllergyDialog() async {
+    String newAllergy = '';
+    await showDialog(
+        context: context,
+        builder: (context) {
+          return AlertDialog(
+            title: const Text('Add Allergy/Restriction'),
+            content: TextField(
+              autofocus: true,
+              decoration: const InputDecoration(
+                hintText: 'e.g., Soy, Peanuts...',
+              ),
+              onChanged: (val) => newAllergy = val,
+            ),
+            actions: [
+              TextButton(
+                onPressed: () => Navigator.pop(context),
+                child: const Text('Cancel'),
+              ),
+              ElevatedButton(
+                onPressed: () {
+                  if (newAllergy.trim().isNotEmpty) {
+                    setState(() {
+                      _allergies.add(newAllergy.trim());
+                    });
+                  }
+                  Navigator.pop(context);
+                },
+                child: const Text('Add'),
+              ),
+            ],
+          );
+        });
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -156,20 +210,54 @@ class _HealthAssessmentPrefsScreenState
               Wrap(
                 spacing: 10,
                 runSpacing: 10,
-                children: _allergyOptions.map((a) {
-                  final selected = _allergies.contains(a);
-                  return SelectableChip(
-                    label: a,
-                    selected: selected,
-                    onTap: () => setState(() {
-                      if (selected) {
-                        _allergies.remove(a);
-                      } else {
-                        _allergies.add(a);
-                      }
-                    }),
-                  );
-                }).toList(),
+                children: [
+                  ..._allergyOptions.map((a) {
+                    final selected = _allergies.contains(a);
+                    return SelectableChip(
+                      label: a,
+                      selected: selected,
+                      onTap: () => setState(() {
+                        if (selected) {
+                          _allergies.remove(a);
+                        } else {
+                          _allergies.add(a);
+                        }
+                      }),
+                    );
+                  }),
+                  ..._allergies
+                      .where((a) => !_allergyOptions.contains(a))
+                      .map((a) {
+                    return SelectableChip(
+                      label: a,
+                      selected: true,
+                      onTap: () => setState(() => _allergies.remove(a)),
+                    );
+                  }),
+                  GestureDetector(
+                    onTap: _showAddAllergyDialog,
+                    child: Container(
+                      padding: const EdgeInsets.symmetric(
+                          horizontal: 16, vertical: 8),
+                      decoration: BoxDecoration(
+                        color: Colors.transparent,
+                        borderRadius: BorderRadius.circular(100),
+                        border: Border.all(color: AppColors.outlineVariant),
+                      ),
+                      child: Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          const Icon(Icons.add,
+                              size: 16, color: AppColors.onSurfaceVariant),
+                          const SizedBox(width: 4),
+                          Text('Add Other',
+                              style: AppTextStyles.labelMd
+                                  .copyWith(color: AppColors.onSurfaceVariant)),
+                        ],
+                      ),
+                    ),
+                  ),
+                ],
               ),
               const SizedBox(height: 28),
               Row(
@@ -182,10 +270,28 @@ class _HealthAssessmentPrefsScreenState
                 ],
               ),
               const SizedBox(height: 8),
-              Center(
-                child: Text('₹${_budget.round()}',
-                    style: AppTextStyles.displayLg
-                        .copyWith(fontSize: 36, color: AppColors.primary)),
+              Row(
+                mainAxisAlignment: MainAxisAlignment.center,
+                crossAxisAlignment: CrossAxisAlignment.center,
+                children: [
+                  Text('₹',
+                      style: AppTextStyles.displayLg
+                          .copyWith(fontSize: 36, color: AppColors.primary)),
+                  IntrinsicWidth(
+                    child: TextField(
+                      controller: _budgetController,
+                      keyboardType: TextInputType.number,
+                      textAlign: TextAlign.center,
+                      style: AppTextStyles.displayLg
+                          .copyWith(fontSize: 36, color: AppColors.primary),
+                      decoration: const InputDecoration(
+                        border: InputBorder.none,
+                        isDense: true,
+                        contentPadding: EdgeInsets.zero,
+                      ),
+                    ),
+                  ),
+                ],
               ),
               SliderTheme(
                 data: SliderTheme.of(context).copyWith(
@@ -195,19 +301,27 @@ class _HealthAssessmentPrefsScreenState
                   overlayColor: AppColors.primary.withOpacity(0.1),
                 ),
                 child: Slider(
-                  value: _budget,
-                  min: 15,
-                  max: 150,
-                  onChanged: (v) => setState(() => _budget = v),
+                  value: _budget.clamp(50.0, 1000.0),
+                  min: 50,
+                  max: 1000,
+                  onChanged: (v) {
+                    setState(() {
+                      _budget = v;
+                    });
+                    // Avoid moving cursor to start when dragging
+                    if (_budgetController.text != v.round().toString()) {
+                      _budgetController.text = v.round().toString();
+                    }
+                  },
                 ),
               ),
               Row(
                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 children: [
-                  Text('₹15',
+                  Text('₹50',
                       style: AppTextStyles.labelSm
                           .copyWith(color: AppColors.outline)),
-                  Text('₹150+',
+                  Text('₹1000+',
                       style: AppTextStyles.labelSm
                           .copyWith(color: AppColors.outline)),
                 ],

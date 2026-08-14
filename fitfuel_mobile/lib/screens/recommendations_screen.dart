@@ -392,7 +392,7 @@ class _RecommendationCardState extends State<_RecommendationCard> {
                 Text(meal.name,
                     style: AppTextStyles.headlineMd.copyWith(fontSize: 17)),
                 const SizedBox(height: 2),
-                Text(meal.restaurant,
+                Text('${meal.cuisine} Cuisine',
                     style: AppTextStyles.labelMd
                         .copyWith(color: AppColors.onSurfaceVariant)),
                 const SizedBox(height: 12),

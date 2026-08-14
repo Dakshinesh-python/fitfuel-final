@@ -441,7 +441,7 @@ class _MealPlanCard extends StatelessWidget {
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Text(
-                  '${meal.restaurant} · ${meal.cuisine}',
+                  '${meal.cuisine} Cuisine',
                   style: AppTextStyles.labelSm
                       .copyWith(color: AppColors.onSurfaceVariant),
                 ),
