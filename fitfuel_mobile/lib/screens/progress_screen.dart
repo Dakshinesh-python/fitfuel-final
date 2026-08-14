@@ -57,7 +57,8 @@ class _ProgressScreenState extends State<ProgressScreen> {
       if (mounted) setState(() => _loadError = e.message);
     } catch (_) {
       if (mounted) {
-        setState(() => _loadError = 'Unable to load progress data. Please try again.');
+        setState(() =>
+            _loadError = 'Unable to load progress data. Please try again.');
       }
     } finally {
       if (mounted) setState(() => _loading = false);
@@ -89,7 +90,9 @@ class _ProgressScreenState extends State<ProgressScreen> {
         automaticallyImplyLeading: false,
         title: const Text('Progress',
             style: TextStyle(
-                fontSize: 20, fontWeight: FontWeight.w800, color: Color(0xFF111827))),
+                fontSize: 20,
+                fontWeight: FontWeight.w800,
+                color: Color(0xFF111827))),
       ),
       body: SafeArea(
         top: false,
@@ -99,7 +102,8 @@ class _ProgressScreenState extends State<ProgressScreen> {
         currentIndex: 3,
         onTap: (i) {
           if (i == 0) Navigator.of(context).pushReplacementNamed('/dashboard');
-          if (i == 1) Navigator.of(context).pushReplacementNamed('/recommendations');
+          if (i == 1)
+            Navigator.of(context).pushReplacementNamed('/recommendations');
           if (i == 2) Navigator.of(context).pushNamed('/chat');
           if (i == 4) Navigator.of(context).pushReplacementNamed('/profile');
         },
@@ -117,7 +121,8 @@ class _ProgressScreenState extends State<ProgressScreen> {
           child: Column(
             mainAxisSize: MainAxisSize.min,
             children: [
-              const Icon(Icons.wifi_off_rounded, size: 48, color: AppColors.outline),
+              const Icon(Icons.wifi_off_rounded,
+                  size: 48, color: AppColors.outline),
               const SizedBox(height: 16),
               Text(_loadError!,
                   textAlign: TextAlign.center,
@@ -165,10 +170,16 @@ class _ProgressScreenState extends State<ProgressScreen> {
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     const Text('Track your journey',
-                        style: TextStyle(color: Colors.white70, fontSize: 12, fontWeight: FontWeight.w500)),
+                        style: TextStyle(
+                            color: Colors.white70,
+                            fontSize: 12,
+                            fontWeight: FontWeight.w500)),
                     const SizedBox(height: 4),
                     const Text('Your Progress',
-                        style: TextStyle(color: Colors.white, fontSize: 22, fontWeight: FontWeight.w800)),
+                        style: TextStyle(
+                            color: Colors.white,
+                            fontSize: 22,
+                            fontWeight: FontWeight.w800)),
                     const SizedBox(height: 4),
                     const Text('Weight trends & nutrition logs',
                         style: TextStyle(color: Colors.white60, fontSize: 11)),
@@ -180,7 +191,8 @@ class _ProgressScreenState extends State<ProgressScreen> {
                 style: ElevatedButton.styleFrom(
                   backgroundColor: Colors.white,
                   foregroundColor: const Color(0xFF1D4ED8),
-                  padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+                  padding:
+                      const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
                   minimumSize: Size.zero,
                   shape: RoundedRectangleBorder(
                     borderRadius: BorderRadius.circular(12),
@@ -188,7 +200,9 @@ class _ProgressScreenState extends State<ProgressScreen> {
                   elevation: 0,
                 ),
                 icon: const Icon(Icons.add, size: 16),
-                label: const Text('Log', style: TextStyle(fontSize: 13, fontWeight: FontWeight.w700)),
+                label: const Text('Log',
+                    style:
+                        TextStyle(fontSize: 13, fontWeight: FontWeight.w700)),
               ),
             ],
           ),
@@ -205,15 +219,17 @@ class _ProgressScreenState extends State<ProgressScreen> {
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Text('Weekly Avg', style: AppTextStyles.labelSm
-                        .copyWith(color: AppColors.onSurfaceVariant)),
+                    Text('Weekly Avg',
+                        style: AppTextStyles.labelSm
+                            .copyWith(color: AppColors.onSurfaceVariant)),
                     const SizedBox(height: 4),
                     Text(
                       '${(_summary?.weeklyAverageCalories ?? 0).round()} kcal',
                       style: AppTextStyles.headlineMd,
                     ),
-                    Text('/ day', style: AppTextStyles.labelSm
-                        .copyWith(color: AppColors.onSurfaceVariant)),
+                    Text('/ day',
+                        style: AppTextStyles.labelSm
+                            .copyWith(color: AppColors.onSurfaceVariant)),
                   ],
                 ),
               ),
@@ -226,8 +242,9 @@ class _ProgressScreenState extends State<ProgressScreen> {
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Text('Goal Achievement', style: AppTextStyles.labelSm
-                        .copyWith(color: AppColors.onSurfaceVariant)),
+                    Text('Goal Achievement',
+                        style: AppTextStyles.labelSm
+                            .copyWith(color: AppColors.onSurfaceVariant)),
                     const SizedBox(height: 8),
                     ClipRRect(
                       borderRadius: BorderRadius.circular(AppRadius.full),
@@ -241,8 +258,8 @@ class _ProgressScreenState extends State<ProgressScreen> {
                     const SizedBox(height: 4),
                     Text(
                       '${(_summary?.goalAchievementPct ?? 0).round()}%',
-                      style: AppTextStyles.headlineMd.copyWith(
-                          color: AppColors.primary),
+                      style: AppTextStyles.headlineMd
+                          .copyWith(color: AppColors.primary),
                     ),
                   ],
                 ),
@@ -296,7 +313,8 @@ class _ProgressScreenState extends State<ProgressScreen> {
                         color: Color(0xFF111827))),
                 const Spacer(),
                 Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                  padding:
+                      const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
                   decoration: BoxDecoration(
                     color: const Color(0xFF3B82F6).withValues(alpha: 0.1),
                     borderRadius: BorderRadius.circular(20),
@@ -357,10 +375,10 @@ class _ProgressScreenState extends State<ProgressScreen> {
     final maxY = (maxW + padding).ceilToDouble();
     final yInterval = ((maxY - minY) / 4).ceilToDouble().clamp(0.5, 100.0);
 
-    final xMax = (_weightHistory.length - 1).toDouble().clamp(1.0, double.infinity);
-    final xInterval = _weightHistory.length > 6
-        ? (xMax / 4).ceilToDouble()
-        : 1.0;
+    final xMax =
+        (_weightHistory.length - 1).toDouble().clamp(1.0, double.infinity);
+    final xInterval =
+        _weightHistory.length > 6 ? (xMax / 4).ceilToDouble() : 1.0;
 
     return AppCard(
       radius: 20,
@@ -378,7 +396,8 @@ class _ProgressScreenState extends State<ProgressScreen> {
                       color: Color(0xFF111827))),
               const Spacer(),
               Container(
-                padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                padding:
+                    const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
                 decoration: BoxDecoration(
                   color: AppColors.primary.withValues(alpha: 0.1),
                   borderRadius: BorderRadius.circular(20),
@@ -396,12 +415,12 @@ class _ProgressScreenState extends State<ProgressScreen> {
           Row(
             children: [
               Text('Min: ${minW.toStringAsFixed(1)} kg',
-                  style: const TextStyle(
-                      fontSize: 11, color: Color(0xFF9CA3AF))),
+                  style:
+                      const TextStyle(fontSize: 11, color: Color(0xFF9CA3AF))),
               const SizedBox(width: 12),
               Text('Max: ${maxW.toStringAsFixed(1)} kg',
-                  style: const TextStyle(
-                      fontSize: 11, color: Color(0xFF9CA3AF))),
+                  style:
+                      const TextStyle(fontSize: 11, color: Color(0xFF9CA3AF))),
             ],
           ),
           const SizedBox(height: 12),
@@ -432,7 +451,8 @@ class _ProgressScreenState extends State<ProgressScreen> {
                       reservedSize: 44,
                       interval: yInterval,
                       getTitlesWidget: (v, meta) {
-                        if (v == meta.min || v == meta.max) return const SizedBox.shrink();
+                        if (v == meta.min || v == meta.max)
+                          return const SizedBox.shrink();
                         return Padding(
                           padding: const EdgeInsets.only(right: 4),
                           child: Text(
@@ -457,11 +477,13 @@ class _ProgressScreenState extends State<ProgressScreen> {
                           return const SizedBox.shrink();
                         }
                         // Only show if it's close to an integer index
-                        if ((v - idx).abs() > 0.01) return const SizedBox.shrink();
+                        if ((v - idx).abs() > 0.01)
+                          return const SizedBox.shrink();
                         return Padding(
                           padding: const EdgeInsets.only(top: 6),
                           child: Text(
-                            DateFormat('d MMM').format(_weightHistory[idx].date),
+                            DateFormat('d MMM')
+                                .format(_weightHistory[idx].date),
                             style: const TextStyle(
                                 fontSize: 10,
                                 color: Color(0xFF9CA3AF),
@@ -543,9 +565,11 @@ class _LogRow extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final parts = <String>[];
-    if (log.weightKg != null) parts.add('${log.weightKg!.toStringAsFixed(1)} kg');
+    if (log.weightKg != null)
+      parts.add('${log.weightKg!.toStringAsFixed(1)} kg');
     if (log.caloriesConsumed != null) parts.add('${log.caloriesConsumed} kcal');
-    if (log.proteinConsumedG != null) parts.add('${log.proteinConsumedG}g prot');
+    if (log.proteinConsumedG != null)
+      parts.add('${log.proteinConsumedG}g prot');
 
     return Padding(
       padding: const EdgeInsets.symmetric(vertical: 6),
@@ -606,8 +630,11 @@ class _LogEntrySheetState extends State<_LogEntrySheet> {
     final carbs = int.tryParse(_carbsCtrl.text);
     final fat = int.tryParse(_fatCtrl.text);
 
-    if (weight == null && cal == null && protein == null &&
-        carbs == null && fat == null) {
+    if (weight == null &&
+        cal == null &&
+        protein == null &&
+        carbs == null &&
+        fat == null) {
       setState(() => _error = 'Please fill in at least one value.');
       return;
     }
@@ -659,12 +686,14 @@ class _LogEntrySheetState extends State<_LogEntrySheet> {
                   borderRadius: BorderRadius.circular(AppRadius.dflt),
                 ),
                 child: Text(_error!,
-                    style: AppTextStyles.bodyMd
-                        .copyWith(color: AppColors.error)),
+                    style:
+                        AppTextStyles.bodyMd.copyWith(color: AppColors.error)),
               ),
             Row(
               children: [
-                Expanded(child: _NumberField('Weight (kg)', _weightCtrl, decimal: true)),
+                Expanded(
+                    child: _NumberField('Weight (kg)', _weightCtrl,
+                        decimal: true)),
                 const SizedBox(width: 12),
                 Expanded(child: _NumberField('Calories', _calCtrl)),
               ],
@@ -697,7 +726,8 @@ class _LogEntrySheetState extends State<_LogEntrySheet> {
                     ? const SizedBox(
                         height: 20,
                         width: 20,
-                        child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white))
+                        child: CircularProgressIndicator(
+                            strokeWidth: 2, color: Colors.white))
                     : const Text('Log Entry'),
               ),
             ),

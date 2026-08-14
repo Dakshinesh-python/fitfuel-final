@@ -62,7 +62,10 @@ class _RegisterScreenState extends State<RegisterScreen> {
         weightKg: double.tryParse(_weightController.text),
       );
       if (!mounted) return;
-      Navigator.of(context).pushReplacementNamed('/health-weight');
+      Navigator.of(context).pushReplacementNamed(
+        '/health-weight',
+        arguments: {'currentWeightKg': double.tryParse(_weightController.text)},
+      );
     } on ApiException catch (e) {
       setState(() => _error = e.message);
     } catch (e) {
@@ -123,8 +126,8 @@ class _RegisterScreenState extends State<RegisterScreen> {
                               style: AppTextStyles.labelSm
                                   .copyWith(color: AppColors.primary)),
                           Text('Basics',
-                              style: AppTextStyles.labelSm.copyWith(
-                                  color: AppColors.onSurfaceVariant)),
+                              style: AppTextStyles.labelSm
+                                  .copyWith(color: AppColors.onSurfaceVariant)),
                         ],
                       ),
                       const SizedBox(height: 8),
@@ -282,7 +285,8 @@ class _RegisterScreenState extends State<RegisterScreen> {
                           child: Text(
                             'Waking up the server, this might take a minute...',
                             textAlign: TextAlign.center,
-                            style: AppTextStyles.labelMd.copyWith(color: AppColors.primary),
+                            style: AppTextStyles.labelMd
+                                .copyWith(color: AppColors.primary),
                           ),
                         ),
                     ],

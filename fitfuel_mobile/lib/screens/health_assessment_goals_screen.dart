@@ -15,16 +15,30 @@ class _HealthAssessmentGoalsScreenState
   String _selected = 'WEIGHT_LOSS';
 
   static const _goals = [
-    ('WEIGHT_LOSS', 'Weight Loss',
-        'Burn fat and lean out safely and sustainably.', Icons.trending_down),
-    ('MUSCLE_GAIN', 'Muscle Gain',
-        'Build strength, size, and powerful functionality.',
-        Icons.fitness_center),
-    ('WEIGHT_GAIN', 'Weight Gain',
-        'Increase mass healthily with proper nutrition.', Icons.trending_up),
-    ('MAINTENANCE', 'Maintenance',
-        'Maintain current weight while improving overall health.',
-        Icons.balance),
+    (
+      'WEIGHT_LOSS',
+      'Weight Loss',
+      'Burn fat and lean out safely and sustainably.',
+      Icons.trending_down
+    ),
+    (
+      'MUSCLE_GAIN',
+      'Muscle Gain',
+      'Build strength, size, and powerful functionality.',
+      Icons.fitness_center
+    ),
+    (
+      'WEIGHT_GAIN',
+      'Weight Gain',
+      'Increase mass healthily with proper nutrition.',
+      Icons.trending_up
+    ),
+    (
+      'MAINTENANCE',
+      'Maintenance',
+      'Maintain current weight while improving overall health.',
+      Icons.balance
+    ),
   ];
 
   @override
@@ -35,14 +49,17 @@ class _HealthAssessmentGoalsScreenState
         actions: [
           TextButton(
             onPressed: () {
-              final args = ModalRoute.of(context)?.settings.arguments as Map<String, dynamic>? ?? {};
+              final args = ModalRoute.of(context)?.settings.arguments
+                      as Map<String, dynamic>? ??
+                  {};
               Navigator.of(context).pushNamed(
                 '/health-prefs',
                 arguments: {...args, 'fitnessGoal': _selected},
               );
             },
             child: Text('Skip',
-                style: AppTextStyles.labelMd.copyWith(color: AppColors.primary)),
+                style:
+                    AppTextStyles.labelMd.copyWith(color: AppColors.primary)),
           ),
         ],
       ),
@@ -136,7 +153,9 @@ class _HealthAssessmentGoalsScreenState
               const SizedBox(height: 32),
               ElevatedButton(
                 onPressed: () {
-                  final args = ModalRoute.of(context)?.settings.arguments as Map<String, dynamic>? ?? {};
+                  final args = ModalRoute.of(context)?.settings.arguments
+                          as Map<String, dynamic>? ??
+                      {};
                   Navigator.of(context).pushNamed(
                     '/health-prefs',
                     arguments: {...args, 'fitnessGoal': _selected},

@@ -62,8 +62,7 @@ class _WeeklyMealPlanScreenState extends State<WeeklyMealPlanScreen> {
           await ApiService.instance.post('/api/meal-plans/generate', body: {});
       if (mounted) {
         setState(() {
-          _plan =
-              MealPlan.fromJson(data['mealPlan'] as Map<String, dynamic>);
+          _plan = MealPlan.fromJson(data['mealPlan'] as Map<String, dynamic>);
         });
       }
     } on ApiException catch (e) {
@@ -82,11 +81,10 @@ class _WeeklyMealPlanScreenState extends State<WeeklyMealPlanScreen> {
 
   List<MealPlanItem> get _dayItems {
     if (_plan == null) return [];
-    return _plan!.items
-        .where((item) => item.dayOfWeek == _selectedDay)
-        .toList()
-      ..sort((a, b) =>
-          _mealOrder.indexOf(a.mealType).compareTo(_mealOrder.indexOf(b.mealType)));
+    return _plan!.items.where((item) => item.dayOfWeek == _selectedDay).toList()
+      ..sort((a, b) => _mealOrder
+          .indexOf(a.mealType)
+          .compareTo(_mealOrder.indexOf(b.mealType)));
   }
 
   @override
@@ -100,11 +98,14 @@ class _WeeklyMealPlanScreenState extends State<WeeklyMealPlanScreen> {
         automaticallyImplyLeading: false,
         title: const Text('Meal Plan',
             style: TextStyle(
-                fontSize: 20, fontWeight: FontWeight.w800, color: Color(0xFF111827))),
+                fontSize: 20,
+                fontWeight: FontWeight.w800,
+                color: Color(0xFF111827))),
         actions: [
           if (!_generating)
             IconButton(
-              icon: const Icon(Icons.auto_awesome_rounded, color: Color(0xFF2A9D58)),
+              icon: const Icon(Icons.auto_awesome_rounded,
+                  color: Color(0xFF2A9D58)),
               tooltip: 'Regenerate',
               onPressed: _generate,
             )
@@ -161,8 +162,7 @@ class _WeeklyMealPlanScreenState extends State<WeeklyMealPlanScreen> {
               borderRadius: BorderRadius.circular(AppRadius.dflt),
             ),
             child: Text(_error!,
-                style:
-                    AppTextStyles.bodyMd.copyWith(color: AppColors.error)),
+                style: AppTextStyles.bodyMd.copyWith(color: AppColors.error)),
           ),
           const SizedBox(height: 12),
         ],
@@ -329,11 +329,12 @@ class _MealPlanCard extends StatelessWidget {
     final meal = item.meal;
     final score = item.matchScore.round();
     final label = {
-      'BREAKFAST': 'Breakfast',
-      'LUNCH': 'Lunch',
-      'SNACK': 'Snack',
-      'DINNER': 'Dinner',
-    }[item.mealType] ?? item.mealType;
+          'BREAKFAST': 'Breakfast',
+          'LUNCH': 'Lunch',
+          'SNACK': 'Snack',
+          'DINNER': 'Dinner',
+        }[item.mealType] ??
+        item.mealType;
 
     return AppCard(
       radius: 18,
@@ -343,8 +344,7 @@ class _MealPlanCard extends StatelessWidget {
         children: [
           // Image
           ClipRRect(
-            borderRadius:
-                const BorderRadius.vertical(top: Radius.circular(18)),
+            borderRadius: const BorderRadius.vertical(top: Radius.circular(18)),
             child: Stack(
               children: [
                 if (meal.imageUrl != null)
@@ -374,8 +374,8 @@ class _MealPlanCard extends StatelessWidget {
                   top: 10,
                   right: 10,
                   child: Container(
-                    padding: const EdgeInsets.symmetric(
-                        horizontal: 10, vertical: 4),
+                    padding:
+                        const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
                     decoration: BoxDecoration(
                       color: _scoreColor(item.matchScore),
                       borderRadius: BorderRadius.circular(20),
@@ -394,8 +394,8 @@ class _MealPlanCard extends StatelessWidget {
                   top: 10,
                   left: 10,
                   child: Container(
-                    padding: const EdgeInsets.symmetric(
-                        horizontal: 10, vertical: 4),
+                    padding:
+                        const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
                     decoration: BoxDecoration(
                       color: Colors.black.withOpacity(0.45),
                       borderRadius: BorderRadius.circular(20),
@@ -483,9 +483,7 @@ class _MealPlanCard extends StatelessWidget {
         child: Text(
           label,
           style: const TextStyle(
-              color: Colors.white,
-              fontSize: 11,
-              fontWeight: FontWeight.w600),
+              color: Colors.white, fontSize: 11, fontWeight: FontWeight.w600),
         ),
       );
 }

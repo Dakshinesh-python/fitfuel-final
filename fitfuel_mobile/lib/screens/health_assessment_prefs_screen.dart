@@ -20,8 +20,10 @@ class _HealthAssessmentPrefsScreenState
   String? _error;
 
   Future<void> _submit() async {
-    final args = ModalRoute.of(context)?.settings.arguments as Map<String, dynamic>? ?? {};
-    
+    final args =
+        ModalRoute.of(context)?.settings.arguments as Map<String, dynamic>? ??
+            {};
+
     setState(() {
       _loading = true;
       _error = null;
@@ -34,10 +36,12 @@ class _HealthAssessmentPrefsScreenState
         'allergies': _allergies.toList(),
         'dailyBudget': _budget,
       };
-      final data = await ApiService.instance.post('/api/health-profile', body: payload);
-      
+      final data =
+          await ApiService.instance.post('/api/health-profile', body: payload);
+
       if (!mounted) return;
-      Navigator.of(context).pushReplacementNamed('/plan-ready', arguments: data);
+      Navigator.of(context)
+          .pushReplacementNamed('/plan-ready', arguments: data);
     } on ApiException catch (e) {
       setState(() => _error = e.message);
     } catch (e) {
@@ -96,8 +100,7 @@ class _HealthAssessmentPrefsScreenState
                   final selected = _diet == key;
                   return Expanded(
                     child: Padding(
-                      padding: EdgeInsets.only(
-                          right: d == _diets.last ? 0 : 8),
+                      padding: EdgeInsets.only(right: d == _diets.last ? 0 : 8),
                       child: GestureDetector(
                         onTap: () => setState(() => _diet = key),
                         child: AnimatedContainer(
@@ -106,8 +109,7 @@ class _HealthAssessmentPrefsScreenState
                               vertical: 16, horizontal: 8),
                           decoration: BoxDecoration(
                             color: selected
-                                ? AppColors.primaryContainer
-                                    .withOpacity(0.12)
+                                ? AppColors.primaryContainer.withOpacity(0.12)
                                 : Colors.white,
                             borderRadius: BorderRadius.circular(AppRadius.md),
                             border: Border.all(
@@ -181,7 +183,7 @@ class _HealthAssessmentPrefsScreenState
               ),
               const SizedBox(height: 8),
               Center(
-                child: Text('\$${_budget.round()}',
+                child: Text('₹${_budget.round()}',
                     style: AppTextStyles.displayLg
                         .copyWith(fontSize: 36, color: AppColors.primary)),
               ),
@@ -202,10 +204,10 @@ class _HealthAssessmentPrefsScreenState
               Row(
                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 children: [
-                  Text('\$15',
+                  Text('₹15',
                       style: AppTextStyles.labelSm
                           .copyWith(color: AppColors.outline)),
-                  Text('\$150+',
+                  Text('₹150+',
                       style: AppTextStyles.labelSm
                           .copyWith(color: AppColors.outline)),
                 ],
@@ -217,19 +219,23 @@ class _HealthAssessmentPrefsScreenState
                       .copyWith(color: AppColors.onSurfaceVariant)),
               const SizedBox(height: 28),
               if (_error != null) ...[
-                Text(_error!, style: AppTextStyles.labelMd.copyWith(color: AppColors.error)),
+                Text(_error!,
+                    style:
+                        AppTextStyles.labelMd.copyWith(color: AppColors.error)),
                 const SizedBox(height: 16),
               ],
               Row(
                 children: [
                   Expanded(
                     child: OutlinedButton(
-                      onPressed: _loading ? null : () {
-                        // Skip could send default data or just push without API call, 
-                        // but here we just go to dashboard or plan-ready? 
-                        // Actually let's just push /plan-ready directly without data (will fail if no args handled gracefully)
-                        Navigator.of(context).pushNamed('/plan-ready');
-                      },
+                      onPressed: _loading
+                          ? null
+                          : () {
+                              // Skip could send default data or just push without API call,
+                              // but here we just go to dashboard or plan-ready?
+                              // Actually let's just push /plan-ready directly without data (will fail if no args handled gracefully)
+                              Navigator.of(context).pushNamed('/plan-ready');
+                            },
                       style: OutlinedButton.styleFrom(
                           shape: RoundedRectangleBorder(
                               borderRadius:
@@ -250,7 +256,11 @@ class _HealthAssessmentPrefsScreenState
                         mainAxisAlignment: MainAxisAlignment.center,
                         children: [
                           if (_loading)
-                            const SizedBox(width: 16, height: 16, child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2))
+                            const SizedBox(
+                                width: 16,
+                                height: 16,
+                                child: CircularProgressIndicator(
+                                    color: Colors.white, strokeWidth: 2))
                           else ...[
                             const Text('Complete Profile'),
                             const SizedBox(width: 8),

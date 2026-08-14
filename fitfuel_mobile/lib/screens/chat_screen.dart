@@ -43,7 +43,7 @@ class ChatScreen extends StatefulWidget {
 class _ChatScreenState extends State<ChatScreen> {
   final _controller = TextEditingController();
   final _scrollController = ScrollController();
-  final List<_ChatMessage> _messages = [];
+  static final List<_ChatMessage> _messages = [];
   bool _sending = false;
   HealthProfile? _profile;
   List<String> _shownQuickReplies = _quickReplies.take(3).toList();
@@ -51,8 +51,10 @@ class _ChatScreenState extends State<ChatScreen> {
   @override
   void initState() {
     super.initState();
-    _addAIMessage(
-        "Hi there! I'm your FitFuel AI nutritionist 🥗\nHow can I help you adjust your meal plan today?");
+    if (_messages.isEmpty) {
+      _addAIMessage(
+          "Hi there! I'm your FitFuel AI nutritionist 🥗\nHow can I help you adjust your meal plan today?");
+    }
     _loadProfile();
   }
 
@@ -61,8 +63,8 @@ class _ChatScreenState extends State<ChatScreen> {
       final data = await ApiService.instance.get('/api/health-profile');
       if (mounted) {
         setState(() {
-          _profile = HealthProfile.fromJson(
-              data['profile'] as Map<String, dynamic>);
+          _profile =
+              HealthProfile.fromJson(data['profile'] as Map<String, dynamic>);
         });
       }
     } catch (_) {
@@ -112,9 +114,10 @@ class _ChatScreenState extends State<ChatScreen> {
     _scrollToBottom();
 
     try {
-      final data =
-          await ApiService.instance.post('/api/chat', body: {'message': trimmed});
-      final reply = data['reply'] as String? ?? "I couldn't process that. Please try again.";
+      final data = await ApiService.instance
+          .post('/api/chat', body: {'message': trimmed});
+      final reply = data['reply'] as String? ??
+          "I couldn't process that. Please try again.";
       _addAIMessage(reply);
       // Rotate quick replies
       final start = (_messages.length * 2) % (_quickReplies.length - 3);
@@ -124,7 +127,8 @@ class _ChatScreenState extends State<ChatScreen> {
     } on ApiException catch (e) {
       _addAIMessage("Sorry, I hit an error: ${e.message}");
     } catch (_) {
-      _addAIMessage("I'm having trouble right now. Please try again in a moment.");
+      _addAIMessage(
+          "I'm having trouble right now. Please try again in a moment.");
     } finally {
       if (mounted) setState(() => _sending = false);
       _scrollToBottom();
@@ -235,10 +239,10 @@ class _ChatScreenState extends State<ChatScreen> {
 
             // Input bar
             Padding(
-              padding: EdgeInsets.only(
+              padding: const EdgeInsets.only(
                 left: 12,
                 right: 12,
-                bottom: MediaQuery.of(context).viewInsets.bottom + 8,
+                bottom: 8,
               ),
               child: Row(
                 children: [
@@ -255,8 +259,7 @@ class _ChatScreenState extends State<ChatScreen> {
                         filled: true,
                         fillColor: AppColors.surfaceContainerHigh,
                         border: OutlineInputBorder(
-                          borderRadius:
-                              BorderRadius.circular(AppRadius.full),
+                          borderRadius: BorderRadius.circular(AppRadius.full),
                           borderSide: BorderSide.none,
                         ),
                         contentPadding: const EdgeInsets.symmetric(
@@ -297,7 +300,8 @@ class _ChatScreenState extends State<ChatScreen> {
         currentIndex: 2,
         onTap: (i) {
           if (i == 0) Navigator.of(context).pushReplacementNamed('/dashboard');
-          if (i == 1) Navigator.of(context).pushReplacementNamed('/recommendations');
+          if (i == 1)
+            Navigator.of(context).pushReplacementNamed('/recommendations');
           if (i == 3) Navigator.of(context).pushReplacementNamed('/progress');
           if (i == 4) Navigator.of(context).pushReplacementNamed('/profile');
         },
@@ -352,8 +356,8 @@ class _MessageBubble extends StatelessWidget {
                   isUser ? CrossAxisAlignment.end : CrossAxisAlignment.start,
               children: [
                 Container(
-                  padding: const EdgeInsets.symmetric(
-                      horizontal: 16, vertical: 12),
+                  padding:
+                      const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
                   decoration: BoxDecoration(
                     color: isUser ? AppColors.primary : Colors.white,
                     borderRadius: BorderRadius.only(
@@ -375,8 +379,8 @@ class _MessageBubble extends StatelessWidget {
                 const SizedBox(height: 4),
                 Text(
                   timeStr,
-                  style: AppTextStyles.labelSm
-                      .copyWith(color: AppColors.onSurfaceVariant, fontSize: 10),
+                  style: AppTextStyles.labelSm.copyWith(
+                      color: AppColors.onSurfaceVariant, fontSize: 10),
                 ),
               ],
             ),
@@ -468,8 +472,7 @@ class _DotState extends State<_Dot> with SingleTickerProviderStateMixin {
       ..repeat(reverse: true);
     _anim = Tween(begin: 0.0, end: -6.0).animate(
       CurvedAnimation(
-          parent: _ctrl,
-          curve: Interval(0, 1, curve: Curves.easeInOut)),
+          parent: _ctrl, curve: Interval(0, 1, curve: Curves.easeInOut)),
     );
     Future.delayed(widget.delay, () {
       if (mounted) _ctrl.forward();

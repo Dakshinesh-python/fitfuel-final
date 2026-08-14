@@ -85,14 +85,14 @@ class _LoginScreenState extends State<LoginScreen> {
                     Positioned(
                       top: -60,
                       right: -60,
-                      child: _blurCircle(AppColors.primaryContainer
-                          .withOpacity(0.25), 180),
+                      child: _blurCircle(
+                          AppColors.primaryContainer.withOpacity(0.25), 180),
                     ),
                     Positioned(
                       bottom: -60,
                       left: -60,
-                      child: _blurCircle(AppColors.secondaryContainer
-                          .withOpacity(0.20), 200),
+                      child: _blurCircle(
+                          AppColors.secondaryContainer.withOpacity(0.20), 200),
                     ),
                     Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
@@ -173,8 +173,8 @@ class _LoginScreenState extends State<LoginScreen> {
                   color: Color(0xFFFAF9F6),
                   borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
                 ),
-                padding: const EdgeInsets.fromLTRB(AppSpacing.marginMobile, 32,
-                    AppSpacing.marginMobile, 24),
+                padding: const EdgeInsets.fromLTRB(
+                    AppSpacing.marginMobile, 32, AppSpacing.marginMobile, 24),
                 child: Form(
                   key: _formKey,
                   child: Column(
@@ -256,7 +256,8 @@ class _LoginScreenState extends State<LoginScreen> {
                           child: Text(
                             'Waking up the server, this might take a minute...',
                             textAlign: TextAlign.center,
-                            style: AppTextStyles.labelMd.copyWith(color: AppColors.primary),
+                            style: AppTextStyles.labelMd
+                                .copyWith(color: AppColors.primary),
                           ),
                         ),
                       const SizedBox(height: 8),
@@ -298,4 +299,3 @@ class _LoginScreenState extends State<LoginScreen> {
     );
   }
 }
-

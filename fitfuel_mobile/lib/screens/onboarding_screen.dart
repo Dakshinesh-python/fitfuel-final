@@ -111,7 +111,9 @@ class _SlideScaffold extends StatelessWidget {
   final String title;
   final String subtitle;
   const _SlideScaffold(
-      {required this.illustration, required this.title, required this.subtitle});
+      {required this.illustration,
+      required this.title,
+      required this.subtitle});
 
   @override
   Widget build(BuildContext context) {
@@ -122,7 +124,8 @@ class _SlideScaffold extends StatelessWidget {
         children: [
           Expanded(child: Center(child: illustration)),
           Text(title,
-              textAlign: TextAlign.center, style: AppTextStyles.headlineLgMobile),
+              textAlign: TextAlign.center,
+              style: AppTextStyles.headlineLgMobile),
           const SizedBox(height: 12),
           Text(subtitle,
               textAlign: TextAlign.center,

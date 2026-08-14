@@ -57,7 +57,8 @@ class FitFuelBottomNav extends StatelessWidget {
                             borderRadius: BorderRadius.circular(AppRadius.full),
                             boxShadow: [
                               BoxShadow(
-                                  color: AppColors.primary.withValues(alpha: 0.3),
+                                  color:
+                                      AppColors.primary.withValues(alpha: 0.3),
                                   offset: const Offset(0, 4),
                                   blurRadius: 10)
                             ],
@@ -94,8 +95,7 @@ class FitFuelBottomNav extends StatelessWidget {
                             color: selected
                                 ? AppColors.primary.withValues(alpha: 0.1)
                                 : Colors.transparent,
-                            borderRadius:
-                                BorderRadius.circular(AppRadius.full),
+                            borderRadius: BorderRadius.circular(AppRadius.full),
                           ),
                           child: Icon(icon,
                               color: selected
@@ -107,9 +107,8 @@ class FitFuelBottomNav extends StatelessWidget {
                         Text(label,
                             style: TextStyle(
                               fontSize: 10,
-                              fontWeight: selected
-                                  ? FontWeight.w700
-                                  : FontWeight.w500,
+                              fontWeight:
+                                  selected ? FontWeight.w700 : FontWeight.w500,
                               color: selected
                                   ? AppColors.primary
                                   : AppColors.outline,
@@ -240,8 +239,7 @@ class PillTabSelector extends StatelessWidget {
                   tabs[i],
                   style: TextStyle(
                     fontSize: 12,
-                    fontWeight:
-                        selected ? FontWeight.w700 : FontWeight.w500,
+                    fontWeight: selected ? FontWeight.w700 : FontWeight.w500,
                     color: selected ? Colors.white : AppColors.onSurfaceVariant,
                   ),
                 ),
@@ -289,9 +287,7 @@ class MacroProgressRow extends StatelessWidget {
                       color: Color(0xFF374151))),
               Text('${target}g',
                   style: TextStyle(
-                      fontSize: 12,
-                      fontWeight: FontWeight.w700,
-                      color: color)),
+                      fontSize: 12, fontWeight: FontWeight.w700, color: color)),
             ],
           ),
           const SizedBox(height: 6),
@@ -344,9 +340,7 @@ class StatChip extends StatelessWidget {
             const SizedBox(height: 8),
             Text(value,
                 style: TextStyle(
-                    fontSize: 16,
-                    fontWeight: FontWeight.w800,
-                    color: color)),
+                    fontSize: 16, fontWeight: FontWeight.w800, color: color)),
             const SizedBox(height: 2),
             Text(label,
                 style: const TextStyle(
@@ -451,9 +445,8 @@ class StepProgressBar extends StatelessWidget {
             margin: EdgeInsets.only(right: i == totalSteps - 1 ? 0 : 6),
             height: 6,
             decoration: BoxDecoration(
-              color: active
-                  ? AppColors.primary
-                  : AppColors.surfaceContainerHigh,
+              color:
+                  active ? AppColors.primary : AppColors.surfaceContainerHigh,
               borderRadius: BorderRadius.circular(AppRadius.full),
             ),
           ),
@@ -483,9 +476,7 @@ class MatchScoreChip extends StatelessWidget {
       ),
       child: Text('$score% Match',
           style: const TextStyle(
-              color: Colors.white,
-              fontSize: 11,
-              fontWeight: FontWeight.w700)),
+              color: Colors.white, fontSize: 11, fontWeight: FontWeight.w700)),
     );
   }
 }
@@ -554,7 +545,8 @@ class SelectableOptionCard extends StatelessWidget {
               ),
             ),
             if (selected)
-              const Icon(Icons.check_circle, color: AppColors.primary, size: 22),
+              const Icon(Icons.check_circle,
+                  color: AppColors.primary, size: 22),
           ],
         ),
       ),

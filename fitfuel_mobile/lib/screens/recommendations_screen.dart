@@ -53,7 +53,9 @@ class _RecommendationsScreenState extends State<RecommendationsScreen> {
       }
       setState(() => _error = e.message);
     } catch (e) {
-      if (mounted) setState(() => _error = 'Unable to load recommendations. Please try again.');
+      if (mounted)
+        setState(
+            () => _error = 'Unable to load recommendations. Please try again.');
     } finally {
       if (mounted) setState(() => _loading = false);
     }
@@ -69,23 +71,27 @@ class _RecommendationsScreenState extends State<RecommendationsScreen> {
       });
       final result = OrderResult.fromJson(data as Map<String, dynamic>);
       final httpsUri = Uri.parse(result.deepLink);
-      
+
       bool launched = false;
       try {
         // Use externalNonBrowserApplication to force Android to open the native app (via App Links)
-        launched = await launchUrl(httpsUri, mode: LaunchMode.externalNonBrowserApplication);
+        launched = await launchUrl(httpsUri,
+            mode: LaunchMode.externalNonBrowserApplication);
       } catch (_) {}
 
       // Fallback to regular external application (opens Chrome if app not installed)
       if (!launched) {
         try {
-          launched = await launchUrl(httpsUri, mode: LaunchMode.externalApplication);
+          launched =
+              await launchUrl(httpsUri, mode: LaunchMode.externalApplication);
         } catch (_) {}
       }
 
       if (!launched && mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Could not open ${platform == 'SWIGGY' ? 'Swiggy' : 'Zomato'}')),
+          SnackBar(
+              content: Text(
+                  'Could not open ${platform == 'SWIGGY' ? 'Swiggy' : 'Zomato'}')),
         );
       }
     } on ApiException catch (e) {
@@ -97,7 +103,8 @@ class _RecommendationsScreenState extends State<RecommendationsScreen> {
     } catch (_) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Unable to start order. Please try again.')),
+          const SnackBar(
+              content: Text('Unable to start order. Please try again.')),
         );
       }
     } finally {
@@ -116,7 +123,9 @@ class _RecommendationsScreenState extends State<RecommendationsScreen> {
         automaticallyImplyLeading: false,
         title: const Text('Recommendations',
             style: TextStyle(
-                fontSize: 20, fontWeight: FontWeight.w800, color: Color(0xFF111827))),
+                fontSize: 20,
+                fontWeight: FontWeight.w800,
+                color: Color(0xFF111827))),
       ),
       body: SafeArea(
         top: false,
@@ -164,10 +173,13 @@ class _RecommendationsScreenState extends State<RecommendationsScreen> {
           child: Column(
             mainAxisSize: MainAxisSize.min,
             children: [
-              const Icon(Icons.wifi_off_rounded, size: 48, color: AppColors.outline),
+              const Icon(Icons.wifi_off_rounded,
+                  size: 48, color: AppColors.outline),
               const SizedBox(height: 16),
-              Text(_error!, textAlign: TextAlign.center,
-                  style: AppTextStyles.bodyMd.copyWith(color: AppColors.onSurfaceVariant)),
+              Text(_error!,
+                  textAlign: TextAlign.center,
+                  style: AppTextStyles.bodyMd
+                      .copyWith(color: AppColors.onSurfaceVariant)),
               const SizedBox(height: 24),
               ElevatedButton.icon(
                 onPressed: _loadRecommendations,
@@ -187,18 +199,21 @@ class _RecommendationsScreenState extends State<RecommendationsScreen> {
             mainAxisSize: MainAxisSize.min,
             children: [
               Container(
-                width: 64, height: 64,
+                width: 64,
+                height: 64,
                 decoration: BoxDecoration(
                   color: AppColors.primary.withValues(alpha: 0.1),
                   borderRadius: BorderRadius.circular(18),
                 ),
-                child: const Icon(Icons.restaurant_rounded, color: AppColors.primary, size: 32),
+                child: const Icon(Icons.restaurant_rounded,
+                    color: AppColors.primary, size: 32),
               ),
               const SizedBox(height: 16),
               Text(
                 'No meals found for ${_mealTypeLabels[_mealTypeIndex]} yet.',
                 textAlign: TextAlign.center,
-                style: AppTextStyles.bodyMd.copyWith(color: AppColors.onSurfaceVariant),
+                style: AppTextStyles.bodyMd
+                    .copyWith(color: AppColors.onSurfaceVariant),
               ),
             ],
           ),
@@ -240,25 +255,35 @@ class _RecommendationsScreenState extends State<RecommendationsScreen> {
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
                           const Text('AI Picks for you',
-                              style: TextStyle(color: Colors.white70, fontSize: 12, fontWeight: FontWeight.w500)),
+                              style: TextStyle(
+                                  color: Colors.white70,
+                                  fontSize: 12,
+                                  fontWeight: FontWeight.w500)),
                           const SizedBox(height: 2),
                           Text(
                             _mealTypeLabels[_mealTypeIndex],
-                            style: const TextStyle(color: Colors.white, fontSize: 22, fontWeight: FontWeight.w800),
+                            style: const TextStyle(
+                                color: Colors.white,
+                                fontSize: 22,
+                                fontWeight: FontWeight.w800),
                           ),
                           const SizedBox(height: 4),
-                          const Text('Ranked by calorie accuracy, protein quality & budget',
-                              style: TextStyle(color: Colors.white60, fontSize: 11)),
+                          const Text(
+                              'Ranked by calorie accuracy, protein quality & budget',
+                              style: TextStyle(
+                                  color: Colors.white60, fontSize: 11)),
                         ],
                       ),
                     ),
                     Container(
-                      width: 48, height: 48,
+                      width: 48,
+                      height: 48,
                       decoration: BoxDecoration(
                         color: Colors.white.withValues(alpha: 0.2),
                         borderRadius: BorderRadius.circular(14),
                       ),
-                      child: const Icon(Icons.auto_awesome_rounded, color: Colors.white, size: 26),
+                      child: const Icon(Icons.auto_awesome_rounded,
+                          color: Colors.white, size: 26),
                     ),
                   ],
                 ),
@@ -308,7 +333,8 @@ class _RecommendationCardState extends State<_RecommendationCard> {
 
     return AppCard(
       radius: 20,
-      padding: EdgeInsets.zero, // remove padding so the image bleeds to the edges
+      padding:
+          EdgeInsets.zero, // remove padding so the image bleeds to the edges
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
@@ -341,122 +367,136 @@ class _RecommendationCardState extends State<_RecommendationCard> {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-          // Header row: match score + meal type
-          Row(
-            children: [
-              MatchScoreChip(score: widget.rec.score.round()),
-              const Spacer(),
-              Container(
-                padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
-                decoration: BoxDecoration(
-                  color: AppColors.primaryContainer.withValues(alpha: 0.15),
-                  borderRadius: BorderRadius.circular(AppRadius.full),
-                ),
-                child: Text(
-                  meal.mealType,
-                  style: AppTextStyles.labelSm.copyWith(color: AppColors.primary),
-                ),
-              ),
-            ],
-          ),
-          const SizedBox(height: 12),
-          Text(meal.name,
-              style: AppTextStyles.headlineMd.copyWith(fontSize: 17)),
-          const SizedBox(height: 2),
-          Text(meal.restaurant,
-              style: AppTextStyles.labelMd
-                  .copyWith(color: AppColors.onSurfaceVariant)),
-          const SizedBox(height: 12),
-          // Macro chips
-          Wrap(
-            spacing: 16,
-            runSpacing: 6,
-            children: [
-              _StatChip(Icons.fitness_center, '${meal.proteinG}g Pro'),
-              _StatChip(Icons.grass, '${meal.carbsG}g Carbs'),
-              _StatChip(Icons.water_drop, '${meal.fatG}g Fat'),
-              _StatChip(Icons.local_fire_department, '${meal.calories} kcal'),
-            ],
-          ),
-          const SizedBox(height: 8),
-          // Expandable breakdown
-          InkWell(
-            onTap: () => setState(() => _expanded = !_expanded),
-            child: Row(
-              children: [
-                Text('Why this meal?', style: AppTextStyles.labelMd),
-                Icon(_expanded ? Icons.expand_less : Icons.expand_more,
-                    size: 18, color: AppColors.onSurfaceVariant),
-              ],
-            ),
-          ),
-          if (_expanded)
-            Padding(
-              padding: const EdgeInsets.only(top: 8),
-              child: Container(
-                padding: const EdgeInsets.all(12),
-                decoration: BoxDecoration(
-                  color: AppColors.surfaceContainerLow,
-                  borderRadius: BorderRadius.circular(AppRadius.dflt),
-                ),
-                child: Column(
+                // Header row: match score + meal type
+                Row(
                   children: [
-                    _BreakdownRow('Calorie Accuracy', bd.calorieAccuracy),
-                    _BreakdownRow('Protein Quality', bd.proteinQuality),
-                    _BreakdownRow('Budget Fit', bd.budgetFit),
-                    _BreakdownRow('Health Score', bd.healthScore),
+                    MatchScoreChip(score: widget.rec.score.round()),
+                    const Spacer(),
+                    Container(
+                      padding: const EdgeInsets.symmetric(
+                          horizontal: 10, vertical: 4),
+                      decoration: BoxDecoration(
+                        color:
+                            AppColors.primaryContainer.withValues(alpha: 0.15),
+                        borderRadius: BorderRadius.circular(AppRadius.full),
+                      ),
+                      child: Text(
+                        meal.mealType,
+                        style: AppTextStyles.labelSm
+                            .copyWith(color: AppColors.primary),
+                      ),
+                    ),
                   ],
                 ),
-              ),
-            ),
-          const SizedBox(height: 14),
-          // Order buttons — Swiggy orange + Zomato red (brand colors)
-          Row(
-            children: [
-              Expanded(
-                child: ElevatedButton.icon(
-                  onPressed: widget.isOrdering ? null : widget.onOrderSwiggy,
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: const Color(0xFFFC8019), // Swiggy orange
-                    foregroundColor: Colors.white,
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(24),
+                const SizedBox(height: 12),
+                Text(meal.name,
+                    style: AppTextStyles.headlineMd.copyWith(fontSize: 17)),
+                const SizedBox(height: 2),
+                Text(meal.restaurant,
+                    style: AppTextStyles.labelMd
+                        .copyWith(color: AppColors.onSurfaceVariant)),
+                const SizedBox(height: 12),
+                // Macro chips
+                Wrap(
+                  spacing: 16,
+                  runSpacing: 6,
+                  children: [
+                    _StatChip(Icons.fitness_center, '${meal.proteinG}g Pro'),
+                    _StatChip(Icons.grass, '${meal.carbsG}g Carbs'),
+                    _StatChip(Icons.water_drop, '${meal.fatG}g Fat'),
+                    _StatChip(
+                        Icons.local_fire_department, '${meal.calories} kcal'),
+                  ],
+                ),
+                const SizedBox(height: 8),
+                // Expandable breakdown
+                InkWell(
+                  onTap: () => setState(() => _expanded = !_expanded),
+                  child: Row(
+                    children: [
+                      Text('Why this meal?', style: AppTextStyles.labelMd),
+                      Icon(_expanded ? Icons.expand_less : Icons.expand_more,
+                          size: 18, color: AppColors.onSurfaceVariant),
+                    ],
+                  ),
+                ),
+                if (_expanded)
+                  Padding(
+                    padding: const EdgeInsets.only(top: 8),
+                    child: Container(
+                      padding: const EdgeInsets.all(12),
+                      decoration: BoxDecoration(
+                        color: AppColors.surfaceContainerLow,
+                        borderRadius: BorderRadius.circular(AppRadius.dflt),
+                      ),
+                      child: Column(
+                        children: [
+                          _BreakdownRow('Calorie Accuracy', bd.calorieAccuracy),
+                          _BreakdownRow('Protein Quality', bd.proteinQuality),
+                          _BreakdownRow('Budget Fit', bd.budgetFit),
+                          _BreakdownRow('Health Score', bd.healthScore),
+                        ],
+                      ),
                     ),
                   ),
-                  icon: widget.isOrdering
-                      ? const SizedBox(
-                          height: 14, width: 14,
-                          child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white))
-                      : const Icon(Icons.local_fire_department_rounded, size: 16),
-                  label: const Text('Swiggy'),
-                ),
-              ),
-              const SizedBox(width: 10),
-              Expanded(
-                child: ElevatedButton.icon(
-                  onPressed: widget.isOrdering ? null : widget.onOrderZomato,
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: const Color(0xFFE23744), // Zomato red
-                    foregroundColor: Colors.white,
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(24),
+                const SizedBox(height: 14),
+                // Order buttons — Swiggy orange + Zomato red (brand colors)
+                Row(
+                  children: [
+                    Expanded(
+                      child: ElevatedButton.icon(
+                        onPressed:
+                            widget.isOrdering ? null : widget.onOrderSwiggy,
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor:
+                              const Color(0xFFFC8019), // Swiggy orange
+                          foregroundColor: Colors.white,
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(24),
+                          ),
+                        ),
+                        icon: widget.isOrdering
+                            ? const SizedBox(
+                                height: 14,
+                                width: 14,
+                                child: CircularProgressIndicator(
+                                    strokeWidth: 2, color: Colors.white))
+                            : const Icon(Icons.local_fire_department_rounded,
+                                size: 16),
+                        label: const Text('Swiggy'),
+                      ),
                     ),
-                  ),
-                  icon: widget.isOrdering
-                      ? const SizedBox(
-                          height: 14, width: 14,
-                          child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white))
-                      : const Icon(Icons.restaurant_rounded, size: 16),
-                  label: const Text('Zomato'),
+                    const SizedBox(width: 10),
+                    Expanded(
+                      child: ElevatedButton.icon(
+                        onPressed:
+                            widget.isOrdering ? null : widget.onOrderZomato,
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor:
+                              const Color(0xFFE23744), // Zomato red
+                          foregroundColor: Colors.white,
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(24),
+                          ),
+                        ),
+                        icon: widget.isOrdering
+                            ? const SizedBox(
+                                height: 14,
+                                width: 14,
+                                child: CircularProgressIndicator(
+                                    strokeWidth: 2, color: Colors.white))
+                            : const Icon(Icons.restaurant_rounded, size: 16),
+                        label: const Text('Zomato'),
+                      ),
+                    ),
+                  ],
                 ),
-              ),
-            ],
-          ),
-          const SizedBox(height: 6),
-          Text(
-            'Opens the platform\'s own search — complete checkout there.',
-            style: AppTextStyles.labelSm.copyWith(color: AppColors.outline),
-          ),
+                const SizedBox(height: 6),
+                Text(
+                  'Opens the platform\'s own search — complete checkout there.',
+                  style:
+                      AppTextStyles.labelSm.copyWith(color: AppColors.outline),
+                ),
               ],
             ),
           ), // end Padding (card body)

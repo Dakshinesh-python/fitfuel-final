@@ -77,7 +77,7 @@ class HealthProfile {
   final double dailyBudget;
   final double? calorieTarget;
   final double? proteinTargetG;
-  final int? carbTargetG;   // NOTE: 'carbTargetG' not 'carbsTargetG'
+  final int? carbTargetG; // NOTE: 'carbTargetG' not 'carbsTargetG'
   final double? fatTargetG;
   final double? bmi;
   final double? bmr;
@@ -116,7 +116,8 @@ class HealthProfile {
         dailyBudget: (json['dailyBudget'] as num).toDouble(),
         calorieTarget: (json['calorieTarget'] as num?)?.toDouble(),
         proteinTargetG: (json['proteinTargetG'] as num?)?.toDouble(),
-        carbTargetG: (json['carbTargetG'] as num?)?.toInt(),   // key: 'carbTargetG'
+        carbTargetG:
+            (json['carbTargetG'] as num?)?.toInt(), // key: 'carbTargetG'
         fatTargetG: (json['fatTargetG'] as num?)?.toDouble(),
         bmi: (json['bmi'] as num?)?.toDouble(),
         bmr: (json['bmr'] as num?)?.toDouble(),
@@ -167,7 +168,8 @@ class NutritionTargets {
     required this.fatTargetG,
   });
 
-  factory NutritionTargets.fromJson(Map<String, dynamic> json) => NutritionTargets(
+  factory NutritionTargets.fromJson(Map<String, dynamic> json) =>
+      NutritionTargets(
         bmi: (json['bmi'] as num).toDouble(),
         bmiCategory: json['bmiCategory'] as String,
         bmr: (json['bmr'] as num).toInt(),
@@ -197,7 +199,7 @@ class Meal {
   final bool isVegetarian;
   final bool isVegan;
   final List<String> allergens;
-  final String? imageUrl;  // optional: Unsplash CDN URL; null = show placeholder
+  final String? imageUrl; // optional: Unsplash CDN URL; null = show placeholder
 
   Meal({
     required this.id,
@@ -234,7 +236,8 @@ class Meal {
         isVegetarian: json['isVegetarian'] as bool? ?? false,
         isVegan: json['isVegan'] as bool? ?? false,
         allergens: (json['allergens'] as List?)?.cast<String>() ?? const [],
-        imageUrl: json['imageUrl'] as String?,  // nullable — backend field is String?
+        imageUrl:
+            json['imageUrl'] as String?, // nullable — backend field is String?
       );
 
   Map<String, dynamic> toJson() => {
@@ -296,7 +299,8 @@ class Recommendation {
   factory Recommendation.fromJson(Map<String, dynamic> json) => Recommendation(
         mealId: json['mealId'] as String,
         score: (json['score'] as num).toDouble(),
-        breakdown: MatchBreakdown.fromJson(json['breakdown'] as Map<String, dynamic>),
+        breakdown:
+            MatchBreakdown.fromJson(json['breakdown'] as Map<String, dynamic>),
         meal: Meal.fromJson(json['meal'] as Map<String, dynamic>),
       );
 }
@@ -336,13 +340,13 @@ class OrderResult {
 /// NOTE: the date field in the JSON response is 'date' (not 'loggedAt').
 class ProgressLog {
   final String id;
-  final double? weightKg;   // nullable — log may be calories-only
+  final double? weightKg; // nullable — log may be calories-only
   final int? caloriesConsumed;
   final int? proteinConsumedG;
   final int? carbsConsumedG;
   final int? fatConsumedG;
   final String? notes;
-  final DateTime date;      // backend field name: 'date'
+  final DateTime date; // backend field name: 'date'
 
   ProgressLog({
     required this.id,
@@ -363,7 +367,8 @@ class ProgressLog {
         carbsConsumedG: json['carbsConsumedG'] as int?,
         fatConsumedG: json['fatConsumedG'] as int?,
         notes: json['notes'] as String?,
-        date: DateTime.parse(json['date'] as String), // key: 'date' not 'loggedAt'
+        date: DateTime.parse(
+            json['date'] as String), // key: 'date' not 'loggedAt'
       );
 
   Map<String, dynamic> toJson() => {
@@ -381,6 +386,7 @@ class ProgressLog {
 /// GET /api/progress/summary response
 class ProgressSummary {
   final double weeklyAverageCalories;
+
   /// Percentage (0-100), capped at 100. Null when no health profile or no logs this week.
   final double? goalAchievementPct;
 
@@ -389,8 +395,10 @@ class ProgressSummary {
     this.goalAchievementPct,
   });
 
-  factory ProgressSummary.fromJson(Map<String, dynamic> json) => ProgressSummary(
-        weeklyAverageCalories: (json['weeklyAverageCalories'] as num?)?.toDouble() ?? 0,
+  factory ProgressSummary.fromJson(Map<String, dynamic> json) =>
+      ProgressSummary(
+        weeklyAverageCalories:
+            (json['weeklyAverageCalories'] as num?)?.toDouble() ?? 0,
         goalAchievementPct: (json['goalAchievementPct'] as num?)?.toDouble(),
       );
 }
@@ -402,7 +410,8 @@ class WeightHistoryEntry {
 
   WeightHistoryEntry({required this.date, required this.weightKg});
 
-  factory WeightHistoryEntry.fromJson(Map<String, dynamic> json) => WeightHistoryEntry(
+  factory WeightHistoryEntry.fromJson(Map<String, dynamic> json) =>
+      WeightHistoryEntry(
         date: DateTime.parse(json['date'] as String),
         weightKg: (json['weightKg'] as num).toDouble(),
       );
@@ -414,7 +423,7 @@ class WeightHistoryEntry {
 /// GET /api/meal-plans/current → { mealPlan: { id, items: [...] } }
 class MealPlanItem {
   final String id;
-  final int dayOfWeek;   // 0=Mon … 6=Sun (matches backend dayOfWeek)
+  final int dayOfWeek; // 0=Mon … 6=Sun (matches backend dayOfWeek)
   final String mealType; // 'BREAKFAST' | 'LUNCH' | 'SNACK' | 'DINNER'
   final double matchScore;
   final Meal meal;

@@ -22,8 +22,9 @@ class ApiService {
   Uri _uri(String path, [Map<String, dynamic>? query]) {
     final normalizedPath = path.startsWith('/') ? path : '/$path';
     return Uri.parse('${ApiConfig.baseUrl}$normalizedPath').replace(
-      queryParameters:
-          query?.map((k, v) => MapEntry(k, v?.toString())).cast<String, String>(),
+      queryParameters: query
+          ?.map((k, v) => MapEntry(k, v?.toString()))
+          .cast<String, String>(),
     );
   }
 
@@ -71,6 +72,15 @@ class ApiService {
 
   Future<dynamic> put(String path, {Map<String, dynamic>? body}) async {
     final res = await http.put(
+      _uri(path),
+      headers: await _headers(),
+      body: body != null ? jsonEncode(body) : null,
+    );
+    return _decode(res);
+  }
+
+  Future<dynamic> patch(String path, {Map<String, dynamic>? body}) async {
+    final res = await http.patch(
       _uri(path),
       headers: await _headers(),
       body: body != null ? jsonEncode(body) : null,

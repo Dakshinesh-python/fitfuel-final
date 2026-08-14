@@ -23,12 +23,16 @@ class _DashboardScreenState extends State<DashboardScreen> {
   }
 
   Future<void> _loadProfile() async {
-    setState(() { _loading = true; _error = null; });
+    setState(() {
+      _loading = true;
+      _error = null;
+    });
     try {
       final data = await ApiService.instance.get('/api/health-profile');
       if (mounted) {
         setState(() {
-          _profile = HealthProfile.fromJson(data['profile'] as Map<String, dynamic>);
+          _profile =
+              HealthProfile.fromJson(data['profile'] as Map<String, dynamic>);
         });
       }
     } on ApiException catch (e) {
@@ -39,7 +43,8 @@ class _DashboardScreenState extends State<DashboardScreen> {
       }
       setState(() => _error = e.message);
     } catch (_) {
-      if (mounted) setState(() => _error = 'Unable to load dashboard. Please try again.');
+      if (mounted)
+        setState(() => _error = 'Unable to load dashboard. Please try again.');
     } finally {
       if (mounted) setState(() => _loading = false);
     }
@@ -48,10 +53,14 @@ class _DashboardScreenState extends State<DashboardScreen> {
   int? _calorieTarget(HealthProfile p) {
     if (p.tdee == null) return null;
     const adj = {
-      'WEIGHT_LOSS': -500, 'WEIGHT_GAIN': 400,
-      'MUSCLE_GAIN': 300, 'MAINTENANCE': 0,
+      'WEIGHT_LOSS': -500,
+      'WEIGHT_GAIN': 400,
+      'MUSCLE_GAIN': 300,
+      'MAINTENANCE': 0,
     };
-    return (p.tdee! + (adj[p.fitnessGoal] ?? 0)).clamp(1200, double.infinity).round();
+    return (p.tdee! + (adj[p.fitnessGoal] ?? 0))
+        .clamp(1200, double.infinity)
+        .round();
   }
 
   @override
@@ -128,7 +137,8 @@ class _DashboardScreenState extends State<DashboardScreen> {
       bottomNavigationBar: FitFuelBottomNav(
         currentIndex: 0,
         onTap: (i) {
-          if (i == 1) Navigator.of(context).pushReplacementNamed('/recommendations');
+          if (i == 1)
+            Navigator.of(context).pushReplacementNamed('/recommendations');
           if (i == 2) Navigator.of(context).pushNamed('/chat');
           if (i == 3) Navigator.of(context).pushReplacementNamed('/progress');
           if (i == 4) Navigator.of(context).pushReplacementNamed('/profile');
@@ -144,11 +154,13 @@ class _DashboardScreenState extends State<DashboardScreen> {
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            const Icon(Icons.wifi_off_rounded, size: 56, color: Color(0xFFD1D5DB)),
+            const Icon(Icons.wifi_off_rounded,
+                size: 56, color: Color(0xFFD1D5DB)),
             const SizedBox(height: 16),
             Text(_error!,
                 textAlign: TextAlign.center,
-                style: AppTextStyles.bodyMd.copyWith(color: AppColors.onSurfaceVariant)),
+                style: AppTextStyles.bodyMd
+                    .copyWith(color: AppColors.onSurfaceVariant)),
             const SizedBox(height: 24),
             ElevatedButton.icon(
               onPressed: _loadProfile,
@@ -171,7 +183,6 @@ class _DashboardScreenState extends State<DashboardScreen> {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-
           // ── Hero banner ──────────────────────────────────────────────────
           GradientHeroCard(
             colors: const [Color(0xFF2A9D58), Color(0xFF006C4D)],
@@ -245,11 +256,13 @@ class _DashboardScreenState extends State<DashboardScreen> {
                   // Mini macro chips
                   Row(
                     children: [
-                      _heroBadge('🥩', '${p.proteinTargetG?.round() ?? 0}g', 'Protein'),
+                      _heroBadge('🥩', '${p.proteinTargetG?.round() ?? 0}g',
+                          'Protein'),
                       const SizedBox(width: 8),
                       _heroBadge('🌾', '${p.carbTargetG ?? 0}g', 'Carbs'),
                       const SizedBox(width: 8),
-                      _heroBadge('🥑', '${p.fatTargetG?.round() ?? 0}g', 'Fats'),
+                      _heroBadge(
+                          '🥑', '${p.fatTargetG?.round() ?? 0}g', 'Fats'),
                     ],
                   ),
                 ],
@@ -355,7 +368,8 @@ class _DashboardScreenState extends State<DashboardScreen> {
                 label: 'Recommendations',
                 sub: 'Ranked meals',
                 gradient: const [Color(0xFF2A9D58), Color(0xFF006C4D)],
-                onTap: () => Navigator.of(context).pushNamed('/recommendations'),
+                onTap: () =>
+                    Navigator.of(context).pushNamed('/recommendations'),
               ),
               const SizedBox(width: 12),
               _QuickCard(
@@ -454,7 +468,9 @@ class _DashboardScreenState extends State<DashboardScreen> {
                     fontWeight: FontWeight.w800)),
             Text(label,
                 style: const TextStyle(
-                    color: Colors.white60, fontSize: 10, fontWeight: FontWeight.w500)),
+                    color: Colors.white60,
+                    fontSize: 10,
+                    fontWeight: FontWeight.w500)),
           ],
         ),
       ),

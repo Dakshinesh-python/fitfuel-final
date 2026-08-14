@@ -27,8 +27,7 @@ class _SectionCard extends StatelessWidget {
               Icon(icon, color: AppColors.primary, size: 20),
               const SizedBox(width: 8),
               Text(title,
-                  style:
-                      AppTextStyles.headlineMd.copyWith(fontSize: 16)),
+                  style: AppTextStyles.headlineMd.copyWith(fontSize: 16)),
             ],
           ),
           const SizedBox(height: 16),
@@ -57,8 +56,8 @@ class _InfoRow extends StatelessWidget {
                   style: AppTextStyles.bodyMd
                       .copyWith(color: AppColors.onSurfaceVariant))),
           Text(value,
-              style: AppTextStyles.bodyMd
-                  .copyWith(fontWeight: FontWeight.w700)),
+              style:
+                  AppTextStyles.bodyMd.copyWith(fontWeight: FontWeight.w700)),
         ],
       ),
     );
@@ -171,6 +170,9 @@ class _ProfileScreenState extends State<ProfileScreen>
   String? _pwMsg;
   bool _pwSuccess = false;
 
+  // Danger zone
+  bool _deletingAccount = false;
+
   // Preferences
   bool _notifPush = true;
   bool _notifMeals = true;
@@ -219,7 +221,8 @@ class _ProfileScreenState extends State<ProfileScreen>
     if (name.isEmpty) return;
     setState(() => _savingName = true);
     try {
-      await ApiService.instance.put('/api/auth/profile', body: {'name': name});
+      await ApiService.instance
+          .patch('/api/auth/profile', body: {'name': name});
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(
@@ -264,7 +267,7 @@ class _ProfileScreenState extends State<ProfileScreen>
       _pwMsg = null;
     });
     try {
-      await ApiService.instance.put('/api/auth/password', body: {
+      await ApiService.instance.patch('/api/auth/password', body: {
         'currentPassword': cur,
         'newPassword': nw,
       });
@@ -286,6 +289,24 @@ class _ProfileScreenState extends State<ProfileScreen>
       }
     } finally {
       if (mounted) setState(() => _savingPw = false);
+    }
+  }
+
+  Future<void> _deleteAccount() async {
+    setState(() => _deletingAccount = true);
+    try {
+      await ApiService.instance.delete('/api/auth/account');
+      await _handleLogout();
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+              content: Text('Failed to delete account'),
+              backgroundColor: AppColors.error),
+        );
+      }
+    } finally {
+      if (mounted) setState(() => _deletingAccount = false);
     }
   }
 
@@ -339,8 +360,8 @@ class _ProfileScreenState extends State<ProfileScreen>
           labelColor: AppColors.primary,
           unselectedLabelColor: AppColors.onSurfaceVariant,
           indicatorColor: AppColors.primary,
-          labelStyle: AppTextStyles.labelMd
-              .copyWith(fontWeight: FontWeight.w700),
+          labelStyle:
+              AppTextStyles.labelMd.copyWith(fontWeight: FontWeight.w700),
           isScrollable: false,
         ),
       ),
@@ -362,7 +383,8 @@ class _ProfileScreenState extends State<ProfileScreen>
         currentIndex: 4,
         onTap: (i) {
           if (i == 0) Navigator.of(context).pushReplacementNamed('/dashboard');
-          if (i == 1) Navigator.of(context).pushReplacementNamed('/recommendations');
+          if (i == 1)
+            Navigator.of(context).pushReplacementNamed('/recommendations');
           if (i == 2) Navigator.of(context).pushNamed('/chat');
           if (i == 3) Navigator.of(context).pushReplacementNamed('/progress');
         },
@@ -393,8 +415,8 @@ class _ProfileScreenState extends State<ProfileScreen>
                       Color(0xFF1B7A41),
                     ]),
                   ),
-                  child:
-                      const Icon(Icons.person_rounded, color: Colors.white, size: 32),
+                  child: const Icon(Icons.person_rounded,
+                      color: Colors.white, size: 32),
                 ),
                 const SizedBox(width: 16),
                 Expanded(
@@ -402,8 +424,8 @@ class _ProfileScreenState extends State<ProfileScreen>
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
                       Text(_user?.name ?? '—',
-                          style: AppTextStyles.headlineMd
-                              .copyWith(fontWeight: FontWeight.w700, fontSize: 18)),
+                          style: AppTextStyles.headlineMd.copyWith(
+                              fontWeight: FontWeight.w700, fontSize: 18)),
                       Text(_user?.email ?? '—',
                           style: AppTextStyles.bodyMd
                               .copyWith(color: AppColors.onSurfaceVariant)),
@@ -414,8 +436,7 @@ class _ProfileScreenState extends State<ProfileScreen>
                               horizontal: 10, vertical: 3),
                           decoration: BoxDecoration(
                             color: AppColors.primaryContainer,
-                            borderRadius:
-                                BorderRadius.circular(AppRadius.full),
+                            borderRadius: BorderRadius.circular(AppRadius.full),
                           ),
                           child: Text(
                             _goalLabel(_profile!.fitnessGoal),
@@ -442,8 +463,8 @@ class _ProfileScreenState extends State<ProfileScreen>
                   labelText: 'Full Name',
                   border: OutlineInputBorder(
                       borderRadius: BorderRadius.circular(AppRadius.md)),
-                  contentPadding: const EdgeInsets.symmetric(
-                      horizontal: 16, vertical: 14),
+                  contentPadding:
+                      const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
                 ),
               ),
               const SizedBox(height: 12),
@@ -455,8 +476,8 @@ class _ProfileScreenState extends State<ProfileScreen>
                   helperText: 'Contact support to change your email.',
                   border: OutlineInputBorder(
                       borderRadius: BorderRadius.circular(AppRadius.md)),
-                  contentPadding: const EdgeInsets.symmetric(
-                      horizontal: 16, vertical: 14),
+                  contentPadding:
+                      const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
                 ),
               ),
               const SizedBox(height: 16),
@@ -489,11 +510,12 @@ class _ProfileScreenState extends State<ProfileScreen>
               children: [
                 Row(
                   children: [
-                    const Icon(Icons.warning_rounded, color: AppColors.error, size: 20),
+                    const Icon(Icons.warning_rounded,
+                        color: AppColors.error, size: 20),
                     const SizedBox(width: 8),
                     Text('Danger Zone',
-                        style: AppTextStyles.headlineMd.copyWith(
-                            fontSize: 16, color: AppColors.error)),
+                        style: AppTextStyles.headlineMd
+                            .copyWith(fontSize: 16, color: AppColors.error)),
                   ],
                 ),
                 const SizedBox(height: 8),
@@ -504,13 +526,19 @@ class _ProfileScreenState extends State<ProfileScreen>
                 ),
                 const SizedBox(height: 12),
                 OutlinedButton(
-                  onPressed: () {},
+                  onPressed: _deletingAccount ? null : _deleteAccount,
                   style: OutlinedButton.styleFrom(
                     foregroundColor: AppColors.error,
                     side: const BorderSide(color: AppColors.error),
                     shape: const StadiumBorder(),
                   ),
-                  child: const Text('Delete Account'),
+                  child: _deletingAccount
+                      ? const SizedBox(
+                          width: 18,
+                          height: 18,
+                          child: CircularProgressIndicator(
+                              color: AppColors.error, strokeWidth: 2))
+                      : const Text('Delete Account'),
                 ),
               ],
             ),
@@ -534,8 +562,10 @@ class _ProfileScreenState extends State<ProfileScreen>
             const Text('No health profile found.'),
             const SizedBox(height: 16),
             ElevatedButton(
-              onPressed: () =>
-                  Navigator.of(context).pushNamed('/health-weight'),
+              onPressed: () => Navigator.of(context)
+                  .pushNamed('/health-weight', arguments: {
+                'currentWeightKg': _profile?.currentWeightKg ?? _user?.weightKg
+              }),
               style: ElevatedButton.styleFrom(shape: const StadiumBorder()),
               child: const Text('Complete Assessment'),
             ),
@@ -555,7 +585,8 @@ class _ProfileScreenState extends State<ProfileScreen>
       if (p.bmi != null) ('BMI', p.bmi!.toStringAsFixed(1)),
       if (p.bmr != null) ('BMR', '${p.bmr!.round()} kcal'),
       if (p.tdee != null) ('TDEE', '${p.tdee!.round()} kcal'),
-      if (p.proteinTargetG != null) ('Protein Target', '${p.proteinTargetG!.round()}g'),
+      if (p.proteinTargetG != null)
+        ('Protein Target', '${p.proteinTargetG!.round()}g'),
       if (p.carbTargetG != null) ('Carb Target', '${p.carbTargetG}g'),
       if (p.fatTargetG != null) ('Fat Target', '${p.fatTargetG!.round()}g'),
     ];
@@ -573,8 +604,11 @@ class _ProfileScreenState extends State<ProfileScreen>
               SizedBox(
                 width: double.infinity,
                 child: OutlinedButton.icon(
-                  onPressed: () =>
-                      Navigator.of(context).pushNamed('/health-weight'),
+                  onPressed: () => Navigator.of(context)
+                      .pushNamed('/health-weight', arguments: {
+                    'currentWeightKg':
+                        _profile?.currentWeightKg ?? _user?.weightKg
+                  }),
                   icon: const Icon(Icons.refresh_rounded, size: 18),
                   label: const Text('Retake Assessment'),
                   style: OutlinedButton.styleFrom(
@@ -636,8 +670,8 @@ class _ProfileScreenState extends State<ProfileScreen>
                 _profile != null
                     ? _dietLabel(_profile!.dietaryPreference)
                     : '—',
-                style: AppTextStyles.bodyMd
-                    .copyWith(fontWeight: FontWeight.w700),
+                style:
+                    AppTextStyles.bodyMd.copyWith(fontWeight: FontWeight.w700),
               ),
               const SizedBox(height: 12),
               Text(
@@ -661,8 +695,7 @@ class _ProfileScreenState extends State<ProfileScreen>
         title: 'Change Password',
         icon: Icons.lock_rounded,
         children: [
-          _PasswordField(
-              label: 'Current Password', controller: _currentPwCtrl),
+          _PasswordField(label: 'Current Password', controller: _currentPwCtrl),
           const SizedBox(height: 12),
           _PasswordField(label: 'New Password', controller: _newPwCtrl),
           const SizedBox(height: 12),

@@ -7,27 +7,31 @@ class PlanReadyScreen extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final args = ModalRoute.of(context)?.settings.arguments as Map<String, dynamic>?;
+    final args =
+        ModalRoute.of(context)?.settings.arguments as Map<String, dynamic>?;
     final targets = args?['targets'] as Map<String, dynamic>?;
     final explanation = args?['explanation'] as String?;
 
-    final calorieTarget = (targets?['calorieTarget'] as num?)?.round().toString() ?? '2,450';
+    final calorieTarget =
+        (targets?['calorieTarget'] as num?)?.round().toString() ?? '2,450';
     final bmi = (targets?['bmi'] as num?)?.toStringAsFixed(1) ?? '23.4';
-    
-    final proteinTargetG = (targets?['proteinTargetG'] as num?)?.toDouble() ?? 180.0;
+
+    final proteinTargetG =
+        (targets?['proteinTargetG'] as num?)?.toDouble() ?? 180.0;
     final carbTargetG = (targets?['carbTargetG'] as num?)?.toDouble() ?? 250.0;
     final fatTargetG = (targets?['fatTargetG'] as num?)?.toDouble() ?? 80.0;
-    
+
     final proteinStr = proteinTargetG.round().toString();
     final carbsStr = carbTargetG.round().toString();
     final fatStr = fatTargetG.round().toString();
-    
+
     final totalG = proteinTargetG + carbTargetG + fatTargetG;
     final proteinProgress = totalG > 0 ? proteinTargetG / totalG : 0.40;
     final carbsProgress = totalG > 0 ? carbTargetG / totalG : 0.45;
     final fatProgress = totalG > 0 ? fatTargetG / totalG : 0.15;
 
-    final defaultExplanation = "Based on your goal to build lean muscle while maintaining low body fat, we've prioritized a moderate caloric surplus heavily weighted towards high-quality proteins and complex carbohydrates.";
+    final defaultExplanation =
+        "Based on your goal to build lean muscle while maintaining low body fat, we've prioritized a moderate caloric surplus heavily weighted towards high-quality proteins and complex carbohydrates.";
     final displayExplanation = explanation ?? defaultExplanation;
 
     return Scaffold(
@@ -68,8 +72,8 @@ class PlanReadyScreen extends StatelessWidget {
                       child: Column(
                         children: [
                           Text('Daily Calorie Target',
-                              style: AppTextStyles.labelMd.copyWith(
-                                  color: AppColors.onSurfaceVariant)),
+                              style: AppTextStyles.labelMd
+                                  .copyWith(color: AppColors.onSurfaceVariant)),
                           const SizedBox(height: 12),
                           MacroRing(
                             progress: 0.85,
@@ -100,8 +104,8 @@ class PlanReadyScreen extends StatelessWidget {
                         mainAxisAlignment: MainAxisAlignment.center,
                         children: [
                           Text('Current BMI',
-                              style: AppTextStyles.labelMd.copyWith(
-                                  color: AppColors.onSurfaceVariant)),
+                              style: AppTextStyles.labelMd
+                                  .copyWith(color: AppColors.onSurfaceVariant)),
                           const SizedBox(height: 12),
                           Text(bmi,
                               style: AppTextStyles.headlineLg
@@ -123,8 +127,8 @@ class PlanReadyScreen extends StatelessWidget {
                 decoration: BoxDecoration(
                   color: AppColors.primaryContainer.withOpacity(0.1),
                   borderRadius: BorderRadius.circular(AppRadius.lg),
-                  border: Border.all(
-                      color: AppColors.primary.withOpacity(0.25)),
+                  border:
+                      Border.all(color: AppColors.primary.withOpacity(0.25)),
                 ),
                 child: Row(
                   crossAxisAlignment: CrossAxisAlignment.start,
@@ -141,10 +145,9 @@ class PlanReadyScreen extends StatelessWidget {
                                   color: AppColors.primary,
                                   fontWeight: FontWeight.w700)),
                           const SizedBox(height: 4),
-                          Text(
-                              displayExplanation,
-                              style: AppTextStyles.labelMd.copyWith(
-                                  color: AppColors.onSurfaceVariant)),
+                          Text(displayExplanation,
+                              style: AppTextStyles.labelMd
+                                  .copyWith(color: AppColors.onSurfaceVariant)),
                         ],
                       ),
                     ),

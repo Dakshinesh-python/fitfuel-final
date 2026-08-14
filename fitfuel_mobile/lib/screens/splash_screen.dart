@@ -102,8 +102,8 @@ class _SplashScreenState extends State<SplashScreen>
                           Text(
                             'Intelligent nutrition, effortlessly.',
                             style: AppTextStyles.bodyLg.copyWith(
-                              color: AppColors.onSurfaceVariant
-                                  .withOpacity(0.8),
+                              color:
+                                  AppColors.onSurfaceVariant.withOpacity(0.8),
                             ),
                             textAlign: TextAlign.center,
                           ),

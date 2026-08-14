@@ -12,18 +12,37 @@ class HealthAssessmentWeightScreen extends StatefulWidget {
 
 class _HealthAssessmentWeightScreenState
     extends State<HealthAssessmentWeightScreen> {
-  final _currentWeightController = TextEditingController(text: '185');
-  final _targetWeightController = TextEditingController(text: '170');
+  final _targetWeightController = TextEditingController(text: '70');
+  TextEditingController? _currentWeightController;
+  bool _initialized = false;
+
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    if (!_initialized) {
+      final args =
+          ModalRoute.of(context)?.settings.arguments as Map<String, dynamic>? ??
+              {};
+      final initialWeight =
+          (args['currentWeightKg'] as num?)?.toDouble() ?? 65.0;
+      _currentWeightController =
+          TextEditingController(text: initialWeight.toStringAsFixed(0));
+      _initialized = true;
+    }
+  }
+
+  double get _currentWeight {
+    return double.tryParse(_currentWeightController?.text ?? '65') ?? 65.0;
+  }
 
   double get _diff {
-    final current = double.tryParse(_currentWeightController.text) ?? 0;
     final target = double.tryParse(_targetWeightController.text) ?? 0;
-    return current - target;
+    return _currentWeight - target;
   }
 
   @override
   void dispose() {
-    _currentWeightController.dispose();
+    _currentWeightController?.dispose();
     _targetWeightController.dispose();
     super.dispose();
   }
@@ -66,8 +85,8 @@ class _HealthAssessmentWeightScreenState
                       .copyWith(color: AppColors.onSurfaceVariant)),
               const SizedBox(height: 32),
               _WeightInputCard(
-                label: 'Current Weight (lbs)',
-                controller: _currentWeightController,
+                label: 'Current Weight (kg)',
+                controller: _currentWeightController!,
                 icon: Icons.monitor_weight_outlined,
                 accent: AppColors.onSurface,
                 iconColor: AppColors.outline,
@@ -75,7 +94,7 @@ class _HealthAssessmentWeightScreenState
               ),
               const SizedBox(height: 16),
               _WeightInputCard(
-                label: 'Target Weight (lbs)',
+                label: 'Target Weight (kg)',
                 controller: _targetWeightController,
                 icon: Icons.flag_outlined,
                 accent: AppColors.primary,
@@ -94,10 +113,7 @@ class _HealthAssessmentWeightScreenState
                   children: [
                     Row(
                       children: [
-                        Icon(
-                            losing
-                                ? Icons.trending_down
-                                : Icons.trending_up,
+                        Icon(losing ? Icons.trending_down : Icons.trending_up,
                             color: AppColors.secondaryContainer),
                         const SizedBox(width: 8),
                         Text('Goal: ${losing ? 'Lose' : 'Gain'}',
@@ -105,7 +121,7 @@ class _HealthAssessmentWeightScreenState
                                 .copyWith(color: AppColors.onSurfaceVariant)),
                       ],
                     ),
-                    Text('${diff.abs().toStringAsFixed(0)} lbs',
+                    Text('${diff.abs().toStringAsFixed(0)} kg',
                         style: AppTextStyles.headlineMd),
                   ],
                 ),
@@ -113,13 +129,13 @@ class _HealthAssessmentWeightScreenState
               const SizedBox(height: 40),
               ElevatedButton(
                 onPressed: () {
-                  final currentLbs = double.tryParse(_currentWeightController.text) ?? 0;
-                  final targetLbs = double.tryParse(_targetWeightController.text) ?? 0;
+                  final targetKg =
+                      double.tryParse(_targetWeightController.text) ?? 0;
                   Navigator.of(context).pushNamed(
                     '/health-activity',
                     arguments: {
-                      'currentWeightKg': currentLbs / 2.20462,
-                      'targetWeightKg': targetLbs / 2.20462,
+                      'currentWeightKg': _currentWeight,
+                      'targetWeightKg': targetKg,
                     },
                   );
                 },

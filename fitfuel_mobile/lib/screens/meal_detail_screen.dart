@@ -28,7 +28,8 @@ class MealDetailScreen extends StatelessWidget {
                       ),
                     ),
                     child: const Center(
-                      child: Icon(Icons.set_meal, color: Colors.white, size: 64),
+                      child:
+                          Icon(Icons.set_meal, color: Colors.white, size: 64),
                     ),
                   ),
                   Positioned(
@@ -166,8 +167,8 @@ class MealDetailScreen extends StatelessWidget {
                     Text(
                       'Opens the platform\u2019s own search — complete checkout there.',
                       textAlign: TextAlign.center,
-                      style:
-                          AppTextStyles.labelSm.copyWith(color: AppColors.outline),
+                      style: AppTextStyles.labelSm
+                          .copyWith(color: AppColors.outline),
                     ),
                   ],
                 ),
@@ -193,8 +194,8 @@ class _TagChip extends StatelessWidget {
         borderRadius: BorderRadius.circular(AppRadius.full),
       ),
       child: Text(label,
-          style:
-              AppTextStyles.labelSm.copyWith(color: AppColors.onSurfaceVariant)),
+          style: AppTextStyles.labelSm
+              .copyWith(color: AppColors.onSurfaceVariant)),
     );
   }
 }
@@ -210,8 +211,8 @@ class _MacroValue extends StatelessWidget {
       children: [
         Text(value, style: AppTextStyles.headlineMd.copyWith(fontSize: 20)),
         Text(label,
-            style:
-                AppTextStyles.labelSm.copyWith(color: AppColors.onSurfaceVariant)),
+            style: AppTextStyles.labelSm
+                .copyWith(color: AppColors.onSurfaceVariant)),
       ],
     );
   }

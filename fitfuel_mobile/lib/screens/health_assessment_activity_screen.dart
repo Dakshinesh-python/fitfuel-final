@@ -25,14 +25,23 @@ class _HealthAssessmentActivityScreenState
   String _selected = 'MODERATE';
 
   static const _options = [
-    _ActivityOption('SEDENTARY', 'Sedentary',
-        'Little to no exercise. Mostly desk work or resting.', '1.2',
+    _ActivityOption(
+        'SEDENTARY',
+        'Sedentary',
+        'Little to no exercise. Mostly desk work or resting.',
+        '1.2',
         Icons.chair_outlined),
-    _ActivityOption('LIGHT', 'Lightly Active',
-        'Light exercise or sports 1-3 days a week. E.g., walking.', '1.375',
+    _ActivityOption(
+        'LIGHT',
+        'Lightly Active',
+        'Light exercise or sports 1-3 days a week. E.g., walking.',
+        '1.375',
         Icons.directions_walk),
-    _ActivityOption('MODERATE', 'Moderately Active',
-        'Moderate exercise or sports 3-5 days a week.', '1.55',
+    _ActivityOption(
+        'MODERATE',
+        'Moderately Active',
+        'Moderate exercise or sports 3-5 days a week.',
+        '1.55',
         Icons.fitness_center),
     _ActivityOption('ACTIVE', 'Very Active',
         'Hard exercise or sports 6-7 days a week.', '1.725', Icons.pool),
@@ -120,8 +129,8 @@ class _HealthAssessmentActivityScreenState
                           Text(o.title, style: AppTextStyles.headlineMd),
                           const SizedBox(height: 8),
                           Text(o.desc,
-                              style: AppTextStyles.bodyMd.copyWith(
-                                  color: AppColors.onSurfaceVariant)),
+                              style: AppTextStyles.bodyMd
+                                  .copyWith(color: AppColors.onSurfaceVariant)),
                           const SizedBox(height: 16),
                           Row(
                             mainAxisAlignment: MainAxisAlignment.spaceBetween,
@@ -159,7 +168,9 @@ class _HealthAssessmentActivityScreenState
                   Expanded(
                     child: OutlinedButton(
                       onPressed: () {
-                        final args = ModalRoute.of(context)?.settings.arguments as Map<String, dynamic>? ?? {};
+                        final args = ModalRoute.of(context)?.settings.arguments
+                                as Map<String, dynamic>? ??
+                            {};
                         Navigator.of(context).pushNamed(
                           '/health-goals',
                           arguments: {...args, 'activityLevel': _selected},
@@ -176,7 +187,9 @@ class _HealthAssessmentActivityScreenState
                   Expanded(
                     child: ElevatedButton(
                       onPressed: () {
-                        final args = ModalRoute.of(context)?.settings.arguments as Map<String, dynamic>? ?? {};
+                        final args = ModalRoute.of(context)?.settings.arguments
+                                as Map<String, dynamic>? ??
+                            {};
                         Navigator.of(context).pushNamed(
                           '/health-goals',
                           arguments: {...args, 'activityLevel': _selected},
