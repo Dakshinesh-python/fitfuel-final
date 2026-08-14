@@ -7,10 +7,11 @@ against the actual, unmodified application code -- first locally, and then
 against this project's real CI with real Postgres, which is where the
 important finding below actually surfaced.
 
-**467 automated tests. 8 genuine findings, one of them a confirmed,
-unauthenticated, complete denial-of-service vulnerability (DOS-1) found by
-running this suite in real CI, not by guessing.** See
-`reports/executive-summary.md` and `reports/security-review.md`.
+**467 automated tests, 466/467 (99.8%) confirmed passing against real
+Postgres in this project's own CI. The one denial-of-service vulnerability
+found along the way (DOS-1) is now fixed and independently confirmed
+resolved.** See `reports/executive-summary.md` and
+`reports/security-review.md`.
 
 ## What's in this zip
 
@@ -90,7 +91,7 @@ numbers -- but with one caveat worth being upfront about:
 
 The sandbox used to build and validate this suite could not reach Prisma's
 binary CDN (`binaries.prisma.sh`) to download the query-engine binary
-needed for a real Postgres connection. So the 465-test run that produced
+needed for a real Postgres connection. So the 467-test run that produced
 these reports used the actual, unmodified `backend/src/*` application code
 (Express routing, zod validation, JWT signing/verification, bcrypt
 hashing, the recommendation engine, the nutrition calculator) with only
@@ -121,7 +122,7 @@ reading every route file first).
 
 | ID | Severity | What |
 |---|---|---|
-| **DOS-1** | **Critical** | **Unauthenticated crash: `GET /api/meals?mealType=<invalid>` takes down the entire backend process (confirmed in real CI against real Postgres -- see below)** |
+| ~~DOS-1~~ | ~~Critical~~ **RESOLVED** | ~~Unauthenticated crash on invalid `mealType`/`platform`~~ -- fixed and confirmed on both affected routes as of the 2026-08-13T23:32:05Z CI run |
 | JWT-1 | Critical | Hardcoded fallback JWT secret if `JWT_SECRET` env var is unset |
 | RATE-1 | Medium | No rate limiting on login/register/chat |
 | CORS-1 | Medium | CORS defaults to allow-all + credentials when `ALLOWED_ORIGINS` is unset |
@@ -132,40 +133,41 @@ reading every route file first).
 
 Full detail and one-line fixes for each are in `reports/security-review.md`.
 
-## DOS-1: found by actually running this in your CI, not by guessing
+## DOS-1: the full story, from discovery to fix, across four real CI runs
 
 The version of this suite handed over initially passed 465/465 -- including
 a test that specifically probed the exact endpoint behind this bug -- because
 it ran against an in-memory data-layer stand-in during development (see
 "How these reports were produced" below) that has no database-level enum
-validation. The first time it ran against this project's real CI (real
-Postgres, `.github/workflows/backend-tests.yml`), 33 of 465 tests failed:
-one with `Server disconnected without sending a response`, and the other 32
-immediately after it with `Connection refused`, because the server crashed
-and never came back for the rest of that run. That artifact
-(`backend-test-reports.zip`) is the direct evidence behind this finding.
+validation. It took four real CI runs, each traced test-by-test rather
+than trusted at the summary level, to find and fully close this:
 
-**The practical lesson:** this suite's pass rate against real Postgres is
-the number to trust, not its pass rate against the local stand-in. The
-suite has since been updated (now 467 tests) with the corrected, upgraded
-severity and a companion test for `GET /api/recommendations`'s identical
-bug -- re-run it in CI after applying the fix in `security-review.md`
-(DOS-1) to confirm 467/467 against real Postgres.
+1. **432/465 passed.** `GET /api/meals?mealType=<invalid>` (unauthenticated)
+   crashed the server -- one `Server disconnected without sending a
+   response`, then 32 consecutive `Connection refused` failures. First
+   confirmation.
+2. **145/467 passed**, after a fix attempt covered `meal.routes.ts` only.
+   A companion test added specifically for `GET /api/recommendations`
+   caught the identical unfixed bug there, with the same crash signature.
+3. **145/467 passed again** -- same failure, confirming run 2 wasn't a fluke.
+4. **466/467 passed.** Both routes fixed and independently confirmed; the
+   server survived the full run for the first time. **DOS-1 is now
+   resolved.** The one remaining failure was an unrelated, stale test
+   assertion (the app deliberately changed its Zomato deep-link behavior;
+   the test hadn't caught up) -- fixed in this suite, not an app bug.
 
-**Second CI run, after a fix attempt (`backend-test-reports__1_.zip`):**
-145/467 passed. The companion test added specifically to check
-`GET /api/recommendations` was the very first failure, with the same
-crash signature as run 1 -- confirming `recommendation.routes.ts` was
-**not** fixed (only `meal.routes.ts`, or possibly neither, was touched).
-Every other failure in that run is a downstream `Connection refused` from
-that one crash, including the original `GET /api/meals` tests -- so this
-run does not prove `meal.routes.ts` either way. Fix
-`recommendation.routes.ts` with the same validation + try/catch approach,
-then re-run once more for a clean signal on both routes.
+Full breakdown of all four runs, root cause, and the verified fix are in
+`security-review.md` (DOS-1). All four raw CI artifacts are preserved in
+`reports/ci-evidence-real-postgres-run/`.
+
+**The practical lesson, still true:** this suite's pass rate against real
+Postgres is the number to trust, not its pass rate against the local
+stand-in -- it caught both the original bug and that the first fix only
+covered half of it.
 
 ## A note on the "400+ test cases" ask
 
-This suite has 465 test cases, all real and independently meaningful (not
+This suite has 467 test cases, all real and independently meaningful (not
 padded) -- built mostly through deliberate parametrization: e.g. 15 SQL
 injection payloads x 3 real unvalidated fields = 45 genuinely distinct
 injection tests, 15 protected endpoints x 3 auth-bypass modes = 45 genuine

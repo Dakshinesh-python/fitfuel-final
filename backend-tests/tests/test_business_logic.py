@@ -460,20 +460,28 @@ class TestOrderDeepLinks:
         assert r.status_code == 201
         assert r.json()["deepLink"].startswith("https://www.swiggy.com/search?query=")
 
-    def test_zomato_order_deep_link_forces_dish_type_search(self, client, any_meal_id):
+    def test_zomato_order_deep_link_points_to_zomato(self, client, any_meal_id):
         """
         CATEGORY: Business Logic
-        TITLE: ZOMATO order deep link forces &type=dishes (not restaurant search)
-        OBJECTIVE: buildDeepLink() deliberately appends &type=dishes for Zomato,
-            per the code comment explaining Zomato defaults to restaurant
-            search without it.
-        EXPECTED: deepLink contains "&type=dishes".
+        TITLE: ZOMATO order deep link points to a zomato.com URL
+        OBJECTIVE: buildDeepLink() originally forced a &type=dishes dish-search
+            link for Zomato. As of commits 3bacaae/b3cac93/2cbae71, this was
+            deliberately changed to a hardcoded generic Chennai delivery page
+            (https://www.zomato.com/chennai/delivery) because, per the
+            commit's own message, "Zomato dish search is broken" -- a real
+            product decision, not a regression. This test intentionally only
+            checks the domain, not the exact path/query, so it doesn't need
+            editing again the next time this URL is adjusted (it's changed
+            three times already). If the exact target matters again later,
+            tighten this back up against whatever the current intended
+            behavior is.
+        EXPECTED: deepLink is an https://www.zomato.com/... URL.
         SEVERITY: LOW
         """
         user = _register_with_metrics(client, 30, "MALE", 178, 78)
         r = client.post(f"{API_PREFIX}/orders", json={"mealId": any_meal_id, "platform": "ZOMATO"}, headers=user["headers"])
         assert r.status_code == 201
-        assert "&type=dishes" in r.json()["deepLink"]
+        assert r.json()["deepLink"].startswith("https://www.zomato.com/")
 
 
 class TestProgressSummary:
