@@ -130,6 +130,7 @@ class _ProgressScreenState extends State<ProgressScreen> {
                       .copyWith(color: AppColors.onSurfaceVariant)),
               const SizedBox(height: 24),
               ElevatedButton.icon(
+                key: const ValueKey('progress_retry_button'),
                 onPressed: _loadData,
                 icon: const Icon(Icons.refresh),
                 label: const Text('Retry'),
@@ -187,6 +188,7 @@ class _ProgressScreenState extends State<ProgressScreen> {
                 ),
               ),
               ElevatedButton.icon(
+                key: const ValueKey('progress_log_button'),
                 onPressed: _openLogSheet,
                 style: ElevatedButton.styleFrom(
                   backgroundColor: Colors.white,
@@ -351,6 +353,7 @@ class _ProgressScreenState extends State<ProgressScreen> {
             SizedBox(
               width: double.infinity,
               child: OutlinedButton.icon(
+                key: const ValueKey('progress_log_first_entry_button'),
                 onPressed: _openLogSheet,
                 icon: const Icon(Icons.add, size: 16),
                 label: const Text('Log First Entry'),
@@ -686,6 +689,7 @@ class _LogEntrySheetState extends State<_LogEntrySheet> {
                   borderRadius: BorderRadius.circular(AppRadius.dflt),
                 ),
                 child: Text(_error!,
+                    key: const ValueKey('progress_log_error_text'),
                     style:
                         AppTextStyles.bodyMd.copyWith(color: AppColors.error)),
               ),
@@ -693,23 +697,33 @@ class _LogEntrySheetState extends State<_LogEntrySheet> {
               children: [
                 Expanded(
                     child: _NumberField('Weight (kg)', _weightCtrl,
-                        decimal: true)),
+                        decimal: true,
+                        fieldKey: const ValueKey('progress_log_weight_field'))),
                 const SizedBox(width: 12),
-                Expanded(child: _NumberField('Calories', _calCtrl)),
+                Expanded(
+                    child: _NumberField('Calories', _calCtrl,
+                        fieldKey: const ValueKey('progress_log_calories_field'))),
               ],
             ),
             const SizedBox(height: 12),
             Row(
               children: [
-                Expanded(child: _NumberField('Protein (g)', _proteinCtrl)),
+                Expanded(
+                    child: _NumberField('Protein (g)', _proteinCtrl,
+                        fieldKey: const ValueKey('progress_log_protein_field'))),
                 const SizedBox(width: 12),
-                Expanded(child: _NumberField('Carbs (g)', _carbsCtrl)),
+                Expanded(
+                    child: _NumberField('Carbs (g)', _carbsCtrl,
+                        fieldKey: const ValueKey('progress_log_carbs_field'))),
                 const SizedBox(width: 12),
-                Expanded(child: _NumberField('Fat (g)', _fatCtrl)),
+                Expanded(
+                    child: _NumberField('Fat (g)', _fatCtrl,
+                        fieldKey: const ValueKey('progress_log_fat_field'))),
               ],
             ),
             const SizedBox(height: 12),
             TextField(
+              key: const ValueKey('progress_log_notes_field'),
               controller: _notesCtrl,
               maxLines: 2,
               decoration: const InputDecoration(
@@ -721,6 +735,7 @@ class _LogEntrySheetState extends State<_LogEntrySheet> {
             SizedBox(
               width: double.infinity,
               child: ElevatedButton(
+                key: const ValueKey('progress_log_submit_button'),
                 onPressed: _submitting ? null : _submit,
                 child: _submitting
                     ? const SizedBox(
@@ -742,11 +757,14 @@ class _NumberField extends StatelessWidget {
   final String label;
   final TextEditingController controller;
   final bool decimal;
-  const _NumberField(this.label, this.controller, {this.decimal = false});
+  final Key? fieldKey;
+  const _NumberField(this.label, this.controller,
+      {this.decimal = false, this.fieldKey});
 
   @override
   Widget build(BuildContext context) {
     return TextField(
+      key: fieldKey,
       controller: controller,
       keyboardType: TextInputType.numberWithOptions(decimal: decimal),
       decoration: InputDecoration(

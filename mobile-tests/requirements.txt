@@ -1,0 +1,10 @@
+# Pinned deliberately (not "latest") -- see README.md "Version pinning"
+# section: appium-flutter-finder + Appium-Python-Client + selenium have
+# tight cross-compatibility requirements, and several combinations either
+# fail to import or silently break the timeout wrapper in utils/appium_connection.py.
+Appium-Python-Client==3.1.1
+selenium==4.21.0
+appium-flutter-finder==0.8.0
+pytest==8.2.2
+pytest-rerunfailures==14.0
+openpyxl==3.1.5

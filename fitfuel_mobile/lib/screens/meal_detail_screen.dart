@@ -37,6 +37,7 @@ class MealDetailScreen extends StatelessWidget {
                     left: 12,
                     child: SafeArea(
                       child: GestureDetector(
+                        key: const ValueKey('meal_detail_back_button'),
                         onTap: () => Navigator.of(context).maybePop(),
                         child: Container(
                           padding: const EdgeInsets.all(8),

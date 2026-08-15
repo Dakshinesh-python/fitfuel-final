@@ -91,6 +91,7 @@ class _HealthAssessmentActivityScreenState
                 return Padding(
                   padding: const EdgeInsets.only(bottom: 16),
                   child: GestureDetector(
+                    key: ValueKey('health_activity_option_${o.key}'),
                     onTap: () => setState(() => _selected = o.key),
                     child: AnimatedContainer(
                       duration: const Duration(milliseconds: 150),
@@ -167,6 +168,7 @@ class _HealthAssessmentActivityScreenState
                 children: [
                   Expanded(
                     child: OutlinedButton(
+                      key: const ValueKey('health_activity_skip_button'),
                       onPressed: () {
                         final args = ModalRoute.of(context)?.settings.arguments
                                 as Map<String, dynamic>? ??
@@ -186,6 +188,7 @@ class _HealthAssessmentActivityScreenState
                   const SizedBox(width: 12),
                   Expanded(
                     child: ElevatedButton(
+                      key: const ValueKey('health_activity_continue_button'),
                       onPressed: () {
                         final args = ModalRoute.of(context)?.settings.arguments
                                 as Map<String, dynamic>? ??

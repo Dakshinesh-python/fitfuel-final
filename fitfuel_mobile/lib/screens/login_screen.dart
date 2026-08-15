@@ -189,6 +189,7 @@ class _LoginScreenState extends State<LoginScreen> {
                       Text('Email Address', style: AppTextStyles.labelMd),
                       const SizedBox(height: 8),
                       TextFormField(
+                        key: const ValueKey('login_email_field'),
                         controller: _emailController,
                         keyboardType: TextInputType.emailAddress,
                         decoration: const InputDecoration(
@@ -204,6 +205,7 @@ class _LoginScreenState extends State<LoginScreen> {
                       Text('Password', style: AppTextStyles.labelMd),
                       const SizedBox(height: 8),
                       TextFormField(
+                        key: const ValueKey('login_password_field'),
                         controller: _passwordController,
                         obscureText: _obscure,
                         decoration: InputDecoration(
@@ -211,6 +213,8 @@ class _LoginScreenState extends State<LoginScreen> {
                           prefixIcon: const Icon(Icons.lock_outline,
                               color: AppColors.outlineVariant),
                           suffixIcon: IconButton(
+                            key: const ValueKey(
+                                'login_password_visibility_toggle'),
                             icon: Icon(
                               _obscure
                                   ? Icons.visibility_off_outlined
@@ -228,10 +232,12 @@ class _LoginScreenState extends State<LoginScreen> {
                       if (_error != null) ...[
                         const SizedBox(height: 12),
                         Text(_error!,
+                            key: const ValueKey('login_error_text'),
                             style: const TextStyle(color: AppColors.error)),
                       ],
                       const SizedBox(height: 20),
                       ElevatedButton(
+                        key: const ValueKey('login_submit_button'),
                         onPressed: _loading ? null : _submit,
                         style: ElevatedButton.styleFrom(
                             backgroundColor: AppColors.primaryContainer),
@@ -270,6 +276,7 @@ class _LoginScreenState extends State<LoginScreen> {
                                 style: AppTextStyles.bodyMd.copyWith(
                                     color: AppColors.onSurfaceVariant)),
                             GestureDetector(
+                              key: const ValueKey('login_register_link'),
                               onTap: () => Navigator.of(context)
                                   .pushReplacementNamed('/register'),
                               child: Text('Register',

@@ -182,6 +182,7 @@ class _RecommendationsScreenState extends State<RecommendationsScreen> {
                       .copyWith(color: AppColors.onSurfaceVariant)),
               const SizedBox(height: 24),
               ElevatedButton.icon(
+                key: const ValueKey('recommendations_retry_button'),
                 onPressed: _loadRecommendations,
                 icon: const Icon(Icons.refresh),
                 label: const Text('Retry'),
@@ -332,6 +333,7 @@ class _RecommendationCardState extends State<_RecommendationCard> {
     final bd = widget.rec.breakdown;
 
     return AppCard(
+      key: ValueKey('recommendation_card_${widget.rec.mealId}'),
       radius: 20,
       padding:
           EdgeInsets.zero, // remove padding so the image bleeds to the edges
@@ -411,6 +413,7 @@ class _RecommendationCardState extends State<_RecommendationCard> {
                 const SizedBox(height: 8),
                 // Expandable breakdown
                 InkWell(
+                  key: ValueKey('recommendation_expand_${widget.rec.mealId}'),
                   onTap: () => setState(() => _expanded = !_expanded),
                   child: Row(
                     children: [
@@ -445,6 +448,7 @@ class _RecommendationCardState extends State<_RecommendationCard> {
                   children: [
                     Expanded(
                       child: ElevatedButton.icon(
+                        key: ValueKey('recommendation_order_swiggy_${widget.rec.mealId}'),
                         onPressed:
                             widget.isOrdering ? null : widget.onOrderSwiggy,
                         style: ElevatedButton.styleFrom(
@@ -469,6 +473,7 @@ class _RecommendationCardState extends State<_RecommendationCard> {
                     const SizedBox(width: 10),
                     Expanded(
                       child: ElevatedButton.icon(
+                        key: ValueKey('recommendation_order_zomato_${widget.rec.mealId}'),
                         onPressed:
                             widget.isOrdering ? null : widget.onOrderZomato,
                         style: ElevatedButton.styleFrom(

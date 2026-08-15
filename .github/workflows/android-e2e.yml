@@ -1,0 +1,158 @@
+name: Android E2E (Appium)
+
+# Mirrors backend-tests.yml's Postgres-service-container pattern and
+# selenium-tests.yml's report-publishing pattern, adapted for a Flutter
+# APK + Android emulator instead of a browser.
+on:
+  push:
+    branches: [main]
+    paths:
+      - "fitfuel_mobile/**"
+      - "backend/**"
+      - "mobile-tests/**"
+      - ".github/workflows/android-e2e.yml"
+  pull_request:
+    paths:
+      - "fitfuel_mobile/**"
+      - "backend/**"
+      - "mobile-tests/**"
+  workflow_dispatch: {}
+
+env:
+  # NOTE (see mobile-tests/README.md -> "The 90-vs-95 drift"): this is
+  # the ONE place the gate threshold is defined. mobile-tests/config.py
+  # reads it too (falls back to 90 if unset) so the CI summary and the
+  # actual pytest exit code can never silently disagree the way the
+  # reference project's did.
+  GATE_THRESHOLD_PCT: "90"
+
+jobs:
+  android-e2e:
+    runs-on: ubuntu-latest
+    timeout-minutes: 90
+
+    services:
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_USER: fitfuel
+          POSTGRES_PASSWORD: fitfuel
+          POSTGRES_DB: fitfuel_ci
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
+
+    steps:
+      - uses: actions/checkout@v4
+
+      # ── backend (real Postgres, real migrations, real seed data --
+      #    same pattern backend-tests.yml already uses) ────────────────
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+          cache: "npm"
+          cache-dependency-path: backend/package-lock.json
+
+      - name: Install backend dependencies
+        working-directory: backend
+        run: npm ci
+
+      - name: Run migrations
+        working-directory: backend
+        run: npx prisma migrate deploy
+        env:
+          DATABASE_URL: postgresql://fitfuel:fitfuel@localhost:5432/fitfuel_ci
+
+      - name: Seed meal catalog
+        working-directory: backend
+        run: npm run seed
+        env:
+          DATABASE_URL: postgresql://fitfuel:fitfuel@localhost:5432/fitfuel_ci
+
+      - name: Start backend
+        working-directory: backend
+        run: npm run start &
+        env:
+          DATABASE_URL: postgresql://fitfuel:fitfuel@localhost:5432/fitfuel_ci
+          PORT: "4000"
+
+      - name: Wait for backend to be healthy
+        run: |
+          for i in $(seq 1 30); do
+            curl -sf http://localhost:4000/health && exit 0
+            sleep 2
+          done
+          echo "Backend did not become healthy in time" >&2
+          exit 1
+
+      # ── Flutter + test APK ───────────────────────────────────────────
+      - uses: subosito/flutter-action@v2
+        with:
+          flutter-version: "3.24.0"
+          channel: stable
+
+      - name: Flutter pub get
+        working-directory: fitfuel_mobile
+        run: flutter pub get
+
+      - name: Build flutter-driver-enabled debug APK
+        working-directory: fitfuel_mobile
+        run: |
+          flutter build apk --debug -t lib/main_test.dart \
+            --dart-define=API_BASE_URL=http://10.0.2.2:4000
+
+      # ── Android emulator + Appium server ─────────────────────────────
+      - name: Enable KVM (required for a usable emulator on Actions runners)
+        run: |
+          echo 'KERNEL=="kvm", GROUP="kvm", MODE="0666", OPTIONS+="static_node=kvm"' | sudo tee /etc/udev/rules.d/99-kvm4all.rules
+          sudo udevadm control --reload-rules
+          sudo udevadm trigger --name-match=kvm
+
+      - name: Install Appium + flutter-driver plugin
+        run: |
+          npm install -g appium@2
+          appium driver install uiautomator2
+          appium plugin install --source=npm appium-flutter-driver-plugin || true
+          appium &
+          sleep 5
+
+      - name: Run Android emulator + tests
+        uses: reactivecircus/android-emulator-runner@v2
+        with:
+          api-level: 33
+          arch: x86_64
+          target: google_apis
+          profile: pixel_6
+          avd-name: test
+          disable-animations: true
+          script: |
+            cd mobile-tests
+            pip install -r requirements.txt
+            adb install -r ../fitfuel_mobile/build/app/outputs/flutter-apk/app-debug.apk
+            python3 -m pytest -m "not slow" --tb=short
+          env:
+            APK_PATH: ${{ github.workspace }}/fitfuel_mobile/build/app/outputs/flutter-apk/app-debug.apk
+            GATE_THRESHOLD_PCT: ${{ env.GATE_THRESHOLD_PCT }}
+
+      - name: Generate reports
+        if: always()
+        working-directory: mobile-tests
+        run: python3 generate_reports.py
+        env:
+          GATE_THRESHOLD_PCT: ${{ env.GATE_THRESHOLD_PCT }}
+
+      - name: Upload test reports
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: android-e2e-reports
+          path: mobile-tests/reports/
+          retention-days: 30
+
+      - name: Post summary to job log
+        if: always()
+        run: cat mobile-tests/reports/summary.md >> "$GITHUB_STEP_SUMMARY"

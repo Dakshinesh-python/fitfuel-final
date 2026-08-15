@@ -156,6 +156,7 @@ class _HealthAssessmentPrefsScreenState
                     child: Padding(
                       padding: EdgeInsets.only(right: d == _diets.last ? 0 : 8),
                       child: GestureDetector(
+                        key: ValueKey('health_diet_option_$key'),
                         onTap: () => setState(() => _diet = key),
                         child: AnimatedContainer(
                           duration: const Duration(milliseconds: 150),
@@ -214,6 +215,7 @@ class _HealthAssessmentPrefsScreenState
                   ..._allergyOptions.map((a) {
                     final selected = _allergies.contains(a);
                     return SelectableChip(
+                      key: ValueKey('health_allergy_chip_$a'),
                       label: a,
                       selected: selected,
                       onTap: () => setState(() {
@@ -229,12 +231,14 @@ class _HealthAssessmentPrefsScreenState
                       .where((a) => !_allergyOptions.contains(a))
                       .map((a) {
                     return SelectableChip(
+                      key: ValueKey('health_allergy_chip_custom_$a'),
                       label: a,
                       selected: true,
                       onTap: () => setState(() => _allergies.remove(a)),
                     );
                   }),
                   GestureDetector(
+                    key: const ValueKey('health_allergy_add_other_button'),
                     onTap: _showAddAllergyDialog,
                     child: Container(
                       padding: const EdgeInsets.symmetric(
@@ -279,6 +283,7 @@ class _HealthAssessmentPrefsScreenState
                           .copyWith(fontSize: 36, color: AppColors.primary)),
                   IntrinsicWidth(
                     child: TextField(
+                      key: const ValueKey('health_budget_field'),
                       controller: _budgetController,
                       keyboardType: TextInputType.number,
                       textAlign: TextAlign.center,
@@ -301,6 +306,7 @@ class _HealthAssessmentPrefsScreenState
                   overlayColor: AppColors.primary.withOpacity(0.1),
                 ),
                 child: Slider(
+                  key: const ValueKey('health_budget_slider'),
                   value: _budget.clamp(50.0, 1000.0),
                   min: 50,
                   max: 1000,
@@ -334,6 +340,7 @@ class _HealthAssessmentPrefsScreenState
               const SizedBox(height: 28),
               if (_error != null) ...[
                 Text(_error!,
+                    key: const ValueKey('health_prefs_error_text'),
                     style:
                         AppTextStyles.labelMd.copyWith(color: AppColors.error)),
                 const SizedBox(height: 16),
@@ -342,6 +349,7 @@ class _HealthAssessmentPrefsScreenState
                 children: [
                   Expanded(
                     child: OutlinedButton(
+                      key: const ValueKey('health_prefs_skip_button'),
                       onPressed: _loading
                           ? null
                           : () {
@@ -361,6 +369,7 @@ class _HealthAssessmentPrefsScreenState
                   Expanded(
                     flex: 2,
                     child: ElevatedButton(
+                      key: const ValueKey('health_prefs_submit_button'),
                       onPressed: _loading ? null : _submit,
                       style: ElevatedButton.styleFrom(
                           shape: RoundedRectangleBorder(

@@ -96,6 +96,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
         ),
         actions: [
           IconButton(
+            key: const ValueKey('dashboard_notifications_button'),
             icon: Container(
               width: 36,
               height: 36,
@@ -112,6 +113,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
           Padding(
             padding: const EdgeInsets.only(right: 12),
             child: GestureDetector(
+              key: const ValueKey('dashboard_profile_avatar_button'),
               onTap: () => Navigator.of(context).pushNamed('/profile'),
               child: Container(
                 width: 36,
@@ -163,6 +165,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
                     .copyWith(color: AppColors.onSurfaceVariant)),
             const SizedBox(height: 24),
             ElevatedButton.icon(
+              key: const ValueKey('dashboard_retry_button'),
               onPressed: _loadProfile,
               icon: const Icon(Icons.refresh),
               label: const Text('Retry'),
@@ -364,6 +367,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
           Row(
             children: [
               _QuickCard(
+                cardKey: const ValueKey('dashboard_quick_recommendations'),
                 icon: Icons.auto_awesome_rounded,
                 label: 'Recommendations',
                 sub: 'Ranked meals',
@@ -373,6 +377,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
               ),
               const SizedBox(width: 12),
               _QuickCard(
+                cardKey: const ValueKey('dashboard_quick_meal_plan'),
                 icon: Icons.calendar_month_rounded,
                 label: 'Meal Plan',
                 sub: '7-day plan',
@@ -385,6 +390,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
           Row(
             children: [
               _QuickCard(
+                cardKey: const ValueKey('dashboard_quick_ai_coach'),
                 icon: Icons.chat_bubble_rounded,
                 label: 'AI Coach',
                 sub: 'Ask anything',
@@ -393,6 +399,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
               ),
               const SizedBox(width: 12),
               _QuickCard(
+                cardKey: const ValueKey('dashboard_quick_progress'),
                 icon: Icons.show_chart_rounded,
                 label: 'Progress',
                 sub: 'Track trends',
@@ -483,12 +490,14 @@ class _DashboardScreenState extends State<DashboardScreen> {
 // ─────────────────────────────────────────────────────────────────────────────
 
 class _QuickCard extends StatelessWidget {
+  final Key? cardKey;
   final IconData icon;
   final String label;
   final String sub;
   final List<Color> gradient;
   final VoidCallback onTap;
   const _QuickCard({
+    this.cardKey,
     required this.icon,
     required this.label,
     required this.sub,
@@ -500,6 +509,7 @@ class _QuickCard extends StatelessWidget {
   Widget build(BuildContext context) {
     return Expanded(
       child: GestureDetector(
+        key: cardKey,
         onTap: onTap,
         child: Container(
           padding: const EdgeInsets.all(16),

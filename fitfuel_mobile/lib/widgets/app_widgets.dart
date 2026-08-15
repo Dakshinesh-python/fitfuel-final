@@ -43,6 +43,7 @@ class FitFuelBottomNav extends StatelessWidget {
               if (i == 2) {
                 return Expanded(
                   child: GestureDetector(
+                    key: ValueKey('nav_tab_${label.toLowerCase()}'),
                     onTap: () => onTap(i),
                     child: Column(
                       mainAxisAlignment: MainAxisAlignment.center,
@@ -81,6 +82,7 @@ class FitFuelBottomNav extends StatelessWidget {
               }
               return Expanded(
                 child: GestureDetector(
+                  key: ValueKey('nav_tab_${label.toLowerCase()}'),
                   onTap: () => onTap(i),
                   child: AnimatedContainer(
                     duration: const Duration(milliseconds: 200),
@@ -221,6 +223,7 @@ class PillTabSelector extends StatelessWidget {
           final selected = i == selectedIndex;
           return Expanded(
             child: GestureDetector(
+              key: ValueKey('pill_tab_${tabs[i].toLowerCase().replaceAll(' ', '_')}'),
               onTap: () => onChanged(i),
               child: AnimatedContainer(
                 duration: const Duration(milliseconds: 200),
@@ -604,7 +607,9 @@ class FitFuelAppBar extends StatelessWidget implements PreferredSizeWidget {
       title: Text(title),
       leading: showBack
           ? IconButton(
+              key: const ValueKey('app_bar_back_button'),
               icon: const Icon(Icons.arrow_back_ios_new, size: 20),
+              tooltip: 'Back',
               onPressed: () => Navigator.of(context).maybePop(),
             )
           : null,

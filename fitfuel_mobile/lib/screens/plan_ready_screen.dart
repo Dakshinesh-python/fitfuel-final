@@ -183,6 +183,7 @@ class PlanReadyScreen extends StatelessWidget {
               ),
               const SizedBox(height: 32),
               ElevatedButton(
+                key: const ValueKey('plan_ready_continue_button'),
                 onPressed: () =>
                     Navigator.of(context).pushReplacementNamed('/dashboard'),
                 style: ElevatedButton.styleFrom(

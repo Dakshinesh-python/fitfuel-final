@@ -136,6 +136,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
                       Text('Full Name', style: AppTextStyles.labelMd),
                       const SizedBox(height: 6),
                       TextFormField(
+                        key: const ValueKey('register_name_field'),
                         controller: _nameController,
                         decoration: _dec('Jane Doe'),
                         validator: (v) =>
@@ -145,6 +146,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
                       Text('Email Address', style: AppTextStyles.labelMd),
                       const SizedBox(height: 6),
                       TextFormField(
+                        key: const ValueKey('register_email_field'),
                         controller: _emailController,
                         keyboardType: TextInputType.emailAddress,
                         decoration: _dec('jane@example.com'),
@@ -156,6 +158,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
                       Text('Password', style: AppTextStyles.labelMd),
                       const SizedBox(height: 6),
                       TextFormField(
+                        key: const ValueKey('register_password_field'),
                         controller: _passwordController,
                         obscureText: true,
                         decoration: _dec('••••••••'),
@@ -169,6 +172,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
                       Text('Age', style: AppTextStyles.labelMd),
                       const SizedBox(height: 6),
                       TextFormField(
+                        key: const ValueKey('register_age_field'),
                         controller: _ageController,
                         keyboardType: TextInputType.number,
                         decoration: _dec('Years'),
@@ -189,6 +193,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
                             final selected = _gender == g;
                             return Expanded(
                               child: GestureDetector(
+                                key: ValueKey('register_gender_option_$g'),
                                 onTap: () => setState(() => _gender = g),
                                 child: Container(
                                   padding:
@@ -225,6 +230,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
                                     style: AppTextStyles.labelMd),
                                 const SizedBox(height: 6),
                                 TextFormField(
+                                  key: const ValueKey('register_height_field'),
                                   controller: _heightController,
                                   keyboardType: TextInputType.number,
                                   decoration: _dec('170'),
@@ -244,6 +250,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
                                     style: AppTextStyles.labelMd),
                                 const SizedBox(height: 6),
                                 TextFormField(
+                                  key: const ValueKey('register_weight_field'),
                                   controller: _weightController,
                                   keyboardType: TextInputType.number,
                                   decoration: _dec('65'),
@@ -259,10 +266,12 @@ class _RegisterScreenState extends State<RegisterScreen> {
                       const SizedBox(height: 24),
                       if (_error != null) ...[
                         Text(_error!,
+                            key: const ValueKey('register_error_text'),
                             style: const TextStyle(color: AppColors.error)),
                         const SizedBox(height: 12),
                       ],
                       ElevatedButton(
+                        key: const ValueKey('register_submit_button'),
                         onPressed: _loading ? null : _submit,
                         child: _loading
                             ? const SizedBox(
@@ -302,6 +311,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
                         style: AppTextStyles.bodyMd
                             .copyWith(color: AppColors.onSurfaceVariant)),
                     GestureDetector(
+                      key: const ValueKey('register_login_link'),
                       onTap: () =>
                           Navigator.of(context).pushReplacementNamed('/login'),
                       child: Text('Log in',

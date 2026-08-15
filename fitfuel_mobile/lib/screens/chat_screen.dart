@@ -216,6 +216,7 @@ class _ChatScreenState extends State<ChatScreen> {
                   itemCount: _shownQuickReplies.length,
                   separatorBuilder: (_, __) => const SizedBox(width: 8),
                   itemBuilder: (_, i) => GestureDetector(
+                    key: ValueKey('chat_quick_reply_$i'),
                     onTap: () => _send(_shownQuickReplies[i]),
                     child: Container(
                       alignment: Alignment.center,
@@ -248,6 +249,7 @@ class _ChatScreenState extends State<ChatScreen> {
                 children: [
                   Expanded(
                     child: TextField(
+                      key: const ValueKey('chat_input_field'),
                       controller: _controller,
                       enabled: !_sending,
                       textInputAction: TextInputAction.send,
@@ -270,6 +272,7 @@ class _ChatScreenState extends State<ChatScreen> {
                   const SizedBox(width: 8),
                   // Send button
                   GestureDetector(
+                    key: const ValueKey('chat_send_button'),
                     onTap: _sending ? null : () => _send(_controller.text),
                     child: Container(
                       width: 48,

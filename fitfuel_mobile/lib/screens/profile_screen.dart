@@ -71,11 +71,13 @@ class _ToggleRow extends StatelessWidget {
   final String sub;
   final bool value;
   final ValueChanged<bool> onChanged;
+  final Key? toggleKey;
   const _ToggleRow(
       {required this.label,
       required this.sub,
       required this.value,
-      required this.onChanged});
+      required this.onChanged,
+      this.toggleKey});
 
   @override
   Widget build(BuildContext context) {
@@ -95,6 +97,7 @@ class _ToggleRow extends StatelessWidget {
             ),
           ),
           Switch(
+            key: toggleKey,
             value: value,
             onChanged: onChanged,
             activeTrackColor: AppColors.primary,
@@ -110,7 +113,9 @@ class _ToggleRow extends StatelessWidget {
 class _PasswordField extends StatefulWidget {
   final String label;
   final TextEditingController controller;
-  const _PasswordField({required this.label, required this.controller});
+  final Key? fieldKey;
+  const _PasswordField(
+      {required this.label, required this.controller, this.fieldKey});
 
   @override
   State<_PasswordField> createState() => _PasswordFieldState();
@@ -122,11 +127,13 @@ class _PasswordFieldState extends State<_PasswordField> {
   @override
   Widget build(BuildContext context) {
     return TextField(
+      key: widget.fieldKey,
       controller: widget.controller,
       obscureText: _obscure,
       decoration: InputDecoration(
         labelText: widget.label,
         suffixIcon: IconButton(
+          key: ValueKey('${widget.fieldKey}_visibility_toggle'),
           icon: Icon(_obscure ? Icons.visibility_off : Icons.visibility,
               size: 18),
           onPressed: () => setState(() => _obscure = !_obscure),
@@ -349,6 +356,7 @@ class _ProfileScreenState extends State<ProfileScreen>
         title: const Text('Profile'),
         actions: [
           IconButton(
+            key: const ValueKey('profile_logout_button'),
             icon: const Icon(Icons.logout_rounded),
             tooltip: 'Logout',
             onPressed: _handleLogout,
@@ -458,6 +466,7 @@ class _ProfileScreenState extends State<ProfileScreen>
             icon: Icons.badge_rounded,
             children: [
               TextField(
+                key: const ValueKey('profile_name_field'),
                 controller: _nameCtrl,
                 decoration: InputDecoration(
                   labelText: 'Full Name',
@@ -469,6 +478,7 @@ class _ProfileScreenState extends State<ProfileScreen>
               ),
               const SizedBox(height: 12),
               TextField(
+                key: const ValueKey('profile_email_field'),
                 enabled: false,
                 decoration: InputDecoration(
                   labelText: 'Email Address',
@@ -484,6 +494,7 @@ class _ProfileScreenState extends State<ProfileScreen>
               SizedBox(
                 width: double.infinity,
                 child: ElevatedButton(
+                  key: const ValueKey('profile_save_name_button'),
                   onPressed: _savingName ? null : _saveName,
                   style: ElevatedButton.styleFrom(
                       padding: const EdgeInsets.symmetric(vertical: 14),
@@ -526,6 +537,7 @@ class _ProfileScreenState extends State<ProfileScreen>
                 ),
                 const SizedBox(height: 12),
                 OutlinedButton(
+                  key: const ValueKey('profile_delete_account_button'),
                   onPressed: _deletingAccount ? null : _deleteAccount,
                   style: OutlinedButton.styleFrom(
                     foregroundColor: AppColors.error,
@@ -562,6 +574,7 @@ class _ProfileScreenState extends State<ProfileScreen>
             const Text('No health profile found.'),
             const SizedBox(height: 16),
             ElevatedButton(
+              key: const ValueKey('profile_complete_assessment_button'),
               onPressed: () => Navigator.of(context)
                   .pushNamed('/health-weight', arguments: {
                 'currentWeightKg': _profile?.currentWeightKg ?? _user?.weightKg
@@ -604,6 +617,7 @@ class _ProfileScreenState extends State<ProfileScreen>
               SizedBox(
                 width: double.infinity,
                 child: OutlinedButton.icon(
+                  key: const ValueKey('profile_retake_assessment_button'),
                   onPressed: () => Navigator.of(context)
                       .pushNamed('/health-weight', arguments: {
                     'currentWeightKg':
@@ -636,18 +650,21 @@ class _ProfileScreenState extends State<ProfileScreen>
             icon: Icons.notifications_rounded,
             children: [
               _ToggleRow(
+                toggleKey: const ValueKey('profile_toggle_push_notifications'),
                 label: 'Push Notifications',
                 sub: 'Receive push alerts on your device',
                 value: _notifPush,
                 onChanged: (v) => setState(() => _notifPush = v),
               ),
               _ToggleRow(
+                toggleKey: const ValueKey('profile_toggle_meal_reminders'),
                 label: 'Meal Reminders',
                 sub: 'Get reminded at breakfast, lunch & dinner',
                 value: _notifMeals,
                 onChanged: (v) => setState(() => _notifMeals = v),
               ),
               _ToggleRow(
+                toggleKey: const ValueKey('profile_toggle_weekly_report'),
                 label: 'Weekly Progress Report',
                 sub: 'Receive a weekly nutrition summary',
                 value: _notifWeekly,
@@ -695,12 +712,20 @@ class _ProfileScreenState extends State<ProfileScreen>
         title: 'Change Password',
         icon: Icons.lock_rounded,
         children: [
-          _PasswordField(label: 'Current Password', controller: _currentPwCtrl),
-          const SizedBox(height: 12),
-          _PasswordField(label: 'New Password', controller: _newPwCtrl),
+          _PasswordField(
+              fieldKey: const ValueKey('profile_current_password_field'),
+              label: 'Current Password',
+              controller: _currentPwCtrl),
           const SizedBox(height: 12),
           _PasswordField(
-              label: 'Confirm New Password', controller: _confirmPwCtrl),
+              fieldKey: const ValueKey('profile_new_password_field'),
+              label: 'New Password',
+              controller: _newPwCtrl),
+          const SizedBox(height: 12),
+          _PasswordField(
+              fieldKey: const ValueKey('profile_confirm_password_field'),
+              label: 'Confirm New Password',
+              controller: _confirmPwCtrl),
           if (_pwMsg != null) ...[
             const SizedBox(height: 10),
             Text(
@@ -713,6 +738,7 @@ class _ProfileScreenState extends State<ProfileScreen>
           SizedBox(
             width: double.infinity,
             child: ElevatedButton(
+              key: const ValueKey('profile_change_password_button'),
               onPressed: _savingPw ? null : _changePassword,
               style: ElevatedButton.styleFrom(
                   padding: const EdgeInsets.symmetric(vertical: 14),

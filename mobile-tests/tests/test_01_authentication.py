@@ -1,0 +1,150 @@
+"""
+Authentication: login happy path, invalid-credential paths, password
+visibility toggle, register-link navigation, logout, and the redirect
+that should occur when a protected screen is reached without a session.
+
+Runs BEFORE test_02_registration.py (enforced by filename ordering --
+see conftest.py's session-strategy docstring) so the app starts in
+whatever state the emulator boots into (fresh install -> onboarding).
+"""
+import pytest
+
+from page_objects.auth_pages import LoginPage, RegisterPage
+from page_objects.dashboard_page import DashboardPage
+from page_objects.onboarding_page import OnboardingPage
+from utils import session_helpers
+
+
+@pytest.fixture(scope="module")
+def registered_account(driver, primary_test_account):
+    """Ensures `primary_test_account` exists in the backend before any
+    login test in this module runs, without depending on
+    test_02_registration.py's execution order (registration is a
+    separate, independently-tested concern)."""
+    dashboard = DashboardPage(driver)
+    if not dashboard.is_loaded(timeout=4):
+        session_helpers.register_new_account(driver, primary_test_account)
+        session_helpers.logout(driver)
+    else:
+        session_helpers.logout(driver)
+    return primary_test_account
+
+
+class TestOnboardingReachesLogin:
+    @pytest.mark.smoke
+    def test_app_launches_to_onboarding_or_login(self, driver):
+        onboarding = OnboardingPage(driver)
+        login = LoginPage(driver)
+        landed = onboarding.is_loaded(timeout=15) or login.is_loaded(timeout=5)
+        assert landed, "App did not land on onboarding or login on cold launch"
+
+    def test_skip_onboarding_reaches_register(self, driver):
+        onboarding = OnboardingPage(driver)
+        if onboarding.is_loaded(timeout=5):
+            onboarding.skip()
+        register = RegisterPage(driver)
+        assert register.is_loaded(timeout=10)
+        register.go_to_login()
+        assert LoginPage(driver).is_loaded(timeout=10)
+
+
+class TestLoginHappyPath:
+    @pytest.mark.smoke
+    @pytest.mark.auth
+    def test_valid_login_reaches_dashboard(self, driver, registered_account):
+        login = LoginPage(driver)
+        assert login.is_loaded(timeout=10)
+        login.login(registered_account["email"], registered_account["password"])
+        dashboard = DashboardPage(driver)
+        assert dashboard.is_loaded(timeout=15), "Valid login did not reach the dashboard"
+        session_helpers.logout(driver)
+
+    @pytest.mark.auth
+    def test_password_visibility_toggle(self, driver, registered_account):
+        login = LoginPage(driver)
+        assert login.is_loaded(timeout=10)
+        # obscured by default -- toggling twice should not raise, and the
+        # field should still be usable afterwards
+        login.toggle_password_visibility()
+        login.toggle_password_visibility()
+        login.login(registered_account["email"], registered_account["password"])
+        assert DashboardPage(driver).is_loaded(timeout=15)
+        session_helpers.logout(driver)
+
+    @pytest.mark.auth
+    def test_navigate_to_register_from_login(self, driver):
+        login = LoginPage(driver)
+        assert login.is_loaded(timeout=10)
+        login.go_to_register()
+        assert RegisterPage(driver).is_loaded(timeout=10)
+        RegisterPage(driver).go_to_login()
+        assert LoginPage(driver).is_loaded(timeout=10)
+
+
+class TestLoginInvalidCredentials:
+    @pytest.mark.auth
+    @pytest.mark.validation
+    @pytest.mark.parametrize(
+        "email,password,case_id",
+        [
+            ("nonexistent.user@fitfuel-mobile-tests.invalid", "WrongPass123!", "unregistered_email"),
+            (None, "WrongPass123!", "wrong_password_for_valid_email"),  # email filled at test time
+            ("not-an-email", "whatever123", "malformed_email_no_at_sign"),
+            ("", "whatever123", "empty_email"),
+            ("valid@example.com", "", "empty_password"),
+            ("", "", "both_fields_empty"),
+            ("  leading.space@example.com", "Pass123!", "leading_whitespace_email"),
+            ("UPPERCASE@EXAMPLE.COM", "WrongPass123!", "uppercase_email_wrong_password"),
+            ("valid@example.com", "   ", "whitespace_only_password"),
+            ("valid@example.com", "a" * 300, "extremely_long_password_attempt"),
+        ],
+    )
+    def test_login_rejected(self, driver, registered_account, email, password, case_id):
+        login = LoginPage(driver)
+        assert login.is_loaded(timeout=10)
+        actual_email = registered_account["email"] if email is None else email
+        login.login(actual_email, password)
+        assert not DashboardPage(driver).is_loaded(timeout=4), (
+            f"[{case_id}] Login unexpectedly succeeded with invalid credentials"
+        )
+
+    @pytest.mark.auth
+    def test_login_error_message_is_visible_and_nonempty(self, driver):
+        login = LoginPage(driver)
+        assert login.is_loaded(timeout=10)
+        login.login("nobody@fitfuel-mobile-tests.invalid", "WrongPass123!")
+        assert login.has_error(timeout=10), "No error message shown for invalid login"
+        assert login.error_message().strip() != ""
+
+    @pytest.mark.auth
+    def test_repeated_failed_logins_do_not_crash_the_screen(self, driver):
+        login = LoginPage(driver)
+        assert login.is_loaded(timeout=10)
+        for _ in range(3):
+            login.login("nobody@fitfuel-mobile-tests.invalid", "WrongPass123!")
+            assert login.has_error(timeout=10)
+        assert login.is_loaded(timeout=5), "Login screen became unresponsive after repeated failures"
+
+
+class TestLogout:
+    @pytest.mark.smoke
+    @pytest.mark.auth
+    def test_logout_returns_to_login_screen(self, driver, logged_in_session, on_dashboard):
+        session_helpers.logout(driver)
+        # Re-establish the session-scoped logged_in_session invariant for
+        # every module that runs after this one.
+        login = LoginPage(driver)
+        login.login(logged_in_session["email"], logged_in_session["password"])
+        assert DashboardPage(driver).is_loaded(timeout=15)
+
+    @pytest.mark.auth
+    def test_logout_clears_session_so_relaunch_requires_login(self, driver, logged_in_session):
+        from utils import adb_helpers
+
+        session_helpers.logout(driver)
+        adb_helpers.background_app(2)
+        assert LoginPage(driver).is_loaded(timeout=10), (
+            "App did not require login again after logout + background/foreground cycle"
+        )
+        LoginPage(driver).login(logged_in_session["email"], logged_in_session["password"])
+        assert DashboardPage(driver).is_loaded(timeout=15)

@@ -104,6 +104,7 @@ class _WeeklyMealPlanScreenState extends State<WeeklyMealPlanScreen> {
         actions: [
           if (!_generating)
             IconButton(
+              key: const ValueKey('weekly_plan_regenerate_button'),
               icon: const Icon(Icons.auto_awesome_rounded,
                   color: Color(0xFF2A9D58)),
               tooltip: 'Regenerate',
@@ -199,6 +200,7 @@ class _WeeklyMealPlanScreenState extends State<WeeklyMealPlanScreen> {
                 ),
                 const SizedBox(height: 24),
                 ElevatedButton.icon(
+                  key: const ValueKey('weekly_plan_generate_button'),
                   onPressed: _generate,
                   icon: const Icon(Icons.auto_awesome),
                   label: const Text('Generate My Plan'),
@@ -226,6 +228,7 @@ class _WeeklyMealPlanScreenState extends State<WeeklyMealPlanScreen> {
               itemBuilder: (context, i) {
                 final selected = i == _selectedDay;
                 return GestureDetector(
+                  key: ValueKey('weekly_plan_day_tab_$i'),
                   onTap: () => setState(() => _selectedDay = i),
                   child: Container(
                     width: 52,
@@ -297,6 +300,7 @@ class _WeeklyMealPlanScreenState extends State<WeeklyMealPlanScreen> {
 
           // Regenerate button
           OutlinedButton.icon(
+            key: const ValueKey('weekly_plan_regenerate_bottom_button'),
             onPressed: _generating ? null : _generate,
             icon: const Icon(Icons.auto_awesome, size: 18),
             label: const Text('Regenerate Plan'),

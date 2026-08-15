@@ -48,6 +48,7 @@ class _HealthAssessmentGoalsScreenState
         title: 'Step 3 of 4',
         actions: [
           TextButton(
+            key: const ValueKey('health_goals_skip_button'),
             onPressed: () {
               final args = ModalRoute.of(context)?.settings.arguments
                       as Map<String, dynamic>? ??
@@ -91,6 +92,7 @@ class _HealthAssessmentGoalsScreenState
                   final (key, title, desc, icon) = g;
                   final selected = _selected == key;
                   return GestureDetector(
+                    key: ValueKey('health_goal_option_$key'),
                     onTap: () => setState(() => _selected = key),
                     child: AnimatedContainer(
                       duration: const Duration(milliseconds: 150),
@@ -152,6 +154,7 @@ class _HealthAssessmentGoalsScreenState
               ),
               const SizedBox(height: 32),
               ElevatedButton(
+                key: const ValueKey('health_goals_continue_button'),
                 onPressed: () {
                   final args = ModalRoute.of(context)?.settings.arguments
                           as Map<String, dynamic>? ??

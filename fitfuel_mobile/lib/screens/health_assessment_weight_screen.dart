@@ -85,6 +85,7 @@ class _HealthAssessmentWeightScreenState
                       .copyWith(color: AppColors.onSurfaceVariant)),
               const SizedBox(height: 32),
               _WeightInputCard(
+                fieldKey: const ValueKey('health_current_weight_field'),
                 label: 'Current Weight (kg)',
                 controller: _currentWeightController!,
                 icon: Icons.monitor_weight_outlined,
@@ -94,6 +95,7 @@ class _HealthAssessmentWeightScreenState
               ),
               const SizedBox(height: 16),
               _WeightInputCard(
+                fieldKey: const ValueKey('health_target_weight_field'),
                 label: 'Target Weight (kg)',
                 controller: _targetWeightController,
                 icon: Icons.flag_outlined,
@@ -128,6 +130,7 @@ class _HealthAssessmentWeightScreenState
               ),
               const SizedBox(height: 40),
               ElevatedButton(
+                key: const ValueKey('health_weight_continue_button'),
                 onPressed: () {
                   final targetKg =
                       double.tryParse(_targetWeightController.text) ?? 0;
@@ -160,6 +163,7 @@ class _HealthAssessmentWeightScreenState
 }
 
 class _WeightInputCard extends StatelessWidget {
+  final Key? fieldKey;
   final String label;
   final TextEditingController controller;
   final IconData icon;
@@ -167,6 +171,7 @@ class _WeightInputCard extends StatelessWidget {
   final Color iconColor;
   final ValueChanged<String> onChanged;
   const _WeightInputCard({
+    this.fieldKey,
     required this.label,
     required this.controller,
     required this.icon,
@@ -192,6 +197,7 @@ class _WeightInputCard extends StatelessWidget {
             children: [
               Expanded(
                 child: TextField(
+                  key: fieldKey,
                   controller: controller,
                   onChanged: onChanged,
                   keyboardType: TextInputType.number,

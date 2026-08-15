@@ -38,6 +38,7 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
                 mainAxisAlignment: MainAxisAlignment.end,
                 children: [
                   TextButton(
+                    key: const ValueKey('onboarding_skip_button'),
                     onPressed: _finish,
                     child: Text('Skip',
                         style: AppTextStyles.labelMd
@@ -82,6 +83,7 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
                   ),
                   const SizedBox(height: 24),
                   ElevatedButton(
+                    key: const ValueKey('onboarding_next_button'),
                     onPressed: _next,
                     style: ElevatedButton.styleFrom(
                         shape: RoundedRectangleBorder(
