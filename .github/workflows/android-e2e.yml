@@ -117,11 +117,12 @@ jobs:
 
       - name: Install Appium + Flutter driver
         run: |
-          npm install -g appium
-          appium driver install uiautomator2
-          # Pin 2.0.0: the latest flutter driver bundles an appium-flutter-finder
-          # that is missing the 'exports' field in package.json, which Node 22
-          # requires. 2.0.0 bundles a compatible version.
+          # Pin the full Appium 2.x stack. The latest uiautomator2 (8.x)
+          # requires Appium 3.x, but appium-flutter-driver 2.x requires
+          # Appium 2.x -- they cannot coexist on different major server
+          # versions. This pinned triple is the last known-good 2.x set.
+          npm install -g appium@2.19.0
+          appium driver install uiautomator2@4.2.9
           appium driver install --source=npm appium-flutter-driver@2.0.0
 
       - name: Run Android emulator + tests
