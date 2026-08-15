@@ -133,10 +133,9 @@ jobs:
           avd-name: test
           disable-animations: true
           script: |
-            cd mobile-tests
-            pip install -r requirements.txt
-            adb install -r ../fitfuel_mobile/build/app/outputs/flutter-apk/app-debug.apk
-            python3 -m pytest -m "not slow" --tb=short
+            pip install -r mobile-tests/requirements.txt
+            adb install -r fitfuel_mobile/build/app/outputs/flutter-apk/app-debug.apk
+            cd mobile-tests && python3 -m pytest -m "not slow" --tb=short
         env:
           APK_PATH: ${{ github.workspace }}/fitfuel_mobile/build/app/outputs/flutter-apk/app-debug.apk
           GATE_THRESHOLD_PCT: ${{ env.GATE_THRESHOLD_PCT }}
