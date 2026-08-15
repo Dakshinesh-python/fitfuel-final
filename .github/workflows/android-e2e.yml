@@ -69,7 +69,7 @@ jobs:
 
       - name: Seed meal catalog
         working-directory: backend
-        run: npm run seed
+        run: npm run prisma:seed
         env:
           DATABASE_URL: postgresql://fitfuel:fitfuel@localhost:5432/fitfuel_ci
 
