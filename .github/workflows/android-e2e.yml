@@ -147,6 +147,20 @@ jobs:
         env:
           GATE_THRESHOLD_PCT: ${{ env.GATE_THRESHOLD_PCT }}
 
+      - name: Sanitize log filenames
+        if: always()
+        run: |
+          # Rename log files that contain characters invalid for artifact upload
+          # (<, >, :, ", |, *, ?) — these come from XSS/injection test parameter names
+          find mobile-tests/reports/logs -name '*' -type f | while IFS= read -r f; do
+            dir=$(dirname "$f")
+            base=$(basename "$f")
+            safe=$(echo "$base" | sed 's/[<>:"|*?]/_/g')
+            if [ "$base" != "$safe" ]; then
+              mv "$f" "$dir/$safe"
+            fi
+          done
+
       - name: Upload test reports
         if: always()
         uses: actions/upload-artifact@v4
