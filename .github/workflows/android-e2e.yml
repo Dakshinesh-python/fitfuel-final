@@ -53,7 +53,7 @@ jobs:
       #    same pattern backend-tests.yml already uses) ────────────────
       - uses: actions/setup-node@v4
         with:
-          node-version: "20"
+          node-version: "22"
           cache: "npm"
           cache-dependency-path: backend/package-lock.json
 
@@ -115,13 +115,11 @@ jobs:
           sudo udevadm control --reload-rules
           sudo udevadm trigger --name-match=kvm
 
-      - name: Install Appium + flutter-driver plugin
+      - name: Install Appium + Flutter driver
         run: |
           npm install -g appium
           appium driver install uiautomator2
-          appium plugin install --source=npm appium-flutter-driver-plugin || true
-          appium &
-          sleep 5
+          appium driver install --source=npm appium-flutter-driver
 
       - name: Run Android emulator + tests
         uses: reactivecircus/android-emulator-runner@v2
@@ -134,11 +132,25 @@ jobs:
           disable-animations: true
           script: |
             pip install -r mobile-tests/requirements.txt
+            # Start Appium inside the emulator-runner script so it launches
+            # after the emulator is online and ADB is responsive.
+            appium --base-path / &
+            sleep 8
+            # Install the test APK.
             adb install -r fitfuel_mobile/build/app/outputs/flutter-apk/app-debug.apk
+            # Pre-warm Flutter's Impeller GPU backend so the first Appium
+            # session doesn't land on a mid-init Dart isolate that gets
+            # immediately destroyed (causing every waitFor to return Error:{}).
+            adb shell monkey -p com.example.fitfuel_mobile \
+              -c android.intent.category.LAUNCHER 1 || true
+            sleep 12
+            adb shell am force-stop com.example.fitfuel_mobile || true
+            sleep 2
             cd mobile-tests && python3 -m pytest -m "not slow" --tb=short
         env:
           APK_PATH: ${{ github.workspace }}/fitfuel_mobile/build/app/outputs/flutter-apk/app-debug.apk
           GATE_THRESHOLD_PCT: ${{ env.GATE_THRESHOLD_PCT }}
+          SESSION_CREATION_TIMEOUT: "120"
 
       - name: Generate reports
         if: always()
