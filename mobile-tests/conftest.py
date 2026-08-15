@@ -64,7 +64,7 @@ def driver():
 
     options = UiAutomator2Options()
     options.platform_name = "Android"
-    options.automation_name = "FlutterDriver"  # legacy AppiumFlutterDriver
+    options.automation_name = "Flutter"  # appium-flutter-driver v2.x automationName
     options.device_name = config.DEVICE_NAME
     options.app = apk_path
     options.app_package = config.APP_PACKAGE

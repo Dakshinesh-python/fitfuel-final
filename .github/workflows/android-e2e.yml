@@ -119,7 +119,10 @@ jobs:
         run: |
           npm install -g appium
           appium driver install uiautomator2
-          appium driver install --source=npm appium-flutter-driver
+          # Pin 2.0.0: the latest flutter driver bundles an appium-flutter-finder
+          # that is missing the 'exports' field in package.json, which Node 22
+          # requires. 2.0.0 bundles a compatible version.
+          appium driver install --source=npm appium-flutter-driver@2.0.0
 
       - name: Run Android emulator + tests
         uses: reactivecircus/android-emulator-runner@v2
@@ -141,8 +144,7 @@ jobs:
             # Pre-warm Flutter's Impeller GPU backend so the first Appium
             # session doesn't land on a mid-init Dart isolate that gets
             # immediately destroyed (causing every waitFor to return Error:{}).
-            adb shell monkey -p com.example.fitfuel_mobile \
-              -c android.intent.category.LAUNCHER 1 || true
+            adb shell monkey -p com.example.fitfuel_mobile -c android.intent.category.LAUNCHER 1 || true
             sleep 12
             adb shell am force-stop com.example.fitfuel_mobile || true
             sleep 2
