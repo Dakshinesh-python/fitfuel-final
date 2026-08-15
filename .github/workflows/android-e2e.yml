@@ -117,7 +117,7 @@ jobs:
 
       - name: Install Appium + flutter-driver plugin
         run: |
-          npm install -g appium@2
+          npm install -g appium
           appium driver install uiautomator2
           appium plugin install --source=npm appium-flutter-driver-plugin || true
           appium &
