@@ -28,7 +28,7 @@ from datetime import datetime, timezone
 
 import pytest
 from appium import webdriver
-from appium.options.android import UiAutomator2Options
+from appium.options.common.base import AppiumOptions
 
 import config
 from utils import adb_helpers
@@ -75,14 +75,14 @@ def driver():
         f"--dart-define=API_BASE_URL={config.BACKEND_BASE_URL}"
     )
 
-    options = UiAutomator2Options()
-    options.platform_name = "Android"
-    options.automation_name = "Flutter"
-    options.device_name = config.DEVICE_NAME
-    options.app = apk_path
-    options.app_package = config.APP_PACKAGE
-    options.app_activity = config.APP_ACTIVITY
-    options.new_command_timeout = 300
+    options = AppiumOptions()
+    options.set_capability("platformName", "Android")
+    options.set_capability("appium:automationName", "Flutter")
+    options.set_capability("appium:deviceName", config.DEVICE_NAME)
+    options.set_capability("appium:app", apk_path)
+    options.set_capability("appium:appPackage", config.APP_PACKAGE)
+    options.set_capability("appium:appActivity", config.APP_ACTIVITY)
+    options.set_capability("appium:newCommandTimeout", 300)
     options.set_capability("appium:autoGrantPermissions", True)
     options.set_capability("appium:noReset", False)
     options.set_capability("appium:platformVersion", config.PLATFORM_VERSION)

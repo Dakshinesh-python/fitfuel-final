@@ -9,8 +9,8 @@ class LoginPage(BasePage):
     REGISTER_LINK = "login_register_link"
     ERROR_TEXT = "login_error_text"
 
-    def is_loaded(self) -> bool:
-        return self.is_on_screen("login")
+    def is_loaded(self, timeout: float = None) -> bool:
+        return self.is_on_screen("login", timeout=timeout)
 
     def login(self, email: str, password: str) -> None:
         self.enter_text_by_key(self.EMAIL_FIELD, email)
@@ -46,8 +46,8 @@ class RegisterPage(BasePage):
         "other": "register_gender_option_other",
     }
 
-    def is_loaded(self) -> bool:
-        return self.is_on_screen("register")
+    def is_loaded(self, timeout: float = None) -> bool:
+        return self.is_on_screen("register", timeout=timeout)
 
     def select_gender(self, gender: str) -> None:
         self.tap_key(self.GENDER_OPTIONS[gender])
