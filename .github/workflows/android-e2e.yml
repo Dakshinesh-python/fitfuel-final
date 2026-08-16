@@ -29,7 +29,16 @@ env:
 jobs:
   android-e2e:
     runs-on: ubuntu-latest
-    timeout-minutes: 90
+    # Was 90. The uploaded reports/logs/ from a real run show per-test
+    # logcat captures spanning ~80 minutes just to get through modules
+    # 00-10 of 20 (test_11 onward never even started -- no logs for them
+    # at all), with --reruns 1 meaning every one of those failures ran
+    # twice. 402 tests at that rate does not fit in 90 minutes, so the
+    # job timeout was killing pytest mid-run before it could write real
+    # results (see mobile-tests/conftest.py's incremental snapshot fix,
+    # which now at least survives this, but the job should still be given
+    # enough time to actually finish).
+    timeout-minutes: 180
 
     services:
       postgres:

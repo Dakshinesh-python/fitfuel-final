@@ -1,0 +1,22 @@
+node_modules/
+dist/
+build/
+.env
+*.log
+.DS_Store
+web/dist/
+backend/dist/
+mobile/build/
+mobile/.dart_tool/
+.vscode/
+.idea/
+
+# Generated CI test-report artifacts -- these are produced fresh by every
+# mobile-tests/selenium-tests run (see mobile-tests/conftest.py +
+# generate_reports.py) and must never be committed. A stale committed
+# execution-results.json is exactly what caused a real, in-progress CI run
+# that got killed mid-way to silently report "0 tests, gate FAILED"
+# instead of surfacing that hundreds of tests had actually run and failed.
+mobile-tests/reports/*
+!mobile-tests/reports/logs/.gitkeep
+!mobile-tests/reports/screenshots/.gitkeep

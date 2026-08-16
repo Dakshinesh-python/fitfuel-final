@@ -77,11 +77,21 @@ def load_results() -> dict:
 
     total = payload["summary"]["total"]
     print(f"Loaded {total} test results from {path}")
-    if total != EXPECTED_TEST_COUNT:
+    if payload.get("partial"):
+        print(
+            f"WARNING: this results file is PARTIAL -- pytest_sessionfinish never ran, "
+            f"meaning the run was interrupted (job/step timeout, OOM kill, crashed "
+            f"Appium/emulator session, etc.) after {total} test(s) recorded, not because "
+            f"only {total} test(s) exist. Check reports/logs/ for how far the run actually "
+            f"got and the pytest job log for what killed it -- do NOT read this as "
+            f"'{total} tests ran and that's the real result'.",
+            file=sys.stderr,
+        )
+    elif total != EXPECTED_TEST_COUNT:
         print(
             f"WARNING: expected {EXPECTED_TEST_COUNT} test results, got {total}. "
-            f"This usually means pytest crashed/was killed before finishing, or -k/-m "
-            f"filters were applied. Check the pytest job log.",
+            f"This usually means -k/-m filters were applied, or some tests were skipped "
+            f"at collection. Check the pytest job log.",
             file=sys.stderr,
         )
     return payload

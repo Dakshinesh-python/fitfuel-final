@@ -232,6 +232,25 @@ def pytest_runtest_makereport(item, call):
     if report.failed:
         _capture_failure_artifacts(item)
 
+    # Persist after EVERY test, not just at session end. 402 Appium tests
+    # with --reruns 1 is a multi-hour run in the worst case (every failing
+    # test runs twice), and this job has already been observed to get
+    # killed mid-run (job timeout / emulator or Appium session death /
+    # runner OOM) before pytest_sessionfinish ever executes. When that
+    # happens, the old "write once at the end" approach silently left
+    # whatever execution-results.json already existed on disk untouched --
+    # in CI that's the all-zero placeholder checked into git, so
+    # generate_reports.py reports "0 tests, gate FAILED" with no hint that
+    # hundreds of tests actually ran and failed for real (their logcat
+    # captures were still sitting right there in reports/logs/). Writing a
+    # fresh, real snapshot after every single test means the on-disk JSON
+    # is never more than one test behind reality, however the process ends.
+    try:
+        _write_results_snapshot()
+    except Exception:
+        # Never let report bookkeeping fail the actual test run.
+        pass
+
 
 def _capture_failure_artifacts(item) -> None:
     safe_name = item.nodeid.replace("::", "__").replace("/", "_")
@@ -255,7 +274,7 @@ def _capture_failure_artifacts(item) -> None:
         pass
 
 
-def pytest_sessionfinish(session, exitstatus):
+def _build_payload() -> dict:
     total = len(_RESULTS)
     passed = sum(1 for r in _RESULTS if r["status"] == "PASSED")
     failed = sum(1 for r in _RESULTS if r["status"] == "FAILED")
@@ -277,7 +296,7 @@ def pytest_sessionfinish(session, exitstatus):
 
     total_duration = round(sum(r["duration_s"] for r in _RESULTS), 2)
 
-    payload = {
+    return {
         "app_under_test": {
             "package": config.APP_PACKAGE,
             "backend_base_url": config.BACKEND_BASE_URL,
@@ -293,12 +312,48 @@ def pytest_sessionfinish(session, exitstatus):
             "total_duration_s": total_duration,
             "gate_threshold_pct": config.GATE_THRESHOLD_PCT,
             "gate_passed": pass_rate >= config.GATE_THRESHOLD_PCT,
+            # Not necessarily true yet if this snapshot is mid-run --
+            # see "partial" below.
             "by_module": by_module,
         },
         "results": _RESULTS,
         "generated_at": datetime.now(timezone.utc).isoformat(),
+        # True on every snapshot except the one written from
+        # pytest_sessionfinish, so a consumer (generate_reports.py, a
+        # human reading the artifact after a killed job) can tell a
+        # genuinely-finished 0-total run apart from a run that was cut
+        # short mid-way, instead of both looking identically like "0
+        # tests, gate failed".
+        "partial": True,
     }
 
+
+def _write_results_snapshot() -> None:
+    """Atomically (over)write reports/execution-results.json with the
+    current in-memory _RESULTS. Called after every single test AND at
+    session end, so the file on disk is never more than one test stale --
+    if the process dies (job timeout, OOM, Appium/emulator crash) before
+    pytest_sessionfinish runs, whatever was recorded up to that point is
+    still there instead of a stale placeholder from git being left in
+    place. Write-to-temp-then-os.replace keeps a concurrent reader (or a
+    kill mid-write) from ever seeing a truncated/corrupt JSON file."""
+    payload = _build_payload()
     out_path = os.path.join(config.REPORTS_DIR, "execution-results.json")
-    with open(out_path, "w", encoding="utf-8") as f:
+    tmp_path = out_path + ".tmp"
+    with open(tmp_path, "w", encoding="utf-8") as f:
         json.dump(payload, f, indent=2)
+    os.replace(tmp_path, out_path)
+
+
+def pytest_sessionfinish(session, exitstatus):
+    _write_results_snapshot()
+    # Overwrite the "partial" flag set by _build_payload() now that the
+    # session has genuinely finished on its own (not been killed).
+    out_path = os.path.join(config.REPORTS_DIR, "execution-results.json")
+    with open(out_path, encoding="utf-8") as f:
+        payload = json.load(f)
+    payload["partial"] = False
+    tmp_path = out_path + ".tmp"
+    with open(tmp_path, "w", encoding="utf-8") as f:
+        json.dump(payload, f, indent=2)
+    os.replace(tmp_path, out_path)
