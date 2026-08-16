@@ -41,7 +41,8 @@ from utils.appium_connection import (
 # Must happen before any AppiumConnection/session is created.
 configure_default_timeout()
 
-os.makedirs(config.SCREENSHOTS_DIR, exist_ok=True)
+if config.CAPTURE_SCREENSHOTS:
+    os.makedirs(config.SCREENSHOTS_DIR, exist_ok=True)
 os.makedirs(config.LOGS_DIR, exist_ok=True)
 
 _RESULTS: list[dict] = []
@@ -222,13 +223,14 @@ def pytest_runtest_makereport(item, call):
 
 def _capture_failure_artifacts(item) -> None:
     safe_name = item.nodeid.replace("::", "__").replace("/", "_")
-    driver_fixture = item.funcargs.get("driver")
-    if driver_fixture is not None:
-        try:
-            screenshot_path = os.path.join(config.SCREENSHOTS_DIR, f"{safe_name}.png")
-            driver_fixture.get_screenshot_as_file(screenshot_path)
-        except Exception:
-            pass
+    if config.CAPTURE_SCREENSHOTS:
+        driver_fixture = item.funcargs.get("driver")
+        if driver_fixture is not None:
+            try:
+                screenshot_path = os.path.join(config.SCREENSHOTS_DIR, f"{safe_name}.png")
+                driver_fixture.get_screenshot_as_file(screenshot_path)
+            except Exception:
+                pass
     try:
         log_path = os.path.join(config.LOGS_DIR, f"{safe_name}.log")
         adb_helpers.pull_logcat(log_path)

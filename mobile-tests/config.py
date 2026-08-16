@@ -75,6 +75,13 @@ REPORTS_DIR = os.environ.get("REPORTS_DIR", "reports")
 SCREENSHOTS_DIR = os.path.join(REPORTS_DIR, "screenshots")
 LOGS_DIR = os.path.join(REPORTS_DIR, "logs")
 
+# Failure-screenshot capture is off by default: on a run with lots of
+# failures these are the single biggest contributor to the uploaded
+# reports artifact (hundreds of full-res PNGs), while logcat (still
+# captured regardless of this flag) covers most of the same debugging
+# need at a fraction of the size. Set CAPTURE_SCREENSHOTS=1 to re-enable.
+CAPTURE_SCREENSHOTS = os.environ.get("CAPTURE_SCREENSHOTS", "0") == "1"
+
 # Same gate style as selenium-tests/config.py (pick ONE number, use it
 # consistently in the CI job summary AND the actual exit-code check —
 # final_year.md flags this exact 90-vs-95 drift in the reference repo).
