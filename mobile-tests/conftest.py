@@ -47,6 +47,18 @@ os.makedirs(config.LOGS_DIR, exist_ok=True)
 
 _RESULTS: list[dict] = []
 _RUN_STARTED_AT = datetime.now(timezone.utc)
+_LOGCAT_MARKERS: dict[str, str] = {}
+
+
+@pytest.hookimpl(tryfirst=True)
+def pytest_runtest_setup(item):
+    # Record where the device logcat buffer is *before* this test runs,
+    # so a failure only pulls this test's own lines instead of the
+    # entire (ever-growing) buffer since boot -- see _capture_failure_artifacts.
+    try:
+        _LOGCAT_MARKERS[item.nodeid] = adb_helpers.logcat_time_marker()
+    except Exception:
+        pass
 
 
 # ─────────────────────────────────────────────────────────────────────────
@@ -233,7 +245,12 @@ def _capture_failure_artifacts(item) -> None:
                 pass
     try:
         log_path = os.path.join(config.LOGS_DIR, f"{safe_name}.log")
-        adb_helpers.pull_logcat(log_path)
+        # Slice to just this test's window -- without since_marker, `adb
+        # logcat -d` dumps the ENTIRE buffer since boot on every single
+        # call, which is what actually bloated the reports zip (not the
+        # screenshots): with reruns=1 and hundreds of failing tests, each
+        # one wrote a near-full, ever-growing copy of the whole log.
+        adb_helpers.pull_logcat(log_path, since_marker=_LOGCAT_MARKERS.get(item.nodeid))
     except Exception:
         pass
 
