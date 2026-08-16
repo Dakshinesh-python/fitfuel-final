@@ -20,15 +20,8 @@ re-verified against this repo rather than assumed):
 """
 from __future__ import annotations
 
-import time
-
-from appium_flutter_finder import FlutterFinder
-from selenium.common.exceptions import (
-    NoSuchElementException,
-    StaleElementReferenceException,
-    TimeoutException,
-    WebDriverException,
-)
+from appium_flutter_finder import FlutterElement, FlutterFinder
+from selenium.common.exceptions import WebDriverException
 
 import config
 
@@ -82,24 +75,36 @@ class BasePage:
     def by_tooltip(self, tooltip: str):
         return finder.by_tooltip(tooltip)
 
+    def _element(self, element_finder) -> FlutterElement:
+        """Build a FlutterElement directly from a serialized finder.
+
+        appium-flutter-driver does NOT implement the standard /element
+        find endpoint (its `locatorStrategies` is only `['key', 'css
+        selector']` -- 'flutter' has never been a valid locator strategy,
+        in any driver version). The correct way to reference a Flutter
+        widget is to construct the element client-side with the base64
+        finder itself as the element id, then act on it via the driver's
+        `flutter:*` execute-script commands. See appium-flutter-driver's
+        own examples/README for this pattern.
+        """
+        return FlutterElement(self.driver, element_finder)
+
     # ── waits / existence checks (is_displayed(), never .text) ─────────
     def is_displayed(self, element_finder, timeout: float = None) -> bool:
         timeout = config.DEFAULT_WAIT_SECONDS if timeout is None else timeout
-        deadline = time.time() + timeout
-        last_exc = None
-        while time.time() < deadline:
-            try:
-                el = self.driver.find_element("flutter", element_finder)
-                if el.is_displayed():
-                    return True
-            except (
-                NoSuchElementException,
-                StaleElementReferenceException,
-                WebDriverException,
-            ) as exc:
-                last_exc = exc
-            time.sleep(0.3)
-        return False
+        try:
+            # flutter:waitFor blocks (up to timeout ms) until the widget
+            # described by element_finder appears, then raises if it
+            # never does -- this replaces the old find_element("flutter",
+            # ...) polling loop, which failed instantly and identically
+            # on every single call because "flutter" is not a supported
+            # locator strategy for this driver.
+            self.driver.execute_script(
+                "flutter:waitFor", element_finder, int(timeout * 1000)
+            )
+            return True
+        except WebDriverException:
+            return False
 
     def wait_for_key(self, value_key: str, timeout: float = None) -> bool:
         return self.is_displayed(self.by_key(value_key), timeout)
@@ -132,7 +137,7 @@ class BasePage:
         assert self.wait_for_key(value_key, timeout), (
             f"Input field with key '{value_key}' never became visible"
         )
-        el = self.driver.find_element("flutter", self.by_key(value_key))
+        el = self._element(self.by_key(value_key))
         el.clear()
         el.send_keys(value)
 
@@ -140,7 +145,7 @@ class BasePage:
         """The one legitimate use of .text -- only ever call this on a
         widget that actually renders text (Text / TextField)."""
         assert self.wait_for_key(value_key, timeout)
-        el = self.driver.find_element("flutter", self.by_key(value_key))
+        el = self._element(self.by_key(value_key))
         return el.text
 
     def scroll_down(self) -> None:
