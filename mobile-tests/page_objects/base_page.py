@@ -124,14 +124,20 @@ class BasePage:
             f"Element with key '{value_key}' never became visible "
             f"within {timeout or config.DEFAULT_WAIT_SECONDS}s"
         )
-        self.driver.execute_script("flutter:click", self.by_key(value_key))
+        # NOTE: appium-flutter-driver's execute-script command for
+        # tapping a widget is "flutter:tap" -- "flutter:click" is not a
+        # supported command and fails with "Command not support:
+        # flutter:click" on every call. This was the single point of
+        # failure behind nearly the entire suite (this helper -- along
+        # with tap_text() below -- is called by every page object).
+        self.driver.execute_script("flutter:tap", self.by_key(value_key))
 
     def tap_text(self, text: str, timeout: float = None) -> None:
         assert self.wait_for_text(text, timeout), (
             f"Text '{text}' never became visible within "
             f"{timeout or config.DEFAULT_WAIT_SECONDS}s"
         )
-        self.driver.execute_script("flutter:click", self.by_text(text))
+        self.driver.execute_script("flutter:tap", self.by_text(text))
 
     def enter_text_by_key(self, value_key: str, value: str, timeout: float = None) -> None:
         assert self.wait_for_key(value_key, timeout), (
