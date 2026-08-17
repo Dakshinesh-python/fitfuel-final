@@ -22,6 +22,7 @@ from __future__ import annotations
 
 from appium_flutter_finder import FlutterElement, FlutterFinder
 from selenium.common.exceptions import WebDriverException
+from urllib3.exceptions import HTTPError as Urllib3HTTPError
 
 import config
 
@@ -106,13 +107,24 @@ class BasePage:
         except WebDriverException:
             return False
         except (TimeoutError, OSError):
-            # A wedged/overloaded Appium server can raise a raw socket-level
-            # read timeout (urllib3.exceptions.ReadTimeoutError, a subclass
-            # of OSError) that never gets wrapped as a WebDriverException --
-            # confirmed against real CI failures where this propagated all
-            # the way out of wait_for_key() as an uncaught error instead of
-            # a clean False/assertion failure. Treat it the same as "not
-            # found within timeout" here.
+            # Kept for real socket-level timeouts/OSErrors, though in
+            # practice these do NOT cover the case below.
+            return False
+        except Urllib3HTTPError:
+            # CORRECTION to a previous fix: urllib3.exceptions.ReadTimeoutError
+            # (what a wedged/overloaded Appium server actually raises) does
+            # NOT inherit from the built-in TimeoutError or OSError despite
+            # sharing the name -- confirmed directly against urllib3's
+            # source (urllib3.exceptions.ReadTimeoutError -> urllib3.
+            # exceptions.TimeoutError -> ... -> HTTPError -> Exception, no
+            # relation to the stdlib TimeoutError/OSError hierarchy at
+            # all). The `except (TimeoutError, OSError)` added previously
+            # never actually caught anything; this exception kept
+            # propagating uncaught all the way out of wait_for_key() into
+            # conftest.py's fixtures, confirmed against a real CI
+            # traceback. Catching urllib3's actual HTTPError base class
+            # (which ReadTimeoutError, MaxRetryError, etc. all inherit
+            # from) here is the real fix.
             return False
 
     def wait_for_key(self, value_key: str, timeout: float = None) -> bool:

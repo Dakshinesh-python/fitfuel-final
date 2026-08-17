@@ -106,19 +106,23 @@ def driver():
     # urllib3 ReadTimeoutError (read timeout=12) on the very first
     # command of the session -- not a controlled "element not found"
     # 500 -- confirming this was a startup race, not a real app/test bug.
-    # Absorb that latency here with ONE warm-up wait, still using the
-    # long session-creation timeout, before downgrading to the short
-    # everyday timeout for the rest of the run.
-    try:
-        # command_executor is still creation_executor here (long timeout) --
-        # swap_to_short_timeout hasn't been called yet. Reuse OnboardingPage
-        # rather than hand-rolling a finder dict, since this project's
-        # by_key()/is_displayed() go through appium_flutter_finder's
-        # FlutterFinder, not a raw {"using": ..., "value": ...} dict.
-        from page_objects.onboarding_page import OnboardingPage
-        OnboardingPage(drv).wait_for_key("onboarding_skip_button", timeout=30)
-    except Exception:
-        pass  # app may have skipped straight to login on a warm install; fine either way
+    #
+    # CORRECTION: an earlier version of this warm-up used a
+    # `wait_for_key("onboarding_skip_button", timeout=30)` call instead of
+    # a plain sleep. That was a real regression: with `noReset: False`,
+    # if the app happens to already have onboarding marked complete from
+    # a prior install, that key never appears, and a real CI run showed
+    # every single test after this point failing in a flat, exact ~12.0s
+    # each while the raw Appium server log showed its internal command
+    # queue depth climbing without bound and never draining -- consistent
+    # with appium-flutter-driver's single-command-at-a-time extension
+    # getting permanently wedged behind one Dart-side waitFor call that
+    # the client gave up on but the server never actually cancelled. A
+    # plain sleep cannot get stuck like this regardless of what screen
+    # the app lands on, at the cost of not adapting to a faster-than-usual
+    # boot -- worth the trade-off given the alternative is a fully dead
+    # session for the rest of the run.
+    time.sleep(20)
     # Session exists now -- fall back to the short everyday-command
     # timeout so a single wedged find/tap fails fast instead of hanging
     # for the (much longer) session-creation timeout on every command.
