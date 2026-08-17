@@ -25,6 +25,19 @@ def register_new_account(driver, account: dict) -> None:
     if onboarding.wait_for_key(onboarding.SKIP_BUTTON, timeout=5):
         onboarding.skip()
 
+    # Onboarding's Skip button navigates to /login, not /register (see
+    # onboarding_screen.dart's _finish()) -- confirmed against the app
+    # source and matching the test class name "TestOnboardingReachesLogin"
+    # in test_01_authentication.py. This function previously asserted
+    # landing directly on Register after Skip, which was simply wrong
+    # about the app's actual navigation and failed on the very first line
+    # for almost every test in the suite, since nearly all modules besides
+    # test_02_registration.py go through this fixture. Register is reached
+    # via the "go to register" link on the Login screen instead.
+    login = LoginPage(driver)
+    assert login.is_loaded(timeout=10), "Expected to land on the login screen after onboarding"
+    login.go_to_register()
+
     register = RegisterPage(driver)
     assert register.is_loaded(), "Expected to land on the register screen after onboarding"
     register.fill_form(

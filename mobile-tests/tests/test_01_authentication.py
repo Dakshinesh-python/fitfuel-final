@@ -42,6 +42,17 @@ class TestOnboardingReachesLogin:
         onboarding = OnboardingPage(driver)
         if onboarding.is_loaded(timeout=5):
             onboarding.skip()
+        # Skip navigates to /login (onboarding_screen.dart's _finish()),
+        # not directly to /register -- this test previously asserted the
+        # opposite and failed immediately, and since nearly every other
+        # module's fixtures ultimately call session_helpers.register_
+        # new_account() which had the identical wrong assumption, this
+        # single incorrect expectation was the root cause of ~98% of the
+        # whole suite failing in one shot. Register is reached from here
+        # via the login screen's "go to register" link instead.
+        login = LoginPage(driver)
+        assert login.is_loaded(timeout=10)
+        login.go_to_register()
         register = RegisterPage(driver)
         assert register.is_loaded(timeout=10)
         register.go_to_login()

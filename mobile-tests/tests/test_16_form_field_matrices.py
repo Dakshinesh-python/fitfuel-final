@@ -8,7 +8,7 @@ same technique selenium-tests/ uses for its own boundary matrices.
 """
 import pytest
 
-from page_objects.auth_pages import RegisterPage
+from page_objects.auth_pages import LoginPage, RegisterPage
 from page_objects.health_assessment_pages import HealthWeightPage
 from page_objects.onboarding_page import OnboardingPage
 from page_objects.progress_page import ProgressPage
@@ -59,7 +59,13 @@ def on_register_screen(driver):
     onboarding = OnboardingPage(driver)
     if onboarding.wait_for_key(onboarding.SKIP_BUTTON, timeout=5):
         onboarding.skip()
+    # Skip navigates to /login, not /register -- see the fix in
+    # session_helpers.register_new_account() for the full explanation.
     register = RegisterPage(driver)
+    if not register.is_loaded(timeout=5):
+        login = LoginPage(driver)
+        if login.is_loaded(timeout=4):
+            login.go_to_register()
     assert register.is_loaded(timeout=10)
     return register
 

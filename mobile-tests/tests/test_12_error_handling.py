@@ -35,7 +35,13 @@ class TestRegistrationOffline:
         onboarding = OnboardingPage(driver)
         if onboarding.wait_for_key(onboarding.SKIP_BUTTON, timeout=4):
             onboarding.skip()
+        # Skip navigates to /login, not /register -- see the fix in
+        # session_helpers.register_new_account() for the full explanation.
         register = RegisterPage(driver)
+        if not register.is_loaded(timeout=5):
+            login = LoginPage(driver)
+            if login.is_loaded(timeout=4):
+                login.go_to_register()
         assert register.is_loaded(timeout=10)
         register.fill_form(
             name="Offline Registration Test",

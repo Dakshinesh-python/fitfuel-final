@@ -7,7 +7,7 @@ in-session navigation.
 """
 import pytest
 
-from page_objects.auth_pages import RegisterPage
+from page_objects.auth_pages import LoginPage, RegisterPage
 from page_objects.dashboard_page import DashboardPage
 from page_objects.health_assessment_pages import (
     HealthActivityPage,
@@ -44,13 +44,17 @@ class TestOnboardingSlideProgression:
         fresh_onboarding.next()
         fresh_onboarding.next()
         fresh_onboarding.next()
-        register = RegisterPage(driver)
-        assert register.is_loaded(timeout=10), "Completing all 3 onboarding slides did not reach the register screen"
+        # onboarding_screen.dart's _finish() (called once the 3rd slide's
+        # Next is tapped, same as Skip) navigates to /login, not
+        # /register -- this test's original expectation was backwards.
+        assert LoginPage(driver).is_loaded(timeout=10), "Completing all 3 onboarding slides did not reach the login screen"
 
     @pytest.mark.registration
     def test_skip_from_first_slide_reaches_register_same_as_completing(self, driver, fresh_onboarding):
         fresh_onboarding.skip()
-        assert RegisterPage(driver).is_loaded(timeout=10)
+        # Same correction as above -- Skip and "complete all 3 slides"
+        # both call _finish(), which goes to /login.
+        assert LoginPage(driver).is_loaded(timeout=10)
 
 
 class TestSelectionSwitchingBeforeConfirm:
@@ -64,6 +68,9 @@ class TestSelectionSwitchingBeforeConfirm:
         if onboarding.wait_for_key(onboarding.SKIP_BUTTON, timeout=4):
             onboarding.skip()
         register = RegisterPage(driver)
+        if not register.is_loaded(timeout=5):
+            if LoginPage(driver).is_loaded(timeout=4):
+                LoginPage(driver).go_to_register()
         assert register.is_loaded(timeout=10)
         register.fill_form(
             name="Switch Selection Test",
@@ -125,6 +132,9 @@ class TestRegisterGenderSwitching:
         if onboarding.wait_for_key(onboarding.SKIP_BUTTON, timeout=4):
             onboarding.skip()
         register = RegisterPage(driver)
+        if not register.is_loaded(timeout=5):
+            if LoginPage(driver).is_loaded(timeout=4):
+                LoginPage(driver).go_to_register()
         assert register.is_loaded(timeout=10)
         register.fill_form(
             name="Gender Switch Test",

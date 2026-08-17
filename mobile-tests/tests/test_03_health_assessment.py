@@ -8,7 +8,7 @@ re-entered after completion.
 """
 import pytest
 
-from page_objects.auth_pages import RegisterPage
+from page_objects.auth_pages import LoginPage, RegisterPage
 from page_objects.dashboard_page import DashboardPage
 from page_objects.health_assessment_pages import (
     HealthActivityPage,
@@ -24,7 +24,16 @@ def _register_to_weight_screen(driver, unique_email_factory, prefix="ha"):
     onboarding = OnboardingPage(driver)
     if onboarding.wait_for_key(onboarding.SKIP_BUTTON, timeout=4):
         onboarding.skip()
+    # Skip navigates to /login, not /register -- same fix as
+    # session_helpers.register_new_account() and matching the fallback
+    # already present in test_02_registration.py's on_register_screen
+    # fixture. This was an independent copy of the same wrong assumption
+    # and was why every test in this module failed at setup (0/47).
     register = RegisterPage(driver)
+    if not register.is_loaded(timeout=5):
+        login = LoginPage(driver)
+        if login.is_loaded(timeout=4):
+            login.go_to_register()
     assert register.is_loaded(timeout=10)
     register.fill_form(
         name="Health Assessment Test",

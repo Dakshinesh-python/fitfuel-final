@@ -105,6 +105,15 @@ class BasePage:
             return True
         except WebDriverException:
             return False
+        except (TimeoutError, OSError):
+            # A wedged/overloaded Appium server can raise a raw socket-level
+            # read timeout (urllib3.exceptions.ReadTimeoutError, a subclass
+            # of OSError) that never gets wrapped as a WebDriverException --
+            # confirmed against real CI failures where this propagated all
+            # the way out of wait_for_key() as an uncaught error instead of
+            # a clean False/assertion failure. Treat it the same as "not
+            # found within timeout" here.
+            return False
 
     def wait_for_key(self, value_key: str, timeout: float = None) -> bool:
         return self.is_displayed(self.by_key(value_key), timeout)

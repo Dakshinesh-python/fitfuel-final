@@ -40,6 +40,10 @@ class TestEmailCaseAndWhitespace:
         if onboarding.wait_for_key(onboarding.SKIP_BUTTON, timeout=4):
             onboarding.skip()
         register = RegisterPage(driver)
+        if not register.is_loaded(timeout=5):
+            login = LoginPage(driver)
+            if login.is_loaded(timeout=4):
+                login.go_to_register()
         assert register.is_loaded(timeout=10)
         register.fill_form(
             name="Whitespace Email Test",
@@ -77,6 +81,10 @@ class TestDecimalPrecisionBoundaries:
         if onboarding.wait_for_key(onboarding.SKIP_BUTTON, timeout=4):
             onboarding.skip()
         register = RegisterPage(driver)
+        if not register.is_loaded(timeout=5):
+            login = LoginPage(driver)
+            if login.is_loaded(timeout=4):
+                login.go_to_register()
         assert register.is_loaded(timeout=10)
         register.fill_form(
             name="Decimal Precision Test",
@@ -99,6 +107,10 @@ class TestFieldLengthLimits:
         if onboarding.wait_for_key(onboarding.SKIP_BUTTON, timeout=4):
             onboarding.skip()
         register = RegisterPage(driver)
+        if not register.is_loaded(timeout=5):
+            login = LoginPage(driver)
+            if login.is_loaded(timeout=4):
+                login.go_to_register()
         assert register.is_loaded(timeout=10)
         register.fill_form(
             name="A",
@@ -122,6 +134,10 @@ class TestFieldLengthLimits:
         if onboarding.wait_for_key(onboarding.SKIP_BUTTON, timeout=4):
             onboarding.skip()
         register = RegisterPage(driver)
+        if not register.is_loaded(timeout=5):
+            login = LoginPage(driver)
+            if login.is_loaded(timeout=4):
+                login.go_to_register()
         assert register.is_loaded(timeout=10)
         register.fill_form(
             name="Boundary Password Test",

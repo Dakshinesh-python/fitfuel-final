@@ -93,13 +93,18 @@ class TestHealthAssessmentAffectsRecommendations:
         from page_objects.health_assessment_pages import (
             HealthActivityPage, HealthGoalsPage, HealthPrefsPage, HealthWeightPage, PlanReadyPage,
         )
-        from page_objects.auth_pages import RegisterPage
+        from page_objects.auth_pages import LoginPage, RegisterPage
         from page_objects.onboarding_page import OnboardingPage
 
         onboarding = OnboardingPage(driver)
         if onboarding.wait_for_key(onboarding.SKIP_BUTTON, timeout=4):
             onboarding.skip()
+        # Skip navigates to /login, not /register -- see the fix in
+        # session_helpers.register_new_account() for the full explanation.
         register = RegisterPage(driver)
+        if not register.is_loaded(timeout=5):
+            if LoginPage(driver).is_loaded(timeout=4):
+                LoginPage(driver).go_to_register()
         assert register.is_loaded(timeout=10)
         register.fill_form(**account)
         register.submit()

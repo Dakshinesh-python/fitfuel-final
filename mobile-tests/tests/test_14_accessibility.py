@@ -85,7 +85,7 @@ class TestFontScaling:
     @pytest.mark.responsiveness
     @pytest.mark.slow
     def test_register_form_usable_at_increased_font_scale(self, driver, unique_email_factory, restore_font_scale):
-        from page_objects.auth_pages import RegisterPage
+        from page_objects.auth_pages import LoginPage, RegisterPage
         from page_objects.onboarding_page import OnboardingPage
 
         adb_helpers.set_font_scale(1.3)
@@ -93,7 +93,13 @@ class TestFontScaling:
         onboarding = OnboardingPage(driver)
         if onboarding.wait_for_key(onboarding.SKIP_BUTTON, timeout=6):
             onboarding.skip()
+        # Skip navigates to /login, not /register -- see the fix in
+        # session_helpers.register_new_account() for the full explanation.
         register = RegisterPage(driver)
+        if not register.is_loaded(timeout=5):
+            login = LoginPage(driver)
+            if login.is_loaded(timeout=4):
+                login.go_to_register()
         assert register.is_loaded(timeout=10), "Register screen did not load at font_scale=1.3"
         register.fill_form(
             name="Font Scale Test",

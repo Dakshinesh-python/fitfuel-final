@@ -86,12 +86,39 @@ def driver():
     options.set_capability("appium:autoGrantPermissions", True)
     options.set_capability("appium:noReset", False)
     options.set_capability("appium:platformVersion", config.PLATFORM_VERSION)
+    # Gives Appium's own session-creation-time wait for the Flutter Driver
+    # extension to become responsive more headroom (was previously unset,
+    # falling back to appium-flutter-driver's default, which is tighter
+    # than this emulator's actual cold-start latency needs).
+    options.set_capability("appium:flutterServerLaunchTimeout", 45000)
 
     creation_executor = build_session_creation_executor(config.APPIUM_SERVER_URL)
     drv = webdriver.Remote(
         command_executor=creation_executor,
         options=options,
     )
+    # Appium's NEW_SESSION response returning successfully only means the
+    # app was installed and launched -- it does NOT guarantee the Flutter
+    # Dart VM + Observatory handshake (enableFlutterDriverExtension in
+    # main_test.dart) has actually finished. On this CI emulator that cold
+    # start can legitimately take longer than the everyday 12s command
+    # timeout. Every single test_02_registration.py failure was a raw
+    # urllib3 ReadTimeoutError (read timeout=12) on the very first
+    # command of the session -- not a controlled "element not found"
+    # 500 -- confirming this was a startup race, not a real app/test bug.
+    # Absorb that latency here with ONE warm-up wait, still using the
+    # long session-creation timeout, before downgrading to the short
+    # everyday timeout for the rest of the run.
+    try:
+        # command_executor is still creation_executor here (long timeout) --
+        # swap_to_short_timeout hasn't been called yet. Reuse OnboardingPage
+        # rather than hand-rolling a finder dict, since this project's
+        # by_key()/is_displayed() go through appium_flutter_finder's
+        # FlutterFinder, not a raw {"using": ..., "value": ...} dict.
+        from page_objects.onboarding_page import OnboardingPage
+        OnboardingPage(drv).wait_for_key("onboarding_skip_button", timeout=30)
+    except Exception:
+        pass  # app may have skipped straight to login on a warm install; fine either way
     # Session exists now -- fall back to the short everyday-command
     # timeout so a single wedged find/tap fails fast instead of hanging
     # for the (much longer) session-creation timeout on every command.
