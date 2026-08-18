@@ -1,8 +1,14 @@
 name: Android E2E (Appium)
 
-# Mirrors backend-tests.yml's Postgres-service-container pattern and
-# selenium-tests.yml's report-publishing pattern, adapted for a Flutter
-# APK + Android emulator instead of a browser.
+# Restructured from a single ~180min job into build-once + 4-way sharded
+# test matrix + merge, mirroring the KrishiIQ reference project's
+# android-e2e.yml. Unlike KrishiIQ, this app needs a real Postgres-backed
+# Node backend (see backend-tests.yml's pattern) rather than a static
+# hosted one, so each shard still runs its own full backend setup
+# (services: postgres is job-scoped, can't be shared across jobs) --
+# only the Flutter APK build itself is hoisted into a single shared job,
+# since it's the one piece that's genuinely identical across all 4
+# shards and doesn't depend on a live database.
 on:
   push:
     branches: [main]
@@ -18,6 +24,10 @@ on:
       - "mobile-tests/**"
   workflow_dispatch: {}
 
+concurrency:
+  group: android-e2e-${{ github.ref }}
+  cancel-in-progress: false
+
 env:
   # NOTE (see mobile-tests/README.md -> "The 90-vs-95 drift"): this is
   # the ONE place the gate threshold is defined. mobile-tests/config.py
@@ -27,18 +37,83 @@ env:
   GATE_THRESHOLD_PCT: "90"
 
 jobs:
-  android-e2e:
+  build-apk:
     runs-on: ubuntu-latest
-    # Was 90. The uploaded reports/logs/ from a real run show per-test
-    # logcat captures spanning ~80 minutes just to get through modules
-    # 00-10 of 20 (test_11 onward never even started -- no logs for them
-    # at all), with --reruns 1 meaning every one of those failures ran
-    # twice. 402 tests at that rate does not fit in 90 minutes, so the
-    # job timeout was killing pytest mid-run before it could write real
-    # results (see mobile-tests/conftest.py's incremental snapshot fix,
-    # which now at least survives this, but the job should still be given
-    # enough time to actually finish).
-    timeout-minutes: 180
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: subosito/flutter-action@v2
+        with:
+          channel: stable
+
+      - name: Flutter pub get
+        working-directory: fitfuel_mobile
+        run: flutter pub get
+
+      - name: Build flutter-driver-enabled debug APK
+        working-directory: fitfuel_mobile
+        run: |
+          flutter build apk --debug -t lib/main_test.dart \
+            --dart-define=API_BASE_URL=http://10.0.2.2:4000
+
+      - name: Upload APK
+        uses: actions/upload-artifact@v4
+        with:
+          name: test-apk
+          path: fitfuel_mobile/build/app/outputs/flutter-apk/app-debug.apk
+          retention-days: 1
+
+  android-e2e:
+    needs: build-apk
+    runs-on: ubuntu-latest
+    # Was 180 for the whole (unsharded) suite in one job. Each shard now
+    # runs roughly a quarter of the ~402 tests, plus its own backend/APK
+    # setup overhead -- 75 gives real headroom without masking a wedged
+    # session (see mobile-tests/README.md's notes on Appium/Flutter-
+    # Driver's single serial command queue: one hung command can block
+    # every test after it for the rest of the session, so a shard that's
+    # actually stuck should fail on this timeout rather than silently
+    # eating the whole 180min budget the unsharded job used to).
+    timeout-minutes: 75
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - shard: 1
+            test_files: >-
+              tests/test_02_registration.py
+              tests/test_04_navigation.py
+              tests/test_17_extended_matrices.py
+              tests/test_14_accessibility.py
+              tests/test_15_responsiveness.py
+          - shard: 2
+            test_files: >-
+              tests/test_03_health_assessment.py
+              tests/test_08_progress_crud.py
+              tests/test_07_meal_plan.py
+              tests/test_16_form_field_matrices.py
+          - shard: 3
+            test_files: >-
+              tests/test_09_chat.py
+              tests/test_01_authentication.py
+              tests/test_19_additional_coverage.py
+              tests/test_06_recommendations.py
+              tests/test_13_session_management.py
+          - shard: 4
+            test_files: >-
+              tests/test_00_ui_chrome.py
+              tests/test_10_profile_settings.py
+              tests/test_11_input_validation.py
+              tests/test_05_dashboard.py
+              tests/test_18_integration_regression.py
+              tests/test_12_error_handling.py
+    # This file-to-shard split was balanced by actual/estimated
+    # parametrized test count (test_02/03 alone are ~47 tests each), not
+    # just file count, aiming for ~100 tests/shard out of ~402 total. If
+    # a future test file is added or a file's parametrize list grows a
+    # lot, rebalance using the counts in mobile-tests/reports/summary.md
+    # from a real run rather than guessing from def-count.
 
     services:
       postgres:
@@ -58,8 +133,16 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
+      - name: Download prebuilt APK
+        uses: actions/download-artifact@v4
+        with:
+          name: test-apk
+          path: fitfuel_mobile/build/app/outputs/flutter-apk/
+
       # ── backend (real Postgres, real migrations, real seed data --
-      #    same pattern backend-tests.yml already uses) ────────────────
+      #    same pattern backend-tests.yml already uses). Can't be hoisted
+      #    into build-apk since `services:` containers are job-scoped and
+      #    each shard needs its own live, isolated Postgres instance. ──
       - uses: actions/setup-node@v4
         with:
           node-version: "22"
@@ -102,21 +185,6 @@ jobs:
           echo "Backend did not become healthy in time" >&2
           exit 1
 
-      # ── Flutter + test APK ───────────────────────────────────────────
-      - uses: subosito/flutter-action@v2
-        with:
-          channel: stable
-
-      - name: Flutter pub get
-        working-directory: fitfuel_mobile
-        run: flutter pub get
-
-      - name: Build flutter-driver-enabled debug APK
-        working-directory: fitfuel_mobile
-        run: |
-          flutter build apk --debug -t lib/main_test.dart \
-            --dart-define=API_BASE_URL=http://10.0.2.2:4000
-
       # ── Android emulator + Appium server ─────────────────────────────
       - name: Enable KVM (required for a usable emulator on Actions runners)
         run: |
@@ -134,7 +202,7 @@ jobs:
           appium driver install uiautomator2@4.2.9
           appium driver install --source=npm appium-flutter-driver@2.0.0
 
-      - name: Run Android emulator + tests
+      - name: Run Android emulator + tests (shard ${{ matrix.shard }})
         uses: reactivecircus/android-emulator-runner@v2
         with:
           api-level: 33
@@ -158,25 +226,22 @@ jobs:
             sleep 12
             adb shell am force-stop com.example.fitfuel_mobile || true
             sleep 2
-            cd mobile-tests && python3 -m pytest -m "not slow" --tb=short
+            cd mobile-tests && python3 -m pytest -m "not slow" --tb=short ${{ matrix.test_files }}
         env:
           APK_PATH: ${{ github.workspace }}/fitfuel_mobile/build/app/outputs/flutter-apk/app-debug.apk
           GATE_THRESHOLD_PCT: ${{ env.GATE_THRESHOLD_PCT }}
           SESSION_CREATION_TIMEOUT: "120"
-
-      - name: Generate reports
-        if: always()
-        working-directory: mobile-tests
-        run: python3 generate_reports.py
-        env:
-          GATE_THRESHOLD_PCT: ${{ env.GATE_THRESHOLD_PCT }}
+          # Each shard writes to its own subdirectory so the 4 artifacts
+          # never collide with each other when downloaded together by
+          # merge-reports.
+          REPORTS_DIR: reports/shard-${{ matrix.shard }}
 
       - name: Sanitize log filenames
         if: always()
         run: |
           # Rename log files that contain characters invalid for artifact upload
-          # (<, >, :, ", |, *, ?) — these come from XSS/injection test parameter names
-          find mobile-tests/reports/logs -name '*' -type f | while IFS= read -r f; do
+          # (<, >, :, ", |, *, ?) -- these come from XSS/injection test parameter names
+          find "mobile-tests/reports/shard-${{ matrix.shard }}/logs" -type f 2>/dev/null | while IFS= read -r f; do
             dir=$(dirname "$f")
             base=$(basename "$f")
             safe=$(echo "$base" | sed 's/[<>:"|*?]/_/g')
@@ -185,14 +250,55 @@ jobs:
             fi
           done
 
-      - name: Upload test reports
+      - name: Upload shard ${{ matrix.shard }} raw results
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: raw-results-shard-${{ matrix.shard }}
+          path: mobile-tests/reports/shard-${{ matrix.shard }}/
+          retention-days: 30
+
+  merge-reports:
+    needs: android-e2e
+    if: always()
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Download all shard results
+        uses: actions/download-artifact@v4
+        with:
+          pattern: raw-results-shard-*
+          path: shard-artifacts
+
+      - name: Merge shard results
+        working-directory: mobile-tests
+        run: |
+          python3 scripts/merge_shard_results.py \
+            ../shard-artifacts/raw-results-shard-1 \
+            ../shard-artifacts/raw-results-shard-2 \
+            ../shard-artifacts/raw-results-shard-3 \
+            ../shard-artifacts/raw-results-shard-4 \
+            --out reports/execution-results.json
+        env:
+          GATE_THRESHOLD_PCT: ${{ env.GATE_THRESHOLD_PCT }}
+
+      - name: Generate consolidated reports
+        if: always()
+        working-directory: mobile-tests
+        run: python3 generate_reports.py
+        env:
+          GATE_THRESHOLD_PCT: ${{ env.GATE_THRESHOLD_PCT }}
+
+      - name: Post summary to job log
+        if: always()
+        run: cat mobile-tests/reports/summary.md >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Upload consolidated test reports
         if: always()
         uses: actions/upload-artifact@v4
         with:
           name: android-e2e-reports
           path: mobile-tests/reports/
           retention-days: 30
-
-      - name: Post summary to job log
-        if: always()
-        run: cat mobile-tests/reports/summary.md >> "$GITHUB_STEP_SUMMARY"
