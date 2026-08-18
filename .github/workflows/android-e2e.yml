@@ -266,6 +266,13 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Install report-generation dependencies
+        run: pip install -r mobile-tests/requirements.txt
+
       - name: Download all shard results
         uses: actions/download-artifact@v4
         with:
@@ -293,7 +300,12 @@ jobs:
 
       - name: Post summary to job log
         if: always()
-        run: cat mobile-tests/reports/summary.md >> "$GITHUB_STEP_SUMMARY"
+        run: |
+          if [ -f mobile-tests/reports/summary.md ]; then
+            cat mobile-tests/reports/summary.md >> "$GITHUB_STEP_SUMMARY"
+          else
+            echo "No summary.md was generated -- see the 'Generate consolidated reports' step's log above for why, and check the uploaded artifacts." >> "$GITHUB_STEP_SUMMARY"
+          fi
 
       - name: Upload consolidated test reports
         if: always()
