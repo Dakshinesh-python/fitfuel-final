@@ -19,6 +19,19 @@ class ApiService {
   ApiService._();
   static final ApiService instance = ApiService._();
 
+  /// Every request is bounded by this so a stalled/cold-starting backend
+  /// fails fast with a clear ApiException instead of hanging the calling
+  /// screen (and, in Appium tests, every waitFor queued behind it)
+  /// indefinitely.
+  static const Duration _timeout = Duration(seconds: 15);
+
+  Future<http.Response> _withTimeout(Future<http.Response> request) {
+    return request.timeout(
+      _timeout,
+      onTimeout: () => throw ApiException(0, 'Request timed out'),
+    );
+  }
+
   Uri _uri(String path, [Map<String, dynamic>? query]) {
     final normalizedPath = path.startsWith('/') ? path : '/$path';
     return Uri.parse('${ApiConfig.baseUrl}$normalizedPath').replace(
@@ -56,40 +69,49 @@ class ApiService {
   }
 
   Future<dynamic> get(String path, {Map<String, dynamic>? query}) async {
-    final res =
-        await http.get(_uri(path, query), headers: await _headers(json: false));
+    final res = await _withTimeout(
+      http.get(_uri(path, query), headers: await _headers(json: false)),
+    );
     return _decode(res);
   }
 
   Future<dynamic> post(String path, {Map<String, dynamic>? body}) async {
-    final res = await http.post(
-      _uri(path),
-      headers: await _headers(),
-      body: body != null ? jsonEncode(body) : null,
+    final res = await _withTimeout(
+      http.post(
+        _uri(path),
+        headers: await _headers(),
+        body: body != null ? jsonEncode(body) : null,
+      ),
     );
     return _decode(res);
   }
 
   Future<dynamic> put(String path, {Map<String, dynamic>? body}) async {
-    final res = await http.put(
-      _uri(path),
-      headers: await _headers(),
-      body: body != null ? jsonEncode(body) : null,
+    final res = await _withTimeout(
+      http.put(
+        _uri(path),
+        headers: await _headers(),
+        body: body != null ? jsonEncode(body) : null,
+      ),
     );
     return _decode(res);
   }
 
   Future<dynamic> patch(String path, {Map<String, dynamic>? body}) async {
-    final res = await http.patch(
-      _uri(path),
-      headers: await _headers(),
-      body: body != null ? jsonEncode(body) : null,
+    final res = await _withTimeout(
+      http.patch(
+        _uri(path),
+        headers: await _headers(),
+        body: body != null ? jsonEncode(body) : null,
+      ),
     );
     return _decode(res);
   }
 
   Future<dynamic> delete(String path) async {
-    final res = await http.delete(_uri(path), headers: await _headers());
+    final res = await _withTimeout(
+      http.delete(_uri(path), headers: await _headers()),
+    );
     return _decode(res);
   }
 }

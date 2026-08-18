@@ -67,15 +67,25 @@ jobs:
   android-e2e:
     needs: build-apk
     runs-on: ubuntu-latest
-    # Was 180 for the whole (unsharded) suite in one job. Each shard now
-    # runs roughly a quarter of the ~402 tests, plus its own backend/APK
-    # setup overhead -- 75 gives real headroom without masking a wedged
-    # session (see mobile-tests/README.md's notes on Appium/Flutter-
-    # Driver's single serial command queue: one hung command can block
-    # every test after it for the rest of the session, so a shard that's
-    # actually stuck should fail on this timeout rather than silently
-    # eating the whole 180min budget the unsharded job used to).
-    timeout-minutes: 75
+    # Was 180 for the whole (unsharded) suite in one job, then cut to 75
+    # on the assumption each shard's ~100 tests would run in a couple of
+    # seconds each. That assumption broke: fitfuel_mobile/lib/services/
+    # api_config.dart had a hardcoded API base URL instead of reading the
+    # API_BASE_URL dart-define, so every CI build silently called the
+    # live production backend (network latency + Render cold-start)
+    # instead of localhost, making each test take ~45-50s instead of a
+    # few seconds -- 75min was only enough to get through ~90 tests
+    # before the whole matrix (all 4 shards start within the same
+    # second) got killed simultaneously at the 75min mark, which is why
+    # some shards never got past their first assigned test file. Now
+    # that api_config.dart actually honors API_BASE_URL, shards should
+    # again finish in well under this, but 130 keeps real headroom
+    # without masking a genuinely wedged session (see mobile-tests/
+    # README.md's notes on Appium/Flutter-Driver's single serial command
+    # queue: one hung command can block every test after it for the rest
+    # of the session, so a shard that's actually stuck should still fail
+    # on this timeout rather than eating an unbounded budget).
+    timeout-minutes: 130
     strategy:
       fail-fast: false
       matrix:
