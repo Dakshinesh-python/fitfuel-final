@@ -3,13 +3,14 @@
   Android Network Security Configuration (debug builds only).
 
   Android 9+ blocks cleartext (plain http://) traffic by default. In CI,
-  the Flutter app is built with --dart-define=API_BASE_URL=http://10.0.2.2:4000
-  so it can reach the backend running on the Actions runner's localhost.
-  10.0.2.2 is the Android emulator's well-known alias for the host machine.
+  the Flutter app is built with the dart-define API_BASE_URL set to
+  http://10.0.2.2:4000 so it can reach the backend running on the
+  Actions runner's localhost. 10.0.2.2 is the Android emulator's
+  well-known alias for the host machine.
 
   This config is referenced from src/debug/AndroidManifest.xml and is
-  therefore only active in debug builds -- release APKs are unaffected and
-  continue to use HTTPS exclusively.
+  therefore only active in debug builds. Release APKs are unaffected
+  and continue to use HTTPS exclusively.
 -->
 <network-security-config>
     <domain-config cleartextTrafficPermitted="true">
