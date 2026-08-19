@@ -197,6 +197,79 @@ class ResilientDriver:
         # timeout so a single wedged find/tap fails fast instead of hanging
         # for the (much longer) session-creation timeout on every command.
         swap_to_short_timeout(self._raw, config.APPIUM_SERVER_URL)
+        self._warm_up_shader_cache()
+
+    def _warm_up_shader_cache(self) -> None:
+        """Best-effort: force RegisterScreen's first paint once per fresh
+        session/process, so its BoxShadow-heavy widgets (the form card,
+        the gender selector, StepProgressBar -- see fitfuel_mobile/lib/
+        screens/register_screen.dart) get their GPU shaders compiled here
+        instead of during a real test's timed tap.
+
+        Why this is needed at all, root-caused against a real CI log
+        (mobile-tests/README.md -> "First-paint shader jank on
+        login_register_link" has the full annotated trace): every fresh
+        Appium session -- not just the first one of the whole run -- does
+        `pm clear` on the app as part of `appium:noReset: False`'s "fast
+        reset" (visible as "Performing fast reset ... (stop and clear)"
+        in the server log on every single session creation, including
+        ones from `recreate()` mid-shard). `pm clear` wipes the app's
+        on-disk Skia GPU-program cache along with everything else in its
+        data dir, so EVERY fresh session hits first-paint shader-compile
+        cost on the exact same widget tree, not just once per run.
+        RegisterScreen is the first screen in the whole suite that paints
+        a BoxShadow at all. appium-flutter-driver's tap command carries
+        no timeout of its own (unlike flutter:waitFor, which always sends
+        an explicit timeout the Dart side enforces) -- confirmed by
+        diffing the actual command payloads in a CI log: waitFor calls
+        always include a "timeout" key, tap/click calls never do. So a
+        slow first paint there leaves the tap with nothing to time it out
+        Dart-side; our own client eventually gives up (APPIUM_COMMAND_TIMEOUT,
+        see utils/appium_connection.py) and `_recovering()` in base_page.py
+        recreates the session -- which itself does another `pm clear`,
+        restarting the exact same cycle on the next Register-touching
+        test. Paying the shader-warm cost once here, right after every
+        session creation/recreation and before any real test runs, means
+        every actual test tap on that widget tree hits an
+        already-compiled shader instead.
+
+        Deliberately swallows everything: this is a best-effort perf
+        optimization, not a correctness requirement. If the warm-up tap
+        itself times out, that's fine -- the shader compile almost
+        certainly still happened on the GPU/raster thread even though our
+        client gave up waiting for the ack, so the cache is warm
+        regardless of whether we saw a clean response back.
+        """
+        from appium_flutter_finder import FlutterElement, FlutterFinder
+
+        f = FlutterFinder()
+        try:
+            self._raw.execute_script(
+                "flutter:waitFor", f.by_value_key("onboarding_skip_button"), 15000
+            )
+            FlutterElement(
+                self._raw, f.by_value_key("onboarding_skip_button")
+            ).click()
+        except Exception:
+            pass
+        try:
+            self._raw.execute_script(
+                "flutter:waitFor", f.by_value_key("login_register_link"), 15000
+            )
+            FlutterElement(
+                self._raw, f.by_value_key("login_register_link")
+            ).click()
+        except Exception:
+            pass
+        # Give the (possibly still in-flight) shader compile + first frame
+        # a moment to actually finish on the GPU/raster thread before
+        # handing control back -- a plain sleep, not a wait_for, because
+        # the point is just "don't race the compile", not "confirm a
+        # specific screen loaded". `_restart_app_between_tests` restarts
+        # the app to splash before the first real test regardless, so this
+        # warm-up doesn't need to leave the app in any particular screen
+        # state.
+        time.sleep(5)
 
     def recreate(self):
         """Quit whatever's left of a dead session and open a fresh one.
