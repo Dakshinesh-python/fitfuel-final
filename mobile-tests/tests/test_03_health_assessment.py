@@ -8,6 +8,7 @@ re-entered after completion.
 """
 import pytest
 
+import config
 from page_objects.auth_pages import LoginPage, RegisterPage
 from page_objects.dashboard_page import DashboardPage
 from page_objects.health_assessment_pages import (
@@ -18,9 +19,18 @@ from page_objects.health_assessment_pages import (
     PlanReadyPage,
 )
 from page_objects.onboarding_page import OnboardingPage
+from utils import adb_helpers
 
 
 def _register_to_weight_screen(driver, unique_email_factory, prefix="ha"):
+    """Gets to RegisterPage from whatever state the app is currently in.
+    Several tests in this module intentionally stop mid-assessment
+    (Activity/Goals/Prefs screens) without logging out, since this flow
+    can't be re-entered after completion and there's nothing meaningful
+    to log out of yet. That leaves the app authenticated but on neither
+    onboarding, register, nor login for the next test -- `clear_app_data`
+    is the guaranteed fallback (same pattern as
+    test_02_registration.py's on_register_screen fixture)."""
     onboarding = OnboardingPage(driver)
     if onboarding.wait_for_key(onboarding.SKIP_BUTTON, timeout=4):
         onboarding.skip()
@@ -33,6 +43,15 @@ def _register_to_weight_screen(driver, unique_email_factory, prefix="ha"):
     if not register.is_loaded(timeout=5):
         login = LoginPage(driver)
         if login.is_loaded(timeout=4):
+            login.go_to_register()
+    if not register.is_loaded(timeout=5):
+        adb_helpers.clear_app_data()
+        driver.activate_app(config.APP_PACKAGE)
+        onboarding = OnboardingPage(driver)
+        if onboarding.wait_for_key(onboarding.SKIP_BUTTON, timeout=10):
+            onboarding.skip()
+        login = LoginPage(driver)
+        if login.is_loaded(timeout=10):
             login.go_to_register()
     assert register.is_loaded(timeout=10)
     register.fill_form(

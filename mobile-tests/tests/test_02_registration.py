@@ -9,15 +9,29 @@ test_01 to have executed first.
 """
 import pytest
 
+import config
 from page_objects.auth_pages import LoginPage, RegisterPage
 from page_objects.dashboard_page import DashboardPage
 from page_objects.health_assessment_pages import HealthWeightPage
 from page_objects.onboarding_page import OnboardingPage
-from utils import session_helpers
+from utils import adb_helpers, session_helpers
 
 
 @pytest.fixture
 def on_register_screen(driver):
+    """Gets to RegisterPage from whatever state the app is currently in.
+
+    A handful of tests in this module intentionally submit a partial
+    registration and stop (e.g. test_each_gender_option_selectable lands
+    on the health-assessment flow, logged in, without completing it or
+    logging out -- there's no meaningful "gender was accepted" screen to
+    assert on besides that). That leaves the app authenticated but on
+    neither onboarding, register, nor login, which the plain
+    skip-or-navigate chain below can't recover from on its own.
+    `clear_app_data` (adb `pm clear`) is the guaranteed fallback: it
+    wipes local storage entirely, so the next launch always starts back
+    at onboarding regardless of what the previous test left behind.
+    """
     onboarding = OnboardingPage(driver)
     if onboarding.wait_for_key(onboarding.SKIP_BUTTON, timeout=4):
         onboarding.skip()
@@ -25,6 +39,15 @@ def on_register_screen(driver):
     if not register.is_loaded(timeout=5):
         login = LoginPage(driver)
         if login.is_loaded(timeout=4):
+            login.go_to_register()
+    if not register.is_loaded(timeout=5):
+        adb_helpers.clear_app_data()
+        driver.activate_app(config.APP_PACKAGE)
+        onboarding = OnboardingPage(driver)
+        if onboarding.wait_for_key(onboarding.SKIP_BUTTON, timeout=10):
+            onboarding.skip()
+        login = LoginPage(driver)
+        if login.is_loaded(timeout=10):
             login.go_to_register()
     assert register.is_loaded(timeout=10)
     return register

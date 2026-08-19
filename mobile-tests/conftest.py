@@ -1,41 +1,51 @@
 """
-Module-scoped Appium driver + pytest reporting hooks for the FitFuel
-Android suite.
+Session-scoped, self-healing Appium driver + pytest reporting hooks for
+the FitFuel Android suite.
 
-Session strategy: ONE Appium session per test MODULE (i.e. per test
-file), not one for the whole pytest run.
-
-This was session-scoped originally (one Appium session for the entire
-run, reused across every test file in a shard) to avoid paying the
-~20-40s APK-reinstall cost on every module. That broke down in
-practice: appium-flutter-driver's extension processes commands through
-a single serial queue, and if the *client* ever gives up on a
-`flutter:waitFor` (its own timeout expires) while the *Dart side* never
-actually resolves that call, the server does not cancel it -- it just
+Background: this project and KrishiIQ (a sibling final-year project,
+github.com/Siddamharinireddy/KrishiIQ) share the same underlying
+failure mode -- appium-flutter-driver processes commands through a
+single serial queue, and if the *client* gives up on a `flutter:waitFor`
+(its own APPIUM_COMMAND_TIMEOUT expires) while the *Dart side* never
+actually resolves that call, the server does not cancel it. It just
 sits in the queue forever, and every command issued afterwards queues
-up behind it. Once that happens once, anywhere, for the rest of that
-session every single command is delayed by the same fixed overhead
-(confirmed against real CI logs: a consistent ~12s tax on every
-`flutter:waitFor` call, regardless of that call's own specified
-timeout), and assertions that depend on prompt navigation start failing
-across the board -- not because the app is broken, but because the
-channel talking to it is. With one session per whole run, a single
-wedge anywhere poisons literally everything after it (this is exactly
-what a real CI run showed: 1 pass out of 314 tests, uniform inflated
-per-test durations).
+up behind it -- confirmed against real CI logs here as a flat ~12s tax
+(exactly APPIUM_COMMAND_TIMEOUT) on every subsequent command, and in
+KrishiIQ's own conftest.py as "the Flutter Observatory connection drops
+and FlutterDriver can never reconnect it again for the rest of that
+session."
 
-Scoping the driver per module bounds the blast radius of a wedge to
-just that one file's tests -- worth the reinstall cost given the
-alternative was losing the entire rest of a shard. Test modules that
-need a logged-out state (test_01_authentication.py,
-test_02_registration.py, test_03_health_assessment.py) are responsible
-for putting the app into whatever state they need themselves (they
-already did this per-test, not per-session, before this change).
-Modules that just need *a* logged-in user get one via the
-`logged_in_session` fixture, which now registers a fresh account once
-per module instead of once per whole run -- functionally equivalent,
-since nothing in this suite depends on one module's account/data being
-visible to a different module.
+A previous version of this file worked around that by creating a fresh
+Appium session (full APK reinstall) per test MODULE instead of once per
+whole run, to bound a wedge's blast radius to one file. That works, but
+it's the expensive version of the fix and KrishiIQ already solved the
+same problem more cheaply: keep ONE Appium session per shard, but
+relaunch the *app* (terminate_app + activate_app -- an activity
+restart, not a session/APK reinstall) before every single test via an
+autouse fixture. That gives every test a genuinely fresh app process
+(and therefore a fresh Dart isolate, which is what actually clears a
+wedge) for a fraction of the cost, and it doubles as real test
+isolation instead of relying on tests leaving the app in a state the
+next test expects.
+
+If the relaunch itself fails -- the one case a fresh app process can't
+fix, because the FlutterDriver/Observatory connection to the *old*
+process is what's actually dead -- `ResilientDriver.recreate()` quits
+and reopens the whole Appium session once, reactively, and only then.
+This is strictly better than the module-scoped approach: recovery is
+attempted at the cheap layer first (app restart) and only escalates to
+the expensive layer (new session) when that's not enough, instead of
+always paying the expensive cost on every module boundary regardless of
+whether anything actually went wrong.
+
+Because the app now restarts before every test, `logged_in_session` and
+`primary_test_account` go back to session scope: `noReset: False` means
+the installed app's local storage (including the auth token
+SharedPreferences checks on splash) survives an app restart even though
+the process doesn't, so after the first test registers
+`primary_test_account`, every later test's restart lands back on the
+dashboard already logged in -- no re-registration, no re-login call
+needed, exactly like the original once-per-run design intended.
 
 This mirrors selenium-tests/conftest.py's "one browser, function-scoped
 auth fixture layered on top" pattern as closely as the driver-per-app
@@ -87,75 +97,103 @@ def pytest_runtest_setup(item):
 
 
 # ─────────────────────────────────────────────────────────────────────────
-# Driver session, scoped per test MODULE (see the file-level docstring
-# for why this changed from session scope: a wedged appium-flutter-
-# driver command queue anywhere in the run used to poison every test
-# after it, for the rest of the whole shard. A fresh session per module
-# costs ~20-40s in APK reinstall time, paid ~4-5 times per shard instead
-# of once -- a couple of minutes of overhead per shard is a trade worth
-# making against losing ~99% of the shard's tests to one wedge.
+# Driver session: ONE Appium session per shard's pytest process (back to
+# session scope -- see file-level docstring for why the module-scoped
+# version was replaced). `ResilientDriver` wraps the real session behind
+# a stable object so that `recreate()` can swap out a dead `_raw` session
+# for a fresh one without invalidating every page object's `self.driver`
+# reference -- they all hold this wrapper, not the raw webdriver, so
+# recreation is transparent to already-instantiated page objects.
 # ─────────────────────────────────────────────────────────────────────────
-@pytest.fixture(scope="module")
+class ResilientDriver:
+    def __init__(self):
+        self._raw = None
+        self._create()
+
+    def _create(self):
+        apk_path = os.path.abspath(config.APK_PATH)
+        assert os.path.exists(apk_path), (
+            f"Test APK not found at {apk_path}. Build it first with:\n"
+            f"  cd fitfuel_mobile && flutter build apk --debug -t lib/main_test.dart "
+            f"--dart-define=API_BASE_URL={config.BACKEND_BASE_URL}"
+        )
+
+        options = AppiumOptions()
+        options.set_capability("platformName", "Android")
+        options.set_capability("appium:automationName", "Flutter")
+        options.set_capability("appium:deviceName", config.DEVICE_NAME)
+        options.set_capability("appium:app", apk_path)
+        options.set_capability("appium:appPackage", config.APP_PACKAGE)
+        options.set_capability("appium:appActivity", config.APP_ACTIVITY)
+        options.set_capability("appium:newCommandTimeout", 300)
+        options.set_capability("appium:autoGrantPermissions", True)
+        options.set_capability("appium:noReset", False)
+        options.set_capability("appium:platformVersion", config.PLATFORM_VERSION)
+        # Gives Appium's own session-creation-time wait for the Flutter Driver
+        # extension to become responsive more headroom (was previously unset,
+        # falling back to appium-flutter-driver's default, which is tighter
+        # than this emulator's actual cold-start latency needs).
+        options.set_capability("appium:flutterServerLaunchTimeout", 45000)
+
+        creation_executor = build_session_creation_executor(config.APPIUM_SERVER_URL)
+        self._raw = webdriver.Remote(
+            command_executor=creation_executor,
+            options=options,
+        )
+        # Appium's NEW_SESSION response returning successfully only means the
+        # app was installed and launched -- it does NOT guarantee the Flutter
+        # Dart VM + Observatory handshake (enableFlutterDriverExtension in
+        # main_test.dart) has actually finished. On this CI emulator that cold
+        # start can legitimately take longer than the everyday 12s command
+        # timeout. Every single test_02_registration.py failure was a raw
+        # urllib3 ReadTimeoutError (read timeout=12) on the very first
+        # command of the session -- not a controlled "element not found"
+        # 500 -- confirming this was a startup race, not a real app/test bug.
+        #
+        # CORRECTION: an earlier version of this warm-up used a
+        # `wait_for_key("onboarding_skip_button", timeout=30)` call instead of
+        # a plain sleep. That was a real regression: with `noReset: False`,
+        # if the app happens to already have onboarding marked complete from
+        # a prior install, that key never appears, and a real CI run showed
+        # every single test after this point failing in a flat, exact ~12.0s
+        # each while the raw Appium server log showed its internal command
+        # queue depth climbing without bound and never draining -- consistent
+        # with appium-flutter-driver's single-command-at-a-time extension
+        # getting permanently wedged behind one Dart-side waitFor call that
+        # the client gave up on but the server never actually cancelled. A
+        # plain sleep cannot get stuck like this regardless of what screen
+        # the app lands on, at the cost of not adapting to a faster-than-usual
+        # boot -- worth the trade-off given the alternative is a fully dead
+        # session for the rest of the run.
+        time.sleep(20)
+        # Session exists now -- fall back to the short everyday-command
+        # timeout so a single wedged find/tap fails fast instead of hanging
+        # for the (much longer) session-creation timeout on every command.
+        swap_to_short_timeout(self._raw, config.APPIUM_SERVER_URL)
+
+    def recreate(self):
+        """Quit whatever's left of a dead session and open a fresh one.
+        Only called reactively, from `_restart_app_between_tests` below,
+        when a plain app restart (terminate_app + activate_app) wasn't
+        enough to recover -- i.e. the FlutterDriver/Observatory
+        connection to the old process is what's actually wedged, not
+        just the app's UI state."""
+        try:
+            self._raw.quit()
+        except Exception:
+            pass
+        self._create()
+
+    def __getattr__(self, name):
+        # Forwards everything else -- terminate_app, activate_app,
+        # execute_script, get_screenshot_as_file, quit, etc. -- to
+        # whichever real session is currently live.
+        return getattr(self._raw, name)
+
+
+@pytest.fixture(scope="session")
 def driver():
-    apk_path = os.path.abspath(config.APK_PATH)
-    assert os.path.exists(apk_path), (
-        f"Test APK not found at {apk_path}. Build it first with:\n"
-        f"  cd fitfuel_mobile && flutter build apk --debug -t lib/main_test.dart "
-        f"--dart-define=API_BASE_URL={config.BACKEND_BASE_URL}"
-    )
-
-    options = AppiumOptions()
-    options.set_capability("platformName", "Android")
-    options.set_capability("appium:automationName", "Flutter")
-    options.set_capability("appium:deviceName", config.DEVICE_NAME)
-    options.set_capability("appium:app", apk_path)
-    options.set_capability("appium:appPackage", config.APP_PACKAGE)
-    options.set_capability("appium:appActivity", config.APP_ACTIVITY)
-    options.set_capability("appium:newCommandTimeout", 300)
-    options.set_capability("appium:autoGrantPermissions", True)
-    options.set_capability("appium:noReset", False)
-    options.set_capability("appium:platformVersion", config.PLATFORM_VERSION)
-    # Gives Appium's own session-creation-time wait for the Flutter Driver
-    # extension to become responsive more headroom (was previously unset,
-    # falling back to appium-flutter-driver's default, which is tighter
-    # than this emulator's actual cold-start latency needs).
-    options.set_capability("appium:flutterServerLaunchTimeout", 45000)
-
-    creation_executor = build_session_creation_executor(config.APPIUM_SERVER_URL)
-    drv = webdriver.Remote(
-        command_executor=creation_executor,
-        options=options,
-    )
-    # Appium's NEW_SESSION response returning successfully only means the
-    # app was installed and launched -- it does NOT guarantee the Flutter
-    # Dart VM + Observatory handshake (enableFlutterDriverExtension in
-    # main_test.dart) has actually finished. On this CI emulator that cold
-    # start can legitimately take longer than the everyday 12s command
-    # timeout. Every single test_02_registration.py failure was a raw
-    # urllib3 ReadTimeoutError (read timeout=12) on the very first
-    # command of the session -- not a controlled "element not found"
-    # 500 -- confirming this was a startup race, not a real app/test bug.
-    #
-    # CORRECTION: an earlier version of this warm-up used a
-    # `wait_for_key("onboarding_skip_button", timeout=30)` call instead of
-    # a plain sleep. That was a real regression: with `noReset: False`,
-    # if the app happens to already have onboarding marked complete from
-    # a prior install, that key never appears, and a real CI run showed
-    # every single test after this point failing in a flat, exact ~12.0s
-    # each while the raw Appium server log showed its internal command
-    # queue depth climbing without bound and never draining -- consistent
-    # with appium-flutter-driver's single-command-at-a-time extension
-    # getting permanently wedged behind one Dart-side waitFor call that
-    # the client gave up on but the server never actually cancelled. A
-    # plain sleep cannot get stuck like this regardless of what screen
-    # the app lands on, at the cost of not adapting to a faster-than-usual
-    # boot -- worth the trade-off given the alternative is a fully dead
-    # session for the rest of the run.
-    time.sleep(20)
-    # Session exists now -- fall back to the short everyday-command
-    # timeout so a single wedged find/tap fails fast instead of hanging
-    # for the (much longer) session-creation timeout on every command.
-    swap_to_short_timeout(drv, config.APPIUM_SERVER_URL)
+    drv = ResilientDriver()
 
     yield drv
 
@@ -163,6 +201,32 @@ def driver():
         drv.quit()
     except Exception:
         pass
+
+
+@pytest.fixture(autouse=True)
+def _restart_app_between_tests(driver):
+    """Relaunch the app fresh before every test (terminate_app +
+    activate_app -- a fast activity restart, not a new Appium session)
+    so every test gets a genuinely fresh Dart isolate/FlutterDriver
+    connection instead of relying on whatever state the previous test
+    left behind. This is what actually clears a wedged command queue
+    (see file-level docstring): the wedge lives in the *old* isolate,
+    and killing that process is what un-sticks it, cheaply.
+
+    If activate_app itself fails, the wedge is bad enough that the old
+    process's FlutterDriver/Observatory connection can't be recovered
+    at all -- escalate to a full session recreate, once, then retry.
+    """
+    try:
+        driver.terminate_app(config.APP_PACKAGE)
+    except Exception:
+        pass
+    try:
+        driver.activate_app(config.APP_PACKAGE)
+    except Exception:
+        driver.recreate()
+        driver.activate_app(config.APP_PACKAGE)
+    yield
 
 
 @pytest.fixture(scope="session")
@@ -178,16 +242,14 @@ def unique_email_factory():
     return _make
 
 
-@pytest.fixture(scope="module")
+@pytest.fixture(scope="session")
 def primary_test_account(unique_email_factory):
-    """One registered + fully onboarded account, created once per test
-    MODULE (was once per whole run before the driver became module-
-    scoped -- see the file-level docstring). Every module that just
-    needs *a* logged-in user gets its own fresh account via
-    `logged_in_session` rather than testing registration itself; nothing
-    in this suite depends on one module's account being visible to a
-    different module, so this is behaviourally equivalent to the old
-    once-per-run account, just re-created per module instead of reused."""
+    """One registered + fully onboarded account, created once per whole
+    run. `noReset: False` plus the per-test app restart in
+    `_restart_app_between_tests` means this account's login persists in
+    local storage across every later test's restart, so
+    `logged_in_session` only ever needs to register once and every
+    subsequent test lands back on the dashboard already logged in."""
     return {
         "email": unique_email_factory("primary"),
         "password": "TestPass123!",
@@ -221,15 +283,15 @@ def restore_orientation():
     adb_helpers.rotate_portrait()
 
 
-@pytest.fixture(scope="module")
+@pytest.fixture(scope="session")
 def logged_in_session(driver, primary_test_account):
-    """Registers `primary_test_account` exactly once per test module
-    (first call within that module) and leaves the driver on the
-    dashboard, logged in. Every module that just needs an authenticated
-    app (dashboard, recommendations, progress, chat, profile,
-    navigation, etc.) depends on this fixture rather than re-registering
-    per test -- registration itself is covered exhaustively and
-    independently in test_02_registration.py."""
+    """Registers `primary_test_account` exactly once for the whole run
+    (first call) and leaves the driver on the dashboard, logged in.
+    Every module that just needs an authenticated app (dashboard,
+    recommendations, progress, chat, profile, navigation, etc.) depends
+    on this fixture rather than re-registering per test -- registration
+    itself is covered exhaustively and independently in
+    test_02_registration.py."""
     from page_objects.dashboard_page import DashboardPage
     from utils import session_helpers
 
