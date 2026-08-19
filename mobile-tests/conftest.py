@@ -1,16 +1,41 @@
 """
-Session-scoped Appium driver + pytest reporting hooks for the FitFuel
+Module-scoped Appium driver + pytest reporting hooks for the FitFuel
 Android suite.
 
-Session strategy (deliberately different from a naive "launch the app
-fresh for every test" approach, which is far too slow for 400+ Appium
-tests): ONE Appium session is created for the whole pytest run. Test
-modules that need a logged-out state (test_01_authentication.py,
-test_02_registration.py) run FIRST (enforced by the `01_`/`02_` file name
-prefixes, since pytest collects alphabetically within a directory by
-default) and are responsible for putting the app back into a known
-logged-in state before finishing, via the `logged_in_session` fixture.
-Every other module assumes it starts logged in.
+Session strategy: ONE Appium session per test MODULE (i.e. per test
+file), not one for the whole pytest run.
+
+This was session-scoped originally (one Appium session for the entire
+run, reused across every test file in a shard) to avoid paying the
+~20-40s APK-reinstall cost on every module. That broke down in
+practice: appium-flutter-driver's extension processes commands through
+a single serial queue, and if the *client* ever gives up on a
+`flutter:waitFor` (its own timeout expires) while the *Dart side* never
+actually resolves that call, the server does not cancel it -- it just
+sits in the queue forever, and every command issued afterwards queues
+up behind it. Once that happens once, anywhere, for the rest of that
+session every single command is delayed by the same fixed overhead
+(confirmed against real CI logs: a consistent ~12s tax on every
+`flutter:waitFor` call, regardless of that call's own specified
+timeout), and assertions that depend on prompt navigation start failing
+across the board -- not because the app is broken, but because the
+channel talking to it is. With one session per whole run, a single
+wedge anywhere poisons literally everything after it (this is exactly
+what a real CI run showed: 1 pass out of 314 tests, uniform inflated
+per-test durations).
+
+Scoping the driver per module bounds the blast radius of a wedge to
+just that one file's tests -- worth the reinstall cost given the
+alternative was losing the entire rest of a shard. Test modules that
+need a logged-out state (test_01_authentication.py,
+test_02_registration.py, test_03_health_assessment.py) are responsible
+for putting the app into whatever state they need themselves (they
+already did this per-test, not per-session, before this change).
+Modules that just need *a* logged-in user get one via the
+`logged_in_session` fixture, which now registers a fresh account once
+per module instead of once per whole run -- functionally equivalent,
+since nothing in this suite depends on one module's account/data being
+visible to a different module.
 
 This mirrors selenium-tests/conftest.py's "one browser, function-scoped
 auth fixture layered on top" pattern as closely as the driver-per-app
@@ -62,11 +87,15 @@ def pytest_runtest_setup(item):
 
 
 # ─────────────────────────────────────────────────────────────────────────
-# Driver session (module-scoped isn't enough -- Appium/flutter-driver
-# session creation costs ~20-40s each time because it reinstalls the APK.
-# We create exactly one session per pytest run and reuse it everywhere.)
+# Driver session, scoped per test MODULE (see the file-level docstring
+# for why this changed from session scope: a wedged appium-flutter-
+# driver command queue anywhere in the run used to poison every test
+# after it, for the rest of the whole shard. A fresh session per module
+# costs ~20-40s in APK reinstall time, paid ~4-5 times per shard instead
+# of once -- a couple of minutes of overhead per shard is a trade worth
+# making against losing ~99% of the shard's tests to one wedge.
 # ─────────────────────────────────────────────────────────────────────────
-@pytest.fixture(scope="session")
+@pytest.fixture(scope="module")
 def driver():
     apk_path = os.path.abspath(config.APK_PATH)
     assert os.path.exists(apk_path), (
@@ -149,11 +178,16 @@ def unique_email_factory():
     return _make
 
 
-@pytest.fixture(scope="session")
+@pytest.fixture(scope="module")
 def primary_test_account(unique_email_factory):
-    """One registered + fully onboarded account, created once per run and
-    reused (via re-login, not re-registration) by every module that just
-    needs *a* logged-in user rather than testing registration itself."""
+    """One registered + fully onboarded account, created once per test
+    MODULE (was once per whole run before the driver became module-
+    scoped -- see the file-level docstring). Every module that just
+    needs *a* logged-in user gets its own fresh account via
+    `logged_in_session` rather than testing registration itself; nothing
+    in this suite depends on one module's account being visible to a
+    different module, so this is behaviourally equivalent to the old
+    once-per-run account, just re-created per module instead of reused."""
     return {
         "email": unique_email_factory("primary"),
         "password": "TestPass123!",
@@ -187,15 +221,15 @@ def restore_orientation():
     adb_helpers.rotate_portrait()
 
 
-@pytest.fixture(scope="session")
+@pytest.fixture(scope="module")
 def logged_in_session(driver, primary_test_account):
-    """Registers `primary_test_account` exactly once for the whole run
-    (first call) and leaves the driver on the dashboard, logged in.
-    Every module that just needs an authenticated app (dashboard,
-    recommendations, progress, chat, profile, navigation, etc.) depends
-    on this fixture rather than re-registering per test -- registration
-    itself is covered exhaustively and independently in
-    test_02_registration.py."""
+    """Registers `primary_test_account` exactly once per test module
+    (first call within that module) and leaves the driver on the
+    dashboard, logged in. Every module that just needs an authenticated
+    app (dashboard, recommendations, progress, chat, profile,
+    navigation, etc.) depends on this fixture rather than re-registering
+    per test -- registration itself is covered exhaustively and
+    independently in test_02_registration.py."""
     from page_objects.dashboard_page import DashboardPage
     from utils import session_helpers
 
