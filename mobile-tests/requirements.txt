@@ -7,4 +7,12 @@ selenium==4.21.0
 appium-flutter-finder==0.8.0
 pytest==8.2.2
 pytest-rerunfailures==14.0
+# Hard per-test backstop, mirroring KrishiIQ's pytest.ini (--timeout=180).
+# The client-socket timeout in utils/appium_connection.py bounds individual
+# HTTP calls to Appium, and base_page.py's _recovering() catches those and
+# recreates the session -- but neither can catch a hang that happens inside
+# Appium's own internal command handling, outside our socket entirely. This
+# is the one layer that catches whatever variant of the wedge shows up next,
+# regardless of where in the stack it actually gets stuck.
+pytest-timeout==2.3.1
 openpyxl==3.1.5

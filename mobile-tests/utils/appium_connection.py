@@ -25,6 +25,26 @@ We use two tiers:
 
 After the session is created we swap the driver's command_executor back
 to the short-timeout connection.
+
+CORRECTION (found by diffing this project's timeout plumbing against
+KrishiIQ's, a sibling project where the equivalent mechanism is known to
+work): `set_timeout()` must be called BEFORE the connection object is
+constructed, not after. `AppiumConnection.__init__` -> `RemoteConnection.
+__init__` builds the urllib3 pool manager eagerly, once, right there in
+__init__ (`self._conn = self._get_connection_manager()`), and
+`_get_connection_manager()` reads `self.get_timeout()` at that exact
+moment. `set_timeout()` is a classmethod that only ever writes the class
+attribute for *future* instances -- calling it on an object that already
+exists has no effect on that object's already-built pool. The previous
+version of `build_session_creation_executor` / `build_short_timeout_executor`
+constructed the connection first and called `.set_timeout()` second, which
+meant the value never actually reached the pool: `SessionCreationConnection`
+silently inherited `AppiumConnection`'s 12s default instead of getting the
+intended 60s (session creation was getting LESS headroom than everyday
+commands, not more), and `build_short_timeout_executor` only "worked" by
+coincidence because 12 already equalled 12 at construction time. Setting
+the class-level timeout before constructing (as KrishiIQ's conftest.py
+does inline) is what actually wires the value into the pool.
 """
 from appium.webdriver.appium_connection import AppiumConnection
 
@@ -46,15 +66,21 @@ def configure_default_timeout():
 
 
 def build_session_creation_executor(server_url: str) -> SessionCreationConnection:
-    conn = SessionCreationConnection(server_url)
-    conn.set_timeout(config.SESSION_CREATION_TIMEOUT)
-    return conn
+    # Set the class-level timeout BEFORE constructing -- the pool manager
+    # is built eagerly in __init__ and reads this value at that moment.
+    # Setting it after construction (the old code) never reaches the pool.
+    SessionCreationConnection.set_timeout(config.SESSION_CREATION_TIMEOUT)
+    return SessionCreationConnection(server_url)
 
 
 def build_short_timeout_executor(server_url: str) -> AppiumConnection:
-    conn = AppiumConnection(server_url)
-    conn.set_timeout(config.APPIUM_COMMAND_TIMEOUT)
-    return conn
+    # Same fix -- set before constructing. This one happened to produce
+    # the right value before (12 == 12 by coincidence with the import-time
+    # default), but was fragile: any future change to APPIUM_COMMAND_TIMEOUT
+    # that didn't also touch configure_default_timeout() would have silently
+    # broken it again.
+    AppiumConnection.set_timeout(config.APPIUM_COMMAND_TIMEOUT)
+    return AppiumConnection(server_url)
 
 
 def swap_to_short_timeout(driver, server_url: str) -> None:
