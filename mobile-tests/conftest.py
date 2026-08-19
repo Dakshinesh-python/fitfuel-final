@@ -38,6 +38,33 @@ the expensive layer (new session) when that's not enough, instead of
 always paying the expensive cost on every module boundary regardless of
 whether anything actually went wrong.
 
+CORRECTION (root-caused against a real 4-shard CI run where 223/225
+tests failed): "relaunch the app before every test" turned out NOT to
+be sufficient on its own, and the diagnosis above ("a fresh Dart isolate
+is what actually clears a wedge") was incomplete. The FlutterDriver
+command queue that gets wedged lives in the *Appium server process*,
+keyed to the WebDriver *session* -- not in the app's Dart isolate. Killing
+and relaunching the app process does nothing to a queue that lives one
+layer up, outside that process entirely. In the real failure, one
+`tap()` call (`login_register_link`, called from a page object's
+`tap_key()`) never got acked, and because that particular call site was
+unguarded, the resulting exception propagated straight out of the test
+instead of being caught anywhere -- so nothing ever told this fixture,
+or `ResilientDriver`, that the session needed recreating. Every later
+test in the shard then queued up behind the dead command and timed out
+too, one after another, for the rest of the run.
+
+The actual fix lives in `page_objects/base_page.py`: every raw
+driver/element call (`click()`, `clear()`, `send_keys()`, `.text`, plus
+the two genuinely-a-timeout branches of `is_displayed()`) is now wrapped
+in `BasePage._recovering()`, which calls `driver.recreate()` itself the
+moment one of those calls raises a real timeout -- proactively, from
+wherever the wedge actually happens, rather than only reactively here
+when `activate_app()` happens to raise. This fixture's own
+activate_app-failure escalation stays as a second, cheaper-to-reach
+layer of the same circuit breaker; the two are complementary, not
+redundant.
+
 Because the app now restarts before every test, `logged_in_session` and
 `primary_test_account` go back to session scope: `noReset: False` means
 the installed app's local storage (including the auth token

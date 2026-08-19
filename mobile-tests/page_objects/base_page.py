@@ -17,8 +17,56 @@ re-verified against this repo rather than assumed):
     correct generic "does this exist" check; `.text` is reserved for
     cases where the test genuinely needs the string content of a Text
     widget.
+
+THE WEDGE, AND WHY EVERY RAW DRIVER CALL BELOW IS WRAPPED IN
+`_recovering()` (root-caused against a real CI run -- see
+mobile-tests/README.md -> "The command-queue wedge" for the full writeup
+with the annotated Appium server log):
+
+  appium-flutter-driver processes every `flutter:*` command through a
+  single serial queue that lives in the Appium SERVER process, tied to
+  the WebDriver *session* -- not to the app's Dart process. If a command
+  is sent and the Dart side never acks it, our client gives up after
+  APPIUM_COMMAND_TIMEOUT (12s) and raises, but the server-side queue
+  entry is never cancelled. Every command issued afterwards -- for the
+  rest of that Appium session -- queues up behind the dead one and times
+  out too, one after another, forever ("Scheduling the 'execute' command
+  to the FlutterDriver commands queue. N queue items are already waiting
+  for execution." climbing without bound in the server log).
+
+  `conftest.py`'s per-test `_restart_app_between_tests` fixture restarts
+  the *app* (terminate_app + activate_app) before every test, which is
+  cheap and normally enough to clear a wedge -- but NOT this one, because
+  the jammed queue is server/session state, not app-process state. A
+  fresh Dart isolate does nothing to un-stick it.
+
+  The one call site that mattered in the real failure this fixes:
+  `is_displayed()` already caught driver exceptions and returned False,
+  but `tap_key()` / `tap_text()` / `enter_text_by_key()` / `text_of_key()`
+  called `.click()` / `.clear()` / `.send_keys()` / `.text` completely
+  unguarded. When one of *those* commands is the one that never gets
+  acked (confirmed in CI logs: the very first `tap` on
+  `login_register_link` in every single one of 4 independent shards),
+  the resulting exception propagates straight out of the page object,
+  uncaught -- so nothing ever told the driver its session was wedged, and
+  every later test in the shard queued up and timed out too. That's the
+  actual mechanism behind a run going from "one bad tap" to "223 of 225
+  tests failed".
+
+  The fix: every raw driver/element call in this file now goes through
+  `_recovering()`, which -- on any of the driver-level exceptions that
+  really mean "the Appium session may be wedged" -- immediately tells
+  the driver to recreate its whole Appium session (fresh APK
+  launch, fresh command queue) before re-raising. The current command
+  (and therefore the current test, whose app state was mid-flow when the
+  wedge hit) still fails -- that's correct and unavoidable once a wedge
+  has actually happened -- but every *later* test now starts against a
+  healthy session instead of inheriting the jam. One test failing beats
+  223.
 """
 from __future__ import annotations
+
+from contextlib import contextmanager
 
 from appium_flutter_finder import FlutterElement, FlutterFinder
 from selenium.common.exceptions import WebDriverException
@@ -27,6 +75,13 @@ from urllib3.exceptions import HTTPError as Urllib3HTTPError
 import config
 
 finder = FlutterFinder()
+
+# Exceptions that mean "this command may have wedged the Appium session's
+# single FlutterDriver command queue", not just "this element isn't
+# there yet". See the file docstring and Urllib3HTTPError's own note
+# below for why each of these three groups is needed -- none of them is
+# redundant with the others.
+_RECOVERABLE_EXCEPTIONS = (WebDriverException, TimeoutError, OSError, Urllib3HTTPError)
 
 # One distinctive, always-rendered string per screen. Used only for loose
 # "did navigation land where we expected" smoke checks -- NOT relied on
@@ -90,6 +145,35 @@ class BasePage:
         """
         return FlutterElement(self.driver, element_finder)
 
+    # ── self-healing wrapper for every raw driver/element call ─────────
+    @contextmanager
+    def _recovering(self):
+        """Wrap a single raw driver/element call. If it raises one of the
+        exceptions that can mean the Appium session's FlutterDriver
+        command queue is now wedged (see file docstring), immediately
+        trigger a full session recreate on the way out, before
+        re-raising, instead of letting the wedge silently propagate to
+        every later test in the shard."""
+        try:
+            yield
+        except _RECOVERABLE_EXCEPTIONS:
+            self._recover_from_possible_wedge()
+            raise
+
+    def _recover_from_possible_wedge(self) -> None:
+        recreate = getattr(self.driver, "recreate", None)
+        if callable(recreate):
+            try:
+                recreate()
+            except Exception:
+                # Recreating is a best-effort circuit breaker -- if it
+                # itself fails, there's nothing more we can do from a
+                # page object; let the original exception (already
+                # re-raised by the `_recovering()` caller) surface
+                # normally and let the next test's own driver fixture /
+                # autouse restart fixture deal with a still-dead session.
+                pass
+
     # ── waits / existence checks (is_displayed(), never .text) ─────────
     def is_displayed(self, element_finder, timeout: float = None) -> bool:
         timeout = config.DEFAULT_WAIT_SECONDS if timeout is None else timeout
@@ -105,10 +189,23 @@ class BasePage:
             )
             return True
         except WebDriverException:
+            # A clean "not found" response from a healthy Appium server
+            # (the widget genuinely isn't there within `timeout`) comes
+            # back as a normal WebDriverException -- this is the expected
+            # outcome of a huge fraction of is_displayed()/wait_for_*()
+            # calls (e.g. every `if not dashboard.is_loaded(timeout=3):`
+            # style check) and does NOT indicate a wedged session, so it
+            # deliberately does not trigger `_recover_from_possible_wedge()`.
             return False
         except (TimeoutError, OSError):
-            # Kept for real socket-level timeouts/OSErrors, though in
-            # practice these do NOT cover the case below.
+            # Real socket-level timeouts/OSErrors -- the client gave up
+            # waiting for a response at all, which is exactly the signal
+            # that this command may have wedged the Appium session's
+            # single FlutterDriver command queue for every later command
+            # (see file docstring). Unlike the WebDriverException branch
+            # above, this is NOT a normal "not found" outcome, so it
+            # escalates to a session recreate before returning False.
+            self._recover_from_possible_wedge()
             return False
         except Urllib3HTTPError:
             # CORRECTION to a previous fix: urllib3.exceptions.ReadTimeoutError
@@ -125,6 +222,12 @@ class BasePage:
             # traceback. Catching urllib3's actual HTTPError base class
             # (which ReadTimeoutError, MaxRetryError, etc. all inherit
             # from) here is the real fix.
+            #
+            # This is also, concretely, the exception a genuinely wedged
+            # command-queue produces (ReadTimeoutError, no response ever
+            # comes back) -- same reasoning as the (TimeoutError, OSError)
+            # branch above, so it escalates the same way.
+            self._recover_from_possible_wedge()
             return False
 
     def wait_for_key(self, value_key: str, timeout: float = None) -> bool:
@@ -152,33 +255,41 @@ class BasePage:
         # element-click command instead: build the FlutterElement (the
         # same way enter_text_by_key()/text_of_key() already do below)
         # and call the ordinary .click() on it -- the driver maps that
-        # standard click command onto a Flutter tap internally. This was
-        # the single point of failure behind nearly the entire suite
-        # (this helper -- along with tap_text() below -- is called by
-        # every page object).
-        self._element(self.by_key(value_key)).click()
+        # standard click command onto a Flutter tap internally.
+        #
+        # This click() call is exactly the command that wedged the whole
+        # suite in the CI run this fixes (the `login_register_link` tap
+        # -- see file docstring): it was previously unguarded, so the
+        # resulting timeout propagated straight out of every test that
+        # happened to run after the wedge instead of triggering recovery.
+        # `_recovering()` below closes that gap.
+        with self._recovering():
+            self._element(self.by_key(value_key)).click()
 
     def tap_text(self, text: str, timeout: float = None) -> None:
         assert self.wait_for_text(text, timeout), (
             f"Text '{text}' never became visible within "
             f"{timeout or config.DEFAULT_WAIT_SECONDS}s"
         )
-        self._element(self.by_text(text)).click()
+        with self._recovering():
+            self._element(self.by_text(text)).click()
 
     def enter_text_by_key(self, value_key: str, value: str, timeout: float = None) -> None:
         assert self.wait_for_key(value_key, timeout), (
             f"Input field with key '{value_key}' never became visible"
         )
         el = self._element(self.by_key(value_key))
-        el.clear()
-        el.send_keys(value)
+        with self._recovering():
+            el.clear()
+            el.send_keys(value)
 
     def text_of_key(self, value_key: str, timeout: float = None) -> str:
         """The one legitimate use of .text -- only ever call this on a
         widget that actually renders text (Text / TextField)."""
         assert self.wait_for_key(value_key, timeout)
         el = self._element(self.by_key(value_key))
-        return el.text
+        with self._recovering():
+            return el.text
 
     def scroll_down(self) -> None:
         from utils import adb_helpers
@@ -189,4 +300,5 @@ class BasePage:
         adb_helpers.scroll_up()
 
     def back(self) -> None:
-        self.driver.back()
+        with self._recovering():
+            self.driver.back()
