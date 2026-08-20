@@ -137,7 +137,7 @@ class ResilientDriver:
         self._raw = None
         self._create()
 
-    def _create(self):
+    def _create(self, _is_recovery_create: bool = False):
         apk_path = os.path.abspath(config.APK_PATH)
         assert os.path.exists(apk_path), (
             f"Test APK not found at {apk_path}. Build it first with:\n"
@@ -197,7 +197,11 @@ class ResilientDriver:
         # timeout so a single wedged find/tap fails fast instead of hanging
         # for the (much longer) session-creation timeout on every command.
         swap_to_short_timeout(self._raw, config.APPIUM_SERVER_URL)
-        self._warm_up_shader_cache()
+        # Skip the shader warm-up when _create() is being called recursively
+        # as recovery from a warm-up failure -- the new session already had
+        # its 20s startup sleep and calling warm-up again would recurse.
+        if not _is_recovery_create:
+            self._warm_up_shader_cache()
 
     def _warm_up_shader_cache(self) -> None:
         """Best-effort: force RegisterScreen's first paint once per fresh
@@ -251,7 +255,20 @@ class ResilientDriver:
                 self._raw, f.by_value_key("onboarding_skip_button")
             ).click()
         except Exception:
-            pass
+            # If the click (not just the waitFor) failed, the Appium server's
+            # single FlutterDriver command queue may now be wedged behind a
+            # tap command the Dart side never acked. Recreating here costs one
+            # extra session startup but guarantees a clean queue for the
+            # login_register_link step below -- better than letting a wedge
+            # from warm-up propagate to the first real test.
+            # _is_recovery_create=True prevents the new session from calling
+            # _warm_up_shader_cache() again, which would recurse.
+            try:
+                self._raw.quit()
+            except Exception:
+                pass
+            self._create(_is_recovery_create=True)
+            return  # new session is already warm enough; skip the register tap
         try:
             self._raw.execute_script(
                 "flutter:waitFor", f.by_value_key("login_register_link"), 15000
@@ -260,7 +277,17 @@ class ResilientDriver:
                 self._raw, f.by_value_key("login_register_link")
             ).click()
         except Exception:
-            pass
+            # Same reasoning as above: a failed tap on login_register_link is
+            # the single most common wedge site (confirmed in CI logs -- see
+            # file-level docstring). Recreating the session here ensures the
+            # wedge is cleared before any real test runs.
+            # _is_recovery_create=True prevents recursion.
+            try:
+                self._raw.quit()
+            except Exception:
+                pass
+            self._create(_is_recovery_create=True)
+            return
         # Give the (possibly still in-flight) shader compile + first frame
         # a moment to actually finish on the GPU/raster thread before
         # handing control back -- a plain sleep, not a wait_for, because
@@ -391,13 +418,38 @@ def logged_in_session(driver, primary_test_account):
     recommendations, progress, chat, profile, navigation, etc.) depends
     on this fixture rather than re-registering per test -- registration
     itself is covered exhaustively and independently in
-    test_02_registration.py."""
+    test_02_registration.py.
+
+    Robustness note: if a mid-shard session recreate (see _recovering()
+    in base_page.py) left the app in an ambiguous state -- e.g. neither
+    on dashboard nor on a clean onboarding/login screen -- we force-clear
+    app data to guarantee a known starting point before attempting the
+    full registration flow."""
     from page_objects.dashboard_page import DashboardPage
-    from utils import session_helpers
+    from utils import adb_helpers, session_helpers
 
     dashboard = DashboardPage(driver)
-    if not dashboard.is_loaded(timeout=4):
-        session_helpers.register_new_account(driver, primary_test_account)
+    # Give the dashboard a generous look -- after a session recreate the
+    # app may still be mid-splash/startup.
+    if dashboard.is_loaded(timeout=8):
+        # Already logged in from a prior test in this shard (e.g. a
+        # test_01_authentication test that registered and didn't log out).
+        # Nothing to do -- the account already exists and the app is on
+        # the right screen.
+        return primary_test_account
+    # Not on dashboard. Try to reach a clean onboarding/login state.
+    # If the app is in some mid-flow or unexpected screen (post-recreate),
+    # force-clear its data so register_new_account() always starts from
+    # a known onboarding/login entry point.
+    from page_objects.onboarding_page import OnboardingPage
+    from page_objects.auth_pages import LoginPage
+    on_onboarding = OnboardingPage(driver).is_loaded(timeout=4)
+    on_login = LoginPage(driver).is_loaded(timeout=4)
+    if not on_onboarding and not on_login:
+        adb_helpers.clear_app_data()
+        driver.activate_app(config.APP_PACKAGE)
+        time.sleep(5)
+    session_helpers.register_new_account(driver, primary_test_account)
     return primary_test_account
 
 

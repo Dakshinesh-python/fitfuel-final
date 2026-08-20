@@ -9,10 +9,48 @@ whatever state the emulator boots into (fresh install -> onboarding).
 """
 import pytest
 
+import config
 from page_objects.auth_pages import LoginPage, RegisterPage
 from page_objects.dashboard_page import DashboardPage
 from page_objects.onboarding_page import OnboardingPage
-from utils import session_helpers
+from utils import adb_helpers, session_helpers
+
+
+def _ensure_on_login_screen(driver) -> None:
+    """Navigate to the login screen from any app state.
+
+    `_restart_app_between_tests` relaunches the app before every test,
+    but with noReset:False the auth token in SharedPreferences survives
+    the relaunch -- so the app comes back on the dashboard, not on
+    onboarding or login. Tests that need to start from the login screen
+    must explicitly get there.
+
+    Strategy:
+      * Already on login  → nothing to do.
+      * On dashboard      → tap the profile nav and use the logout button
+                            (fastest path, no data wipe).
+      * On onboarding     → skip (navigates to login).
+      * Unknown/mid-flow  → clear app data + relaunch (guaranteed fallback).
+    """
+    login = LoginPage(driver)
+    if login.is_loaded(timeout=4):
+        return
+    dashboard = DashboardPage(driver)
+    if dashboard.is_loaded(timeout=4):
+        session_helpers.logout(driver)
+        return
+    onboarding = OnboardingPage(driver)
+    if onboarding.is_loaded(timeout=4):
+        onboarding.skip()
+        assert login.is_loaded(timeout=10)
+        return
+    # Unknown state — force a clean launch.
+    adb_helpers.clear_app_data()
+    driver.activate_app(config.APP_PACKAGE)
+    onboarding2 = OnboardingPage(driver)
+    if onboarding2.is_loaded(timeout=10):
+        onboarding2.skip()
+    assert login.is_loaded(timeout=10)
 
 
 @pytest.fixture(scope="module")
@@ -31,6 +69,17 @@ def registered_account(driver, primary_test_account):
 
 
 class TestOnboardingReachesLogin:
+    @pytest.fixture(autouse=True)
+    def _force_fresh_launch(self, driver):
+        """These tests specifically verify cold-launch behaviour (onboarding
+        appearing on first run, skip navigating to login, etc.). They must
+        start from a genuinely fresh app state -- clearing local storage is
+        the only reliable way to guarantee onboarding appears rather than
+        the dashboard (which the app restarts to when noReset:False preserves
+        an auth token from a previous test in the same shard)."""
+        adb_helpers.clear_app_data()
+        driver.activate_app(config.APP_PACKAGE)
+
     @pytest.mark.smoke
     def test_app_launches_to_onboarding_or_login(self, driver):
         onboarding = OnboardingPage(driver)
@@ -40,7 +89,7 @@ class TestOnboardingReachesLogin:
 
     def test_skip_onboarding_reaches_register(self, driver):
         onboarding = OnboardingPage(driver)
-        if onboarding.is_loaded(timeout=5):
+        if onboarding.is_loaded(timeout=10):
             onboarding.skip()
         # Skip navigates to /login (onboarding_screen.dart's _finish()),
         # not directly to /register -- this test previously asserted the
@@ -84,6 +133,9 @@ class TestLoginHappyPath:
 
     @pytest.mark.auth
     def test_navigate_to_register_from_login(self, driver):
+        # _restart_app_between_tests relaunches to dashboard when the auth
+        # token is present (noReset:False); navigate to login first.
+        _ensure_on_login_screen(driver)
         login = LoginPage(driver)
         assert login.is_loaded(timeout=10)
         login.go_to_register()
@@ -121,6 +173,9 @@ class TestLoginInvalidCredentials:
 
     @pytest.mark.auth
     def test_login_error_message_is_visible_and_nonempty(self, driver):
+        # _restart_app_between_tests relaunches to dashboard when auth token
+        # is present (noReset:False); navigate to login first.
+        _ensure_on_login_screen(driver)
         login = LoginPage(driver)
         assert login.is_loaded(timeout=10)
         login.login("nobody@fitfuel-mobile-tests.invalid", "WrongPass123!")
@@ -129,6 +184,8 @@ class TestLoginInvalidCredentials:
 
     @pytest.mark.auth
     def test_repeated_failed_logins_do_not_crash_the_screen(self, driver):
+        # Same navigation fix as above.
+        _ensure_on_login_screen(driver)
         login = LoginPage(driver)
         assert login.is_loaded(timeout=10)
         for _ in range(3):

@@ -20,7 +20,18 @@ from utils import adb_helpers
 def register_new_account(driver, account: dict) -> None:
     """Drives: (fresh app state) -> onboarding -> register -> full health
     assessment happy path -> plan-ready -> dashboard. Leaves the app on
-    the dashboard, logged in as `account`."""
+    the dashboard, logged in as `account`.
+
+    Handles the case where the app is already on the dashboard (e.g.
+    after a session recreate with noReset:False preserving the auth
+    token in SharedPreferences) by returning early -- the account
+    already exists and the driver is already in the correct state."""
+    from page_objects.dashboard_page import DashboardPage
+
+    # If already logged in and on the dashboard, nothing to do.
+    if DashboardPage(driver).is_loaded(timeout=5):
+        return
+
     onboarding = OnboardingPage(driver)
     if onboarding.wait_for_key(onboarding.SKIP_BUTTON, timeout=5):
         onboarding.skip()

@@ -16,12 +16,15 @@ import os
 APPIUM_SERVER_URL = os.environ.get("APPIUM_SERVER_URL", "http://127.0.0.1:4723")
 
 # Tuned from observed CI behaviour on this project (see README "Timeout
-# tuning" section) rather than copied from the KrishiIQ numbers verbatim:
-# every healthy Flutter-driver command on this app completes well under
-# 5s once the Observatory handshake is warm. 12s (same as the reference
-# project) gives generous headroom while still failing fast on a genuinely
-# wedged session instead of hanging for the default 45s.
-APPIUM_COMMAND_TIMEOUT = int(os.environ.get("APPIUM_COMMAND_TIMEOUT", "12"))
+# tuning" section): every healthy Flutter-driver command on this app
+# completes well under 5s once the Observatory handshake is warm. 30s
+# was increased from 12 because the CI emulator's first-paint shader
+# compile for RegisterScreen's BoxShadow widgets (login_register_link tap)
+# consistently exceeded 12s under load, causing ReadTimeoutError and
+# wedging the Appium server's single serial command queue for the rest of
+# the shard. 30s gives real headroom while still failing fast on a
+# genuinely wedged session instead of hanging for the default 45s.
+APPIUM_COMMAND_TIMEOUT = int(os.environ.get("APPIUM_COMMAND_TIMEOUT", "30"))
 SESSION_CREATION_TIMEOUT = int(os.environ.get("SESSION_CREATION_TIMEOUT", "60"))
 
 # ─────────────────────────────────────────────────────────────────────────

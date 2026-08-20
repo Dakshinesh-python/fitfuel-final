@@ -67,25 +67,16 @@ jobs:
   android-e2e:
     needs: build-apk
     runs-on: ubuntu-latest
-    # Was 180 for the whole (unsharded) suite in one job, then cut to 75
-    # on the assumption each shard's ~100 tests would run in a couple of
-    # seconds each. That assumption broke: fitfuel_mobile/lib/services/
-    # api_config.dart had a hardcoded API base URL instead of reading the
-    # API_BASE_URL dart-define, so every CI build silently called the
-    # live production backend (network latency + Render cold-start)
-    # instead of localhost, making each test take ~45-50s instead of a
-    # few seconds -- 75min was only enough to get through ~90 tests
-    # before the whole matrix (all 4 shards start within the same
-    # second) got killed simultaneously at the 75min mark, which is why
-    # some shards never got past their first assigned test file. Now
-    # that api_config.dart actually honors API_BASE_URL, shards should
-    # again finish in well under this, but 130 keeps real headroom
-    # without masking a genuinely wedged session (see mobile-tests/
-    # README.md's notes on Appium/Flutter-Driver's single serial command
-    # queue: one hung command can block every test after it for the rest
-    # of the session, so a shard that's actually stuck should still fail
-    # on this timeout rather than eating an unbounded budget).
-    timeout-minutes: 130
+    # With the queue-wedge fix in place (APPIUM_COMMAND_TIMEOUT raised to
+    # 30s, warm-up recovery recreating the session instead of swallowing
+    # timeouts silently) each test now takes ~30-60s in healthy state.
+    # 100 tests × 60s average = ~100 min, plus session creation (20s sleep
+    # × potentially 2-3 recreates), emulator startup overhead, and backend
+    # health checks. 180 gives every shard genuine headroom for the full
+    # ~100-test run without the job clock becoming the constraint. A truly
+    # stuck shard (wedged command) still burns through its per-command 30s
+    # budget and fails within a few minutes rather than hanging silently.
+    timeout-minutes: 180
     strategy:
       fail-fast: false
       matrix:

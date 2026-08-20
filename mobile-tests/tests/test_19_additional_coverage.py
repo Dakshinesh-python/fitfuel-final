@@ -19,13 +19,25 @@ from page_objects.health_assessment_pages import (
 from page_objects.meal_plan_pages import WeeklyMealPlanPage
 from page_objects.onboarding_page import OnboardingPage
 from page_objects.profile_page import ProfilePage
+from utils import adb_helpers
 
 
 class TestOnboardingSlideProgression:
     @pytest.fixture
     def fresh_onboarding(self, driver):
+        """Guarantees the onboarding screen is shown by force-clearing
+        the app's local storage and relaunching. Required because shard 3
+        runs test_01_authentication and test_09_chat before this module,
+        both of which register+log in and leave the app on the dashboard --
+        a plain is_loaded() assert would always fail in that state."""
+        import config
+        adb_helpers.clear_app_data()
+        driver.activate_app(config.APP_PACKAGE)
         onboarding = OnboardingPage(driver)
-        assert onboarding.is_loaded(timeout=10)
+        assert onboarding.is_loaded(timeout=15), (
+            "Onboarding did not appear after clearing app data -- "
+            "possible emulator or Appium session issue"
+        )
         return onboarding
 
     @pytest.mark.registration
