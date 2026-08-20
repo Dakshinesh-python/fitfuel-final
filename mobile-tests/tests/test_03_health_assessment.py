@@ -248,7 +248,7 @@ class TestPreferencesStep:
         # versions) -- verifies it does not crash the screen.
         on_prefs_screen.tap_key(on_prefs_screen.ADD_OTHER_BUTTON)
         assert on_prefs_screen.is_loaded(timeout=5)
-        driver.back()  # dismiss dialog if shown
+        on_prefs_screen.back()  # dismiss dialog if shown
 
     @pytest.mark.health_assessment
     def test_skip_preferences_step(self, driver, on_prefs_screen):

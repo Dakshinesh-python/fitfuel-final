@@ -29,7 +29,7 @@ def register_new_account(driver, account: dict) -> None:
     from page_objects.dashboard_page import DashboardPage
 
     # If already logged in and on the dashboard, nothing to do.
-    if DashboardPage(driver).is_loaded(timeout=5):
+    if DashboardPage(driver).is_loaded(timeout=8):
         return
 
     onboarding = OnboardingPage(driver)
@@ -46,7 +46,28 @@ def register_new_account(driver, account: dict) -> None:
     # test_02_registration.py go through this fixture. Register is reached
     # via the "go to register" link on the Login screen instead.
     login = LoginPage(driver)
-    assert login.is_loaded(timeout=10), "Expected to land on the login screen after onboarding"
+    if not login.is_loaded(timeout=10):
+        # Neither dashboard, onboarding, nor login -- e.g. logged in but
+        # on a different shell tab than Dashboard (the dashboard-marker
+        # check above only matches the Dashboard tab specifically, not
+        # "authenticated"), or some other ambiguous leftover state from
+        # a prior test/session-recreate. This was the single largest
+        # cluster of CI failures after the off-screen-tap and
+        # on_dashboard fixes (15 failures cascading through every module
+        # that depends on this shared helper). force-clear local storage
+        # to guarantee a known onboarding/login entry point rather than
+        # asserting failure on an unrecognized screen.
+        from utils import adb_helpers
+        import config
+
+        adb_helpers.clear_app_data()
+        driver.activate_app(config.APP_PACKAGE)
+        if onboarding.wait_for_key(onboarding.SKIP_BUTTON, timeout=15):
+            onboarding.skip()
+        assert login.is_loaded(timeout=15), (
+            "Expected to land on the login screen after onboarding, even after "
+            "force-clearing app data"
+        )
     login.go_to_register()
 
     register = RegisterPage(driver)
@@ -114,7 +135,12 @@ def login(driver, email: str, password: str) -> None:
 def force_logged_out_state(driver) -> None:
     """Used by tests that need a guaranteed clean slate (e.g. session
     tests) rather than a `logout()` UI flow that assumes the app is
-    already reachable and authenticated."""
+    already reachable and authenticated. Leaves the app on the Login
+    screen -- callers previously had to skip onboarding themselves after
+    calling this (two call sites in CI didn't, and both failed
+    consistently: adb_helpers.clear_app_data() wipes local storage
+    entirely, so a fresh launch always shows onboarding first, never
+    login directly, the same as any other first-ever launch)."""
     adb_helpers.clear_app_data()
     adb_helpers.force_stop_app()
     import subprocess
@@ -133,3 +159,6 @@ def force_logged_out_state(driver) -> None:
         capture_output=True,
         timeout=15,
     )
+    onboarding = OnboardingPage(driver)
+    if onboarding.wait_for_key(onboarding.SKIP_BUTTON, timeout=15):
+        onboarding.skip()

@@ -70,7 +70,7 @@ class TestHealthTab:
         from page_objects.health_assessment_pages import HealthWeightPage
 
         assert HealthWeightPage(driver).is_loaded(timeout=15)
-        driver.back()  # return app to profile for subsequent tests
+        on_profile.back()  # return app to profile for subsequent tests
 
 
 class TestPreferencesTab:

@@ -92,8 +92,9 @@ class TestDeviceBackButton:
     @pytest.mark.navigation
     def test_back_button_from_recommendations_does_not_exit_app(self, driver, on_dashboard):
         on_dashboard.nav_to_meals()
-        assert RecommendationsPage(driver).is_loaded(timeout=15)
-        driver.back()
+        recommendations = RecommendationsPage(driver)
+        assert recommendations.is_loaded(timeout=15)
+        recommendations.back()
         # Bottom-nav tabs use Navigator.pushNamed (not pushReplacementNamed
         # in most cases) so back may return to dashboard OR stay put --
         # what matters is the app is still alive on a known shell screen.
@@ -116,6 +117,20 @@ class TestDeviceBackButton:
             login = LoginPage(driver)
             if login.is_loaded(timeout=4):
                 login.go_to_register()
+        if not register.is_loaded(timeout=5):
+            # Already logged in from an earlier module in this shard --
+            # see test_00_ui_chrome.py's test_auth_screen_has_no_bottom_nav
+            # for the full explanation of why this fallback is needed.
+            import config
+            from utils import adb_helpers
+
+            adb_helpers.clear_app_data()
+            driver.activate_app(config.APP_PACKAGE)
+            if onboarding.wait_for_key(onboarding.SKIP_BUTTON, timeout=15):
+                onboarding.skip()
+            login = LoginPage(driver)
+            if login.is_loaded(timeout=10):
+                login.go_to_register()
         assert register.is_loaded(timeout=10)
         register.fill_form(
             name="Back Button Test",
@@ -128,7 +143,7 @@ class TestDeviceBackButton:
         register.submit()
         weight = HealthWeightPage(driver)
         assert weight.is_loaded(timeout=15)
-        driver.back()
+        weight.back()
         # Must not crash; either returns to register or stays on weight screen.
         alive = weight.is_loaded(timeout=3) or register.is_loaded(timeout=5)
         assert alive

@@ -458,14 +458,59 @@ def logged_in_session(driver, primary_test_account):
 def on_dashboard(driver, logged_in_session):
     """Function-scoped convenience fixture: guarantees the test starts
     on the dashboard tab regardless of where the previous test in the
-    session left the app (bottom nav is always reachable from any of the
-    5 shell screens, so a single tap recovers from anywhere)."""
+    session left the app.
+
+    Two distinct "not on dashboard" cases, handled differently (found by
+    root-causing the single largest cluster of CI failures -- 157 of 229
+    -- which all traced back to this fixture's old, single-branch
+    recovery):
+      1. On a *different* shell screen (nav bar exists, just not on the
+         home tab) -- a single nav_to_home() tap recovers, as before.
+      2. Logged out entirely, with no nav bar at all -- e.g.
+         test_02_registration.py's happy-path test explicitly calls
+         session_helpers.logout() on its own throwaway account. That
+         clears the app's one stored session token regardless of which
+         account was logged in, so with noReset:False every later
+         `_restart_app_between_tests` relaunch lands back on the login
+         screen instead of auto-resuming to dashboard -- for the rest of
+         the shard, not just that one test. The old code assumed case 1
+         unconditionally and tapped nav_tab_home blindly; with no nav
+         bar to tap, that just timed out and cascaded into every test
+         that depended on this fixture afterwards. Check the nav bar
+         actually exists before assuming a tap will work; if it doesn't,
+         log the already-registered primary_test_account back in
+         instead.
+    """
     from page_objects.dashboard_page import DashboardPage
+    from page_objects.onboarding_page import OnboardingPage
+    from page_objects.auth_pages import LoginPage
+    from utils import adb_helpers, session_helpers
 
     dashboard = DashboardPage(driver)
-    if not dashboard.is_loaded(timeout=3):
+    if dashboard.is_loaded(timeout=8):
+        return dashboard
+
+    if dashboard.wait_for_key(dashboard.NAV_HOME, timeout=5):
         dashboard.nav_to_home()
         assert dashboard.is_loaded(timeout=10)
+        return dashboard
+
+    # No nav bar at all -- get to a known login entry point, then log
+    # the already-registered account back in rather than re-registering.
+    onboarding = OnboardingPage(driver)
+    if onboarding.wait_for_key(onboarding.SKIP_BUTTON, timeout=4):
+        onboarding.skip()
+    login = LoginPage(driver)
+    if not login.is_loaded(timeout=5):
+        adb_helpers.clear_app_data()
+        driver.activate_app(config.APP_PACKAGE)
+        time.sleep(5)
+        if onboarding.wait_for_key(onboarding.SKIP_BUTTON, timeout=10):
+            onboarding.skip()
+    session_helpers.login(
+        driver, logged_in_session["email"], logged_in_session["password"]
+    )
+    assert dashboard.is_loaded(timeout=15)
     return dashboard
 
 

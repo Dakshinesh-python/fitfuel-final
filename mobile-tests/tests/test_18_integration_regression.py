@@ -105,6 +105,19 @@ class TestHealthAssessmentAffectsRecommendations:
         if not register.is_loaded(timeout=5):
             if LoginPage(driver).is_loaded(timeout=4):
                 LoginPage(driver).go_to_register()
+        if not register.is_loaded(timeout=5):
+            # Already logged in from an earlier module in this shard --
+            # see test_00_ui_chrome.py's test_auth_screen_has_no_bottom_nav
+            # for the full explanation of why this fallback is needed.
+            import config
+            from utils import adb_helpers
+
+            adb_helpers.clear_app_data()
+            driver.activate_app(config.APP_PACKAGE)
+            if onboarding.wait_for_key(onboarding.SKIP_BUTTON, timeout=15):
+                onboarding.skip()
+            if LoginPage(driver).is_loaded(timeout=10):
+                LoginPage(driver).go_to_register()
         assert register.is_loaded(timeout=10)
         register.fill_form(**account)
         register.submit()

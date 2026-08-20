@@ -4,11 +4,40 @@ whitespace handling, and decimal precision on numeric fields not already
 covered by test_02/test_03/test_08."""
 import pytest
 
+import config
 from page_objects.auth_pages import LoginPage, RegisterPage
 from page_objects.dashboard_page import DashboardPage
 from page_objects.health_assessment_pages import HealthWeightPage
 from page_objects.onboarding_page import OnboardingPage
-from utils import session_helpers
+from utils import adb_helpers, session_helpers
+
+
+def _reach_register_screen(driver) -> RegisterPage:
+    """Shared by every test below that needs to start fresh on Register
+    without going through register_new_account()'s full flow. Handles
+    the "already logged in from an earlier module in this shard" case
+    that the original 4 near-identical copies of this snippet in this
+    file did not -- each just asserted register.is_loaded() outright
+    and failed if the app had auto-resumed to dashboard instead of
+    onboarding/login, which was a real, confirmed CI failure cluster."""
+    onboarding = OnboardingPage(driver)
+    if onboarding.wait_for_key(onboarding.SKIP_BUTTON, timeout=4):
+        onboarding.skip()
+    register = RegisterPage(driver)
+    if not register.is_loaded(timeout=5):
+        login = LoginPage(driver)
+        if login.is_loaded(timeout=4):
+            login.go_to_register()
+    if not register.is_loaded(timeout=5):
+        adb_helpers.clear_app_data()
+        driver.activate_app(config.APP_PACKAGE)
+        if onboarding.wait_for_key(onboarding.SKIP_BUTTON, timeout=15):
+            onboarding.skip()
+        login = LoginPage(driver)
+        if login.is_loaded(timeout=10):
+            login.go_to_register()
+    assert register.is_loaded(timeout=10)
+    return register
 
 
 class TestEmailCaseAndWhitespace:
@@ -36,15 +65,7 @@ class TestEmailCaseAndWhitespace:
 
     @pytest.mark.validation
     def test_register_email_with_trailing_whitespace(self, driver, unique_email_factory):
-        onboarding = OnboardingPage(driver)
-        if onboarding.wait_for_key(onboarding.SKIP_BUTTON, timeout=4):
-            onboarding.skip()
-        register = RegisterPage(driver)
-        if not register.is_loaded(timeout=5):
-            login = LoginPage(driver)
-            if login.is_loaded(timeout=4):
-                login.go_to_register()
-        assert register.is_loaded(timeout=10)
+        register = _reach_register_screen(driver)
         register.fill_form(
             name="Whitespace Email Test",
             email=unique_email_factory("wsemail") + "   ",
@@ -77,15 +98,7 @@ class TestDecimalPrecisionBoundaries:
         ],
     )
     def test_registration_numeric_precision(self, driver, unique_email_factory, height_cm, weight_kg, case_id):
-        onboarding = OnboardingPage(driver)
-        if onboarding.wait_for_key(onboarding.SKIP_BUTTON, timeout=4):
-            onboarding.skip()
-        register = RegisterPage(driver)
-        if not register.is_loaded(timeout=5):
-            login = LoginPage(driver)
-            if login.is_loaded(timeout=4):
-                login.go_to_register()
-        assert register.is_loaded(timeout=10)
+        register = _reach_register_screen(driver)
         register.fill_form(
             name="Decimal Precision Test",
             email=unique_email_factory(f"decimal-{case_id}"),
@@ -103,15 +116,7 @@ class TestDecimalPrecisionBoundaries:
 class TestFieldLengthLimits:
     @pytest.mark.validation
     def test_register_name_single_character(self, driver, unique_email_factory):
-        onboarding = OnboardingPage(driver)
-        if onboarding.wait_for_key(onboarding.SKIP_BUTTON, timeout=4):
-            onboarding.skip()
-        register = RegisterPage(driver)
-        if not register.is_loaded(timeout=5):
-            login = LoginPage(driver)
-            if login.is_loaded(timeout=4):
-                login.go_to_register()
-        assert register.is_loaded(timeout=10)
+        register = _reach_register_screen(driver)
         register.fill_form(
             name="A",
             email=unique_email_factory("shortname"),
@@ -130,15 +135,7 @@ class TestFieldLengthLimits:
         # Backend/UI minimum is 6 characters (verified in
         # register_screen.dart's validator) -- this checks the boundary
         # itself rather than a value comfortably above or below it.
-        onboarding = OnboardingPage(driver)
-        if onboarding.wait_for_key(onboarding.SKIP_BUTTON, timeout=4):
-            onboarding.skip()
-        register = RegisterPage(driver)
-        if not register.is_loaded(timeout=5):
-            login = LoginPage(driver)
-            if login.is_loaded(timeout=4):
-                login.go_to_register()
-        assert register.is_loaded(timeout=10)
+        register = _reach_register_screen(driver)
         register.fill_form(
             name="Boundary Password Test",
             email=unique_email_factory("pwboundary"),

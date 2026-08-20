@@ -70,6 +70,17 @@ def set_network_online() -> None:
     time.sleep(2)  # give the emulator's virtual radio a moment to reconnect
 
 
+def press_back() -> None:
+    """Replacement for the standard WebDriver back command
+    (`driver.back()` / `Command.GO_BACK`), which appium-flutter-driver
+    does not implement at all: it raises `UnknownMethodException:
+    Method has not yet been implemented` (NotYetImplementedError)
+    server-side every time, confirmed against real CI logs. Same class
+    of gap as background_app/set_network_connection/scroll below --
+    driven directly via `adb shell input keyevent` instead."""
+    _adb("input", "keyevent", "KEYCODE_BACK")
+
+
 def swipe(x1: int, y1: int, x2: int, y2: int, duration_ms: int = 200) -> None:
     """Replacement for execute_script('mobile: scrollGesture', ...), which
     returns HTTP 500 on appium-flutter-driver (see final_year.md item 10,

@@ -67,7 +67,7 @@ class TestRecommendationCardInteractions:
         # Flutter widget tree; flutter-driver can't inspect that surface,
         # so we return via the device back button and confirm the app is
         # still alive rather than asserting on the external UI.
-        driver.back()
+        on_recommendations.back()
         assert on_recommendations.is_loaded(timeout=10) or True  # app must not have crashed
 
 

@@ -206,7 +206,7 @@ class TestLogout:
         assert DashboardPage(driver).is_loaded(timeout=15)
 
     @pytest.mark.auth
-    def test_logout_clears_session_so_relaunch_requires_login(self, driver, logged_in_session):
+    def test_logout_clears_session_so_relaunch_requires_login(self, driver, logged_in_session, on_dashboard):
         from utils import adb_helpers
 
         session_helpers.logout(driver)

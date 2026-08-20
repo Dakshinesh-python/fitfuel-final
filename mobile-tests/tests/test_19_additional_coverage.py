@@ -76,12 +76,26 @@ class TestSelectionSwitchingBeforeConfirm:
 
     @pytest.fixture
     def to_activity_screen(self, driver, unique_email_factory):
+        import config
+
         onboarding = OnboardingPage(driver)
         if onboarding.wait_for_key(onboarding.SKIP_BUTTON, timeout=4):
             onboarding.skip()
         register = RegisterPage(driver)
         if not register.is_loaded(timeout=5):
             if LoginPage(driver).is_loaded(timeout=4):
+                LoginPage(driver).go_to_register()
+        if not register.is_loaded(timeout=5):
+            # Neither onboarding, login, nor register -- already logged
+            # in and auto-resumed to dashboard (same "shard 3 leaves the
+            # app logged in" issue TestOnboardingSlideProgression's
+            # fresh_onboarding fixture above already documents and
+            # handles; this fixture just didn't have the same fallback).
+            adb_helpers.clear_app_data()
+            driver.activate_app(config.APP_PACKAGE)
+            if onboarding.wait_for_key(onboarding.SKIP_BUTTON, timeout=10):
+                onboarding.skip()
+            if LoginPage(driver).is_loaded(timeout=10):
                 LoginPage(driver).go_to_register()
         assert register.is_loaded(timeout=10)
         register.fill_form(
@@ -140,12 +154,23 @@ class TestSelectionSwitchingBeforeConfirm:
 class TestRegisterGenderSwitching:
     @pytest.mark.registration
     def test_switching_gender_before_submit_uses_latest_selection(self, driver, unique_email_factory):
+        import config
+
         onboarding = OnboardingPage(driver)
         if onboarding.wait_for_key(onboarding.SKIP_BUTTON, timeout=4):
             onboarding.skip()
         register = RegisterPage(driver)
         if not register.is_loaded(timeout=5):
             if LoginPage(driver).is_loaded(timeout=4):
+                LoginPage(driver).go_to_register()
+        if not register.is_loaded(timeout=5):
+            # See to_activity_screen fixture above for why this fallback
+            # is needed: already logged in and auto-resumed to dashboard.
+            adb_helpers.clear_app_data()
+            driver.activate_app(config.APP_PACKAGE)
+            if onboarding.wait_for_key(onboarding.SKIP_BUTTON, timeout=10):
+                onboarding.skip()
+            if LoginPage(driver).is_loaded(timeout=10):
                 LoginPage(driver).go_to_register()
         assert register.is_loaded(timeout=10)
         register.fill_form(

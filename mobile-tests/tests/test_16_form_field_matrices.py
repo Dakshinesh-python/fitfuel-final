@@ -12,6 +12,8 @@ from page_objects.auth_pages import LoginPage, RegisterPage
 from page_objects.health_assessment_pages import HealthWeightPage
 from page_objects.onboarding_page import OnboardingPage
 from page_objects.progress_page import ProgressPage
+from utils import adb_helpers
+import config
 
 EDGE_CASE_VALUES = {
     "empty": "",
@@ -65,6 +67,25 @@ def on_register_screen(driver):
     if not register.is_loaded(timeout=5):
         login = LoginPage(driver)
         if login.is_loaded(timeout=4):
+            login.go_to_register()
+    if not register.is_loaded(timeout=5):
+        # Neither onboarding, login, nor register -- most likely already
+        # logged in and auto-resumed straight to dashboard, since
+        # earlier modules in this shard (test_03/07/08) don't log out
+        # and noReset:False persists the session across
+        # _restart_app_between_tests relaunches. This fixture's original
+        # version had no fallback for that case at all and just failed
+        # outright here -- confirmed as the cause of every single test
+        # in this module failing in CI. clear_app_data forces a known
+        # onboarding/login entry point regardless of what state the app
+        # was actually in, same as test_02_registration.py's
+        # on_register_screen fixture already does.
+        adb_helpers.clear_app_data()
+        driver.activate_app(config.APP_PACKAGE)
+        if onboarding.wait_for_key(onboarding.SKIP_BUTTON, timeout=10):
+            onboarding.skip()
+        login = LoginPage(driver)
+        if login.is_loaded(timeout=10):
             login.go_to_register()
     assert register.is_loaded(timeout=10)
     return register

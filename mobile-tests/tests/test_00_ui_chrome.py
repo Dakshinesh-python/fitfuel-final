@@ -101,7 +101,7 @@ class TestShellScreensChrome:
                 "profile": on_dashboard.nav_to_profile,
             }[screen_name]
             nav_method()
-        driver.back()
+        on_dashboard.back()
         # Any of the 5 shell screens or dashboard itself is an acceptable
         # landing spot -- what matters is the app is still alive.
         alive = any(PC(driver).is_loaded(timeout=3) for _, PC in SHELL_SCREENS_WITH_NAV)
@@ -120,6 +120,30 @@ class TestNonShellScreensChrome:
             reg = RegisterPage(driver)
             if reg.is_loaded(timeout=4):
                 reg.go_to_login()
+        elif screen_name == "register":
+            login = LoginPage(driver)
+            if login.is_loaded(timeout=4):
+                login.go_to_register()
+        if not page.is_loaded(timeout=5):
+            # Neither onboarding nor the expected auth screen -- most
+            # likely already logged in from an earlier test/module in
+            # this shard and auto-resumed to dashboard. Force a clean
+            # slate rather than asserting failure outright (this was the
+            # single largest remaining CI failure cluster after the
+            # off-screen-tap and on_dashboard fixes: 40 failures across
+            # 6 modules, all the same "no fallback for already
+            # logged in" gap).
+            import config
+            from utils import adb_helpers
+
+            adb_helpers.clear_app_data()
+            driver.activate_app(config.APP_PACKAGE)
+            if onboarding.wait_for_key(onboarding.SKIP_BUTTON, timeout=15):
+                onboarding.skip()
+            if screen_name == "register":
+                login = LoginPage(driver)
+                if login.is_loaded(timeout=10):
+                    login.go_to_register()
         assert page.is_loaded(timeout=10), f"{screen_name} did not load"
         assert not page.wait_for_key("nav_tab_home", timeout=3), (
             f"{screen_name} unexpectedly shows the bottom nav (should be auth-flow only)"
@@ -143,6 +167,20 @@ class TestHealthAssessmentFlowChrome:
         if not register.is_loaded(timeout=5):
             login = LoginPage(driver)
             if login.is_loaded(timeout=4):
+                login.go_to_register()
+        if not register.is_loaded(timeout=5):
+            # Already logged in from an earlier module in this shard --
+            # see test_auth_screen_has_no_bottom_nav above for the full
+            # explanation of why this fallback is needed.
+            import config
+            from utils import adb_helpers
+
+            adb_helpers.clear_app_data()
+            driver.activate_app(config.APP_PACKAGE)
+            if onboarding.wait_for_key(onboarding.SKIP_BUTTON, timeout=15):
+                onboarding.skip()
+            login = LoginPage(driver)
+            if login.is_loaded(timeout=10):
                 login.go_to_register()
         assert register.is_loaded(timeout=10)
         register.fill_form(

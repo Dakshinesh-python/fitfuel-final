@@ -328,7 +328,13 @@ class BasePage:
         el = self._element(self.by_key(value_key))
         with self._recovering():
             el.clear()
-            el.send_keys(value)
+            # send_keys("") crashes appium-flutter-driver server-side
+            # ("Reduce of empty array with no initial value" -- confirmed
+            # against real CI logs) rather than being a no-op. clear()
+            # above already leaves the field empty, so there's nothing
+            # left to send for an empty value.
+            if value:
+                el.send_keys(value)
 
     def text_of_key(self, value_key: str, timeout: float = None) -> str:
         """The one legitimate use of .text -- only ever call this on a
@@ -347,5 +353,11 @@ class BasePage:
         adb_helpers.scroll_up()
 
     def back(self) -> None:
-        with self._recovering():
-            self.driver.back()
+        # The standard WebDriver back command isn't implemented by
+        # appium-flutter-driver at all (confirmed against CI logs:
+        # UnknownMethodException / NotYetImplementedError every time),
+        # unlike tap/scroll which at least attempt something -- so this
+        # goes through adb, same as the other genuinely-unsupported
+        # commands in adb_helpers.py.
+        from utils import adb_helpers
+        adb_helpers.press_back()
