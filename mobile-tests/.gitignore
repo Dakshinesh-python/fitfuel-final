@@ -20,3 +20,4 @@ mobile/.dart_tool/
 mobile-tests/reports/*
 !mobile-tests/reports/logs/.gitkeep
 !mobile-tests/reports/screenshots/.gitkeep
+*__pycache__

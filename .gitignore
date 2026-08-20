@@ -12,3 +12,5 @@ mobile/.dart_tool/
 .idea/
 
 github ci run reports
+mobile-tests/reports
+mobile-tests/__pycache__

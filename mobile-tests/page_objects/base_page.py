@@ -233,6 +233,51 @@ class BasePage:
     def wait_for_key(self, value_key: str, timeout: float = None) -> bool:
         return self.is_displayed(self.by_key(value_key), timeout)
 
+    def _scroll_into_view(self, element_finder, timeout_ms: int = 8000) -> None:
+        """Best-effort: bring the target fully into the visible viewport
+        before tapping it.
+
+        THE REAL ROOT CAUSE OF THE "login_register_link WEDGE" (see the
+        file docstring above and mobile-tests/README.md): it was never
+        the Android accessibility service. `flutter:waitFor` only checks
+        tree membership, not on-screen visibility, so `wait_for_key()`
+        happily reports success for a widget that is laid out below the
+        fold inside a `SingleChildScrollView` -- confirmed directly
+        against this app's actual login/register screens, both of which
+        put their footer link (and, on the longer register form, the
+        submit button too) below the fold on a stock Pixel_6 AVD. Tapping
+        such a widget via plain `.click()` sends `flutter:tap` with no
+        timeout of its own (unlike `flutter:waitFor`, which always
+        carries an explicit one), so the command just never resolves --
+        that's the actual mechanism behind the command-queue wedge this
+        file otherwise recovers from reactively. Enabling TalkBack (what
+        CI was missing) never touched this: appium-flutter-driver's
+        `key`/`text` finders resolve against the Flutter widget tree via
+        the Dart VM service, not Android's accessibility tree, so that
+        fix was solving a different, non-existent problem for these
+        commands specifically.
+
+        `flutter:scrollIntoView` uses Flutter's own
+        `Scrollable.ensureVisible()` under the hood, which is a genuine
+        no-op when the target is already on-screen (verified: ~0.1s for
+        an already-visible field, same as for one that needed scrolling)
+        and carries its own bounded timeout -- so it's safe to call
+        unconditionally before every tap rather than only at known
+        below-the-fold call sites. Widgets with no `Scrollable` ancestor
+        (e.g. bottom-nav items) make the Dart side raise; that just means
+        there's nothing to scroll, so swallow and proceed to the tap as
+        before.
+        """
+        with self._recovering():
+            try:
+                self.driver.execute_script(
+                    "flutter:scrollIntoView",
+                    element_finder,
+                    {"alignment": 0.5, "timeout": timeout_ms},
+                )
+            except WebDriverException:
+                pass
+
     def wait_for_text(self, text: str, timeout: float = None) -> bool:
         return self.is_displayed(self.by_text(text), timeout)
 
@@ -263,6 +308,7 @@ class BasePage:
         # resulting timeout propagated straight out of every test that
         # happened to run after the wedge instead of triggering recovery.
         # `_recovering()` below closes that gap.
+        self._scroll_into_view(self.by_key(value_key))
         with self._recovering():
             self._element(self.by_key(value_key)).click()
 
@@ -271,6 +317,7 @@ class BasePage:
             f"Text '{text}' never became visible within "
             f"{timeout or config.DEFAULT_WAIT_SECONDS}s"
         )
+        self._scroll_into_view(self.by_text(text))
         with self._recovering():
             self._element(self.by_text(text)).click()
 

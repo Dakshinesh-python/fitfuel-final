@@ -52,7 +52,11 @@ APK_PATH = os.environ.get(
     ),
 )
 
-PLATFORM_VERSION = os.environ.get("PLATFORM_VERSION", "13")
+# Leave PLATFORM_VERSION empty to let Appium auto-detect the connected emulator's
+# Android version. Hardcoding a version works locally but fails in CI where the
+# API level differs, producing "Unable to find an active device or emulator with
+# OS XX" errors. Auto-detection removes this mismatch entirely.
+PLATFORM_VERSION = os.environ.get("PLATFORM_VERSION", "")
 DEVICE_NAME = os.environ.get("DEVICE_NAME", "Android Emulator")
 AVD_NAME = os.environ.get("AVD_NAME", "test")
 

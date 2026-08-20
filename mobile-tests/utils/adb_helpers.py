@@ -18,10 +18,17 @@ import config
 
 
 def _adb(*args: str, timeout: int = 15) -> subprocess.CompletedProcess:
+    # encoding/errors explicit: logcat and shell output can contain bytes
+    # that aren't valid in Windows' default cp1252 console encoding (e.g.
+    # UTF-8 test data like accented names, or raw device log content),
+    # which raised UnicodeDecodeError deep in subprocess's reader thread
+    # and cascaded into ERROR results for every test that followed.
     return subprocess.run(
         ["adb", "shell", *args],
         capture_output=True,
         text=True,
+        encoding="utf-8",
+        errors="replace",
         timeout=timeout,
     )
 
@@ -111,7 +118,12 @@ def pull_logcat(dest_path: str, since_marker: str | None = None) -> None:
     if since_marker:
         args += ["-T", since_marker]
     result = subprocess.run(
-        ["adb", *args], capture_output=True, text=True, timeout=20
+        ["adb", *args],
+        capture_output=True,
+        text=True,
+        encoding="utf-8",
+        errors="replace",
+        timeout=20,
     )
     with open(dest_path, "w", encoding="utf-8") as f:
         f.write(result.stdout)
@@ -124,6 +136,8 @@ def logcat_time_marker() -> str:
         ["adb", "shell", "date", "+'%m-%d %H:%M:%S.000'"],
         capture_output=True,
         text=True,
+        encoding="utf-8",
+        errors="replace",
         timeout=10,
     )
     return result.stdout.strip().strip("'")

@@ -6,8 +6,8 @@ class HealthWeightPage(BasePage):
     TARGET_WEIGHT_FIELD = "health_target_weight_field"
     CONTINUE_BUTTON = "health_weight_continue_button"
 
-    def is_loaded(self) -> bool:
-        return self.is_on_screen("health-weight")
+    def is_loaded(self, timeout: float = None) -> bool:
+        return self.is_on_screen("health-weight", timeout=timeout)
 
     def set_current_weight(self, kg: str) -> None:
         self.enter_text_by_key(self.CURRENT_WEIGHT_FIELD, kg)
@@ -30,8 +30,8 @@ class HealthActivityPage(BasePage):
         "VERY_ACTIVE": "health_activity_option_VERY_ACTIVE",
     }
 
-    def is_loaded(self) -> bool:
-        return self.is_on_screen("health-activity")
+    def is_loaded(self, timeout: float = None) -> bool:
+        return self.is_on_screen("health-activity", timeout=timeout)
 
     def select(self, level: str) -> None:
         self.tap_key(self.OPTIONS[level])
@@ -53,8 +53,8 @@ class HealthGoalsPage(BasePage):
         "MAINTENANCE": "health_goal_option_MAINTENANCE",
     }
 
-    def is_loaded(self) -> bool:
-        return self.is_on_screen("health-goals")
+    def is_loaded(self, timeout: float = None) -> bool:
+        return self.is_on_screen("health-goals", timeout=timeout)
 
     def select(self, goal: str) -> None:
         self.tap_key(self.OPTIONS[goal])
@@ -86,8 +86,8 @@ class HealthPrefsPage(BasePage):
         "Shellfish": "health_allergy_chip_Shellfish",
     }
 
-    def is_loaded(self) -> bool:
-        return self.is_on_screen("health-prefs")
+    def is_loaded(self, timeout: float = None) -> bool:
+        return self.is_on_screen("health-prefs", timeout=timeout)
 
     def select_diet(self, diet: str) -> None:
         self.tap_key(self.DIET_OPTIONS[diet])
@@ -111,8 +111,8 @@ class HealthPrefsPage(BasePage):
 class PlanReadyPage(BasePage):
     CONTINUE_BUTTON = "plan_ready_continue_button"
 
-    def is_loaded(self) -> bool:
-        return self.is_on_screen("plan-ready")
+    def is_loaded(self, timeout: float = None) -> bool:
+        return self.is_on_screen("plan-ready", timeout=timeout)
 
     def continue_to_dashboard(self) -> None:
         self.tap_key(self.CONTINUE_BUTTON)

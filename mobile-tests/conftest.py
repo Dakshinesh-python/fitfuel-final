@@ -155,7 +155,8 @@ class ResilientDriver:
         options.set_capability("appium:newCommandTimeout", 300)
         options.set_capability("appium:autoGrantPermissions", True)
         options.set_capability("appium:noReset", False)
-        options.set_capability("appium:platformVersion", config.PLATFORM_VERSION)
+        if config.PLATFORM_VERSION:  # empty = auto-detect (don't send cap at all)
+            options.set_capability("appium:platformVersion", config.PLATFORM_VERSION)
         # Gives Appium's own session-creation-time wait for the Flutter Driver
         # extension to become responsive more headroom (was previously unset,
         # falling back to appium-flutter-driver's default, which is tighter
