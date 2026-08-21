@@ -54,18 +54,27 @@ def _ensure_on_login_screen(driver) -> None:
 
 
 @pytest.fixture(scope="module")
-def registered_account(driver, primary_test_account):
+def registered_account(driver, logged_in_session):
     """Ensures `primary_test_account` exists in the backend before any
     login test in this module runs, without depending on
     test_02_registration.py's execution order (registration is a
-    separate, independently-tested concern)."""
-    dashboard = DashboardPage(driver)
-    if not dashboard.is_loaded(timeout=4):
-        session_helpers.register_new_account(driver, primary_test_account)
-        session_helpers.logout(driver)
-    else:
-        session_helpers.logout(driver)
-    return primary_test_account
+    separate, independently-tested concern).
+
+    Depends on the shared, session-scoped `logged_in_session` fixture
+    rather than re-implementing its own "is this already registered"
+    check -- this fixture previously used `dashboard.is_loaded(timeout=4)`
+    to decide whether to call register_new_account(), which is both too
+    narrow (authenticated but on some other screen right after an
+    app-relaunch reads as "not registered yet") and redundant with
+    logged_in_session's own, more robust registration-or-reuse logic.
+    When some other module in the same shard used logged_in_session
+    first (registering primary_test_account), this fixture's own check
+    could still miss it and call register_new_account() a second time
+    with the same email -- confirmed in CI as a real "Email already
+    registered" backend rejection, not a flake, cascading through every
+    test in this module since the fixture is module-scoped."""
+    session_helpers.logout(driver)
+    return logged_in_session
 
 
 class TestOnboardingReachesLogin:

@@ -195,9 +195,25 @@ class TestProgressLogFieldMatrix:
 
     @pytest.fixture
     def on_log_sheet(self, driver, on_dashboard):
+        # This class runs right after TestProfileNameFieldMatrix, whose
+        # last few cases (very_long/unicode names) are exactly the sort
+        # of thing that pushes on_dashboard into its clear_app_data
+        # recovery branch. clear_app_data (pm clear) wipes the app's
+        # on-disk Skia GPU-program cache along with everything else --
+        # confirmed elsewhere in this codebase as the cause of
+        # first-paint shader-compile jank (see conftest.py's
+        # _warm_up_shader_cache, which exists specifically to pre-pay
+        # that cost for Register). A full session recreate re-runs that
+        # warm-up; a lighter clear_app_data + relogin recovery does not,
+        # so the very next not-yet-painted screen -- Progress, the first
+        # thing this fixture navigates to -- can be slow to render for
+        # reasons that have nothing to do with the actual test. Confirmed
+        # in CI as the single largest failure cluster in this module (46
+        # consecutive failures, all at this exact assert). More headroom
+        # here rather than a timeout tuned for the already-warm case.
         on_dashboard.nav_to_progress()
         page = ProgressPage(driver)
-        assert page.is_loaded(timeout=15)
+        assert page.is_loaded(timeout=30)
         page.open_log_sheet()
         return page
 

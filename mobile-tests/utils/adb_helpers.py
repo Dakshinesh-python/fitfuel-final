@@ -100,6 +100,18 @@ def force_stop_app() -> None:
     _adb("am", "force-stop", config.APP_PACKAGE)
 
 
+def is_app_process_alive() -> bool:
+    """True if the app's process still exists, whether in the
+    foreground, backgrounded, or minimized -- unlike checking for a
+    visible Flutter screen (which requires the app to be in the
+    foreground and painting), this is the correct signal for "did the
+    app crash", since Android's standard, non-buggy behavior for a
+    device back-press on a tab with nothing left to pop is to minimize
+    the app to the home screen, not to keep it in the foreground."""
+    result = _adb("pidof", config.APP_PACKAGE)
+    return bool(result.stdout.strip())
+
+
 def clear_app_data() -> None:
     """Wipes the app's SharedPreferences (and everything else), used for
     session-management tests that need a clean logged-out state without a

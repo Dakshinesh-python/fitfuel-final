@@ -30,6 +30,7 @@ from page_objects.onboarding_page import OnboardingPage
 from page_objects.profile_page import ProfilePage
 from page_objects.progress_page import ProgressPage
 from page_objects.recommendations_page import RecommendationsPage
+from utils import adb_helpers
 
 SHELL_SCREENS_WITH_NAV = [
     ("dashboard", DashboardPage),
@@ -105,21 +106,29 @@ class TestShellScreensChrome:
         # A non-dashboard shell tab has nothing left to pop (bottom-nav
         # tabs aren't stacked on top of Dashboard), so standard Android
         # behavior for the device back button is to minimize the app to
-        # the home screen -- not a crash. Checking Flutter screens while
-        # genuinely backgrounded was confirmed in CI to be expensive
-        # (each is_displayed() call against a backgrounded app escalates
-        # through _recovering()'s session-recreate path, ~25-30s each,
-        # ~130s total for 5 checks that were never going to find
-        # anything) as well as a false negative -- bring the app back to
-        # the foreground first, same as any real user re-opening it,
-        # before judging whether it actually crashed.
-        alive = any(PC(driver).is_loaded(timeout=3) for _, PC in SHELL_SCREENS_WITH_NAV)
-        if not alive:
-            import config
+        # the home screen -- not a crash. An earlier version of this
+        # test checked for a *visible Flutter screen* as the definition
+        # of "alive", which is wrong for exactly this case (a minimized
+        # app has no visible screen by design) and also expensive to
+        # check (each is_displayed() call against a backgrounded app
+        # escalates through _recovering()'s session-recreate path).
+        # Bringing the app back to the foreground first didn't fix this
+        # either -- confirmed in CI across two attempts -- because
+        # "visible screen" was never the right signal in the first
+        # place. The actual question this test is named for ("does not
+        # crash") only needs the process to still exist, regardless of
+        # whether Android chose to background it.
+        assert adb_helpers.is_app_process_alive(), (
+            f"App process died after back button from {screen_name}"
+        )
+        # Bring it back to the foreground so later tests in this session
+        # don't inherit a backgrounded app.
+        import config
 
-            driver.activate_app(config.APP_PACKAGE)
-            alive = any(PC(driver).is_loaded(timeout=10) for _, PC in SHELL_SCREENS_WITH_NAV)
-        assert alive, f"App became unresponsive after back button from {screen_name}"
+        driver.activate_app(config.APP_PACKAGE)
+        assert any(PC(driver).is_loaded(timeout=10) for _, PC in SHELL_SCREENS_WITH_NAV), (
+            f"App did not return to a known shell screen after back button from {screen_name}"
+        )
 
 
 class TestNonShellScreensChrome:
@@ -169,6 +178,29 @@ class TestHealthAssessmentFlowChrome:
     absence of bottom nav + presence of expected primary control) at
     every step, using a single registered account rather than
     re-registering per screen."""
+
+    @pytest.fixture(autouse=True)
+    def _restart_app_between_tests(self):
+        """Override conftest.py's autouse per-test app-relaunch fixture
+        for this class specifically.
+
+        This class deliberately drives one continuous flow across
+        several sequential test methods via the class-scoped
+        flow_driver_state fixture below (test_health_weight_chrome
+        submits and leaves the app on health-weight;
+        test_health_activity_chrome expects to find it still there,
+        submits its own step, and so on). The standard per-test relaunch
+        is a function-scoped autouse fixture, so pytest still runs it
+        for every one of these tests regardless of flow_driver_state's
+        wider class scope -- confirmed in CI as the cause of every test
+        in this class failing: the relaunch happens after
+        flow_driver_state reaches health-weight but before the first
+        test body's own assertions run, and since the account is
+        already authenticated (just not finished onboarding), the
+        relaunched app goes straight to Dashboard instead of resuming
+        health-weight, breaking every downstream step the same way.
+        """
+        yield
 
     @pytest.fixture(scope="class")
     def flow_driver_state(self, driver, unique_email_factory):
