@@ -54,7 +54,7 @@ def _ensure_on_login_screen(driver) -> None:
 
 
 @pytest.fixture(scope="module")
-def registered_account(driver, logged_in_session):
+def registered_account(driver, logged_in_session, on_dashboard):
     """Ensures `primary_test_account` exists in the backend before any
     login test in this module runs, without depending on
     test_02_registration.py's execution order (registration is a
@@ -72,7 +72,18 @@ def registered_account(driver, logged_in_session):
     could still miss it and call register_new_account() a second time
     with the same email -- confirmed in CI as a real "Email already
     registered" backend rejection, not a flake, cascading through every
-    test in this module since the fixture is module-scoped."""
+    test in this module since the fixture is module-scoped.
+
+    Also depends on `on_dashboard` (not just `logged_in_session`)
+    before calling logout() -- logged_in_session's own contract is
+    "the app is on the dashboard", but the autouse per-test app-relaunch
+    fixture still runs after it for this test, and logout() itself just
+    taps the profile nav tab with no check that it has actually
+    rendered yet. Confirmed in CI as a real failure once the duplicate-
+    registration bug above stopped masking it: nav_tab_profile not
+    found because the freshly-relaunched app hadn't finished rendering
+    the shell yet. on_dashboard already has the right self-healing wait
+    for this."""
     session_helpers.logout(driver)
     return logged_in_session
 

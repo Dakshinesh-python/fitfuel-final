@@ -35,7 +35,7 @@ class TestRecommendationsLoad:
 
 class TestRecommendationCardInteractions:
     @pytest.mark.recommendations
-    def test_expand_and_collapse_macro_breakdown_on_first_card(self, driver, on_recommendations):
+    def test_expand_and_collapse_macro_breakdown_on_first_card(self, driver, on_dashboard, on_recommendations):
         on_recommendations.select_meal_type("Lunch")
         # Card keys are meal-id-based and therefore dynamic -- this test
         # locates the first "Why this meal?" toggle by text rather than a
@@ -44,7 +44,27 @@ class TestRecommendationCardInteractions:
         found = on_recommendations.wait_for_text("Why this meal?", timeout=10)
         if not found:
             pytest.skip("No recommendation cards returned for Lunch in this run")
-        on_recommendations.tap_text("Why this meal?")
+        try:
+            on_recommendations.tap_text("Why this meal?")
+        except Exception:
+            # Rare in CI: a mid-tap session recreate (see
+            # base_page.py's _recovering(), triggered from inside
+            # _scroll_into_view()'s own wedge-recovery check) leaves the
+            # app back at a fresh launch instead of on this card, so the
+            # element found a moment ago no longer corresponds to
+            # anything -- confirmed by the exact symptom, an
+            # UnknownMethodException on a plain element click (a command
+            # that works everywhere else in this suite), which points at
+            # a stale session/element reference rather than a real
+            # interaction failure. Re-establish known state and give it
+            # one genuine second attempt rather than fail outright on
+            # what the recovery machinery itself caused.
+            on_dashboard.nav_to_meals()
+            on_recommendations.select_meal_type("Lunch")
+            assert on_recommendations.wait_for_text("Why this meal?", timeout=10), (
+                "No recommendation cards for Lunch after recovering from a mid-tap session reset"
+            )
+            on_recommendations.tap_text("Why this meal?")
         assert on_recommendations.is_loaded(timeout=5)
 
     @pytest.mark.recommendations

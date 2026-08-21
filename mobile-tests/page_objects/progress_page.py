@@ -14,7 +14,29 @@ class ProgressPage(NavBarMixin):
     SUBMIT_BUTTON = "progress_log_submit_button"
 
     def is_loaded(self, timeout: float = 15) -> bool:
-        return self.is_on_screen("progress", timeout=timeout)
+        # "Track your journey" (the ROUTE_TEXT_MARKERS["progress"] text)
+        # only renders after 3 parallel backend calls all succeed -- see
+        # progress_screen.dart's _buildBody(): while loading it's a bare
+        # CircularProgressIndicator (no identifying text or key at all),
+        # and on any fetch error it shows the Retry button instead,
+        # permanently, with no polling of its own. A transient backend
+        # hiccup on this screen's very first load therefore looked
+        # identical to "never navigated here at all" -- confirmed in CI
+        # as the single largest failure cluster in
+        # test_16_form_field_matrices (46 failures, all stuck here,
+        # always this account's first-ever visit to Progress). Retrying
+        # once via the app's own Retry button before giving up handles
+        # that without weakening what is_loaded() actually means (the
+        # real, interactive screen is showing) -- unlike treating the
+        # error state itself as "loaded", which isn't safe for callers
+        # that go on to interact with content (e.g. the Log button)
+        # that only exists in the success state.
+        if self.is_on_screen("progress", timeout=timeout):
+            return True
+        if self.wait_for_key(self.RETRY_BUTTON, timeout=3):
+            self.tap_key(self.RETRY_BUTTON)
+            return self.is_on_screen("progress", timeout=timeout)
+        return False
 
     def has_load_error(self, timeout: float = 5) -> bool:
         return self.wait_for_key(self.RETRY_BUTTON, timeout)

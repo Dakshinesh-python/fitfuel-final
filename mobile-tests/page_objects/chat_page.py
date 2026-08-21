@@ -16,4 +16,19 @@ class ChatPage(NavBarMixin):
         self.tap_key(f"chat_quick_reply_{index}")
 
     def has_quick_reply(self, index: int, timeout: float = 5) -> bool:
-        return self.wait_for_key(f"chat_quick_reply_{index}", timeout)
+        # The quick-reply chips render in a horizontally-scrolling list
+        # (chat_screen.dart's itemBuilder over _shownQuickReplies); a
+        # chip past the initial viewport width may not be built into
+        # the widget tree at all until scrolled into view -- confirmed
+        # in CI as the cause of index 2 (the 3rd, rightmost chip)
+        # consistently not being found by a bare existence check, while
+        # indices 0-1 always were. wait_for_key() alone never scrolls
+        # (only tap_key()/tap_text() do, via _scroll_into_view());
+        # nudge it here explicitly since this is a pure visibility
+        # check, not a tap.
+        key = f"chat_quick_reply_{index}"
+        found = self.wait_for_key(key, timeout)
+        if found:
+            return True
+        self._scroll_into_view(self.by_key(key), timeout_ms=int(timeout * 1000))
+        return self.wait_for_key(key, timeout=2)

@@ -144,6 +144,16 @@ class TestDeleteAccountAffordance:
     @pytest.mark.profile
     def test_delete_account_button_visible_in_security_tab(self, driver, on_profile):
         on_profile.open_tab("Security")
+        # The delete-account button sits in a "Danger Zone" card near
+        # the bottom of the Security tab's content, below the change-
+        # password form -- confirmed as the cause of this test failing
+        # consistently across CI runs (not a flake): wait_for_key() only
+        # checks whether the widget exists in the tree at all, and it
+        # doesn't, that far down, until scrolled into view at least
+        # once. tap_key()/tap_text() already handle this automatically
+        # via _scroll_into_view(); a bare visibility check like this one
+        # needs the same nudge explicitly.
+        on_profile.scroll_down()
         assert on_profile.wait_for_key(on_profile.DELETE_ACCOUNT_BUTTON, timeout=8)
 
     @pytest.mark.profile

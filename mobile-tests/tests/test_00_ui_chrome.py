@@ -103,32 +103,25 @@ class TestShellScreensChrome:
             }[screen_name]
             nav_method()
         on_dashboard.back()
-        # A non-dashboard shell tab has nothing left to pop (bottom-nav
-        # tabs aren't stacked on top of Dashboard), so standard Android
-        # behavior for the device back button is to minimize the app to
-        # the home screen -- not a crash. An earlier version of this
-        # test checked for a *visible Flutter screen* as the definition
-        # of "alive", which is wrong for exactly this case (a minimized
-        # app has no visible screen by design) and also expensive to
-        # check (each is_displayed() call against a backgrounded app
-        # escalates through _recovering()'s session-recreate path).
-        # Bringing the app back to the foreground first didn't fix this
-        # either -- confirmed in CI across two attempts -- because
-        # "visible screen" was never the right signal in the first
-        # place. The actual question this test is named for ("does not
-        # crash") only needs the process to still exist, regardless of
-        # whether Android chose to background it.
-        assert adb_helpers.is_app_process_alive(), (
-            f"App process died after back button from {screen_name}"
-        )
-        # Bring it back to the foreground so later tests in this session
-        # don't inherit a backgrounded app.
-        import config
-
-        driver.activate_app(config.APP_PACKAGE)
-        assert any(PC(driver).is_loaded(timeout=10) for _, PC in SHELL_SCREENS_WITH_NAV), (
-            f"App did not return to a known shell screen after back button from {screen_name}"
-        )
+        # Two earlier versions of this check both made things worse:
+        # (1) checking only for a visible Flutter screen assumed back
+        # never minimizes the app, which isn't guaranteed either way for
+        # a tab with nothing left to pop; (2) explicitly calling
+        # driver.activate_app() to force the foreground, on the theory
+        # that back always minimizes, backfired -- confirmed in CI by
+        # comparing against test_04_navigation.py's equivalent check
+        # (same nav_to_meals() + back() action, no activate_app() call),
+        # which passes in ~2s, while this version's forced activate_app()
+        # made 3 of 4 non-dashboard tabs take ~160s and still fail. That
+        # points at activate_app() itself triggering a disruptive
+        # FlutterDriver reconnect when the app was never actually
+        # backgrounded in the first place, not at anything wrong with
+        # the back-button behavior being tested. Matching
+        # test_04_navigation's proven approach: just check whether we
+        # can find a familiar shell screen (current tab or Dashboard)
+        # without forcing anything first.
+        alive = PageClass(driver).is_loaded(timeout=5) or DashboardPage(driver).is_loaded(timeout=8)
+        assert alive, f"App became unresponsive after back button from {screen_name}"
 
 
 class TestNonShellScreensChrome:
