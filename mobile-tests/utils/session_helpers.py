@@ -84,7 +84,21 @@ def register_new_account(driver, account: dict) -> None:
     register.submit()
 
     weight = HealthWeightPage(driver)
-    assert weight.is_loaded(timeout=15), "Expected health-weight screen after registration"
+    if not weight.is_loaded(timeout=15):
+        # Give the real backend registration call more room before giving
+        # up -- confirmed in CI logs that this consistently fails only as
+        # the *first* network call of a shard (logged_in_session is
+        # session-scoped, so this is its one-time registration), never on
+        # later registrations in the same shard. That's consistent with a
+        # cold Dio HTTP client / cold backend connection pool needing more
+        # than 15s rather than a genuine rejection, but check for an
+        # explicit validation/backend error too so a real failure doesn't
+        # just look like a timeout if this retry also fails.
+        error = register.has_error(timeout=1)
+        assert weight.is_loaded(timeout=20), (
+            f"Expected health-weight screen after registration"
+            + (f" (register screen showed error: {register.error_message()})" if error else "")
+        )
     weight.set_current_weight(account["weight_kg"])
     weight.set_target_weight(str(float(account["weight_kg"]) - 3))
     weight.continue_()
@@ -140,25 +154,22 @@ def force_logged_out_state(driver) -> None:
     calling this (two call sites in CI didn't, and both failed
     consistently: adb_helpers.clear_app_data() wipes local storage
     entirely, so a fresh launch always shows onboarding first, never
-    login directly, the same as any other first-ever launch)."""
+    login directly, the same as any other first-ever launch).
+
+    Relaunches via `driver.activate_app()`, not a raw `adb shell monkey`
+    launch (confirmed against CI logs as the actual bug behind this
+    function: the immediately-preceding `force_stop_app()` kills the
+    Dart process the Appium session's FlutterDriver socket is connected
+    to, and only `activate_app()` -- which internally reconnects
+    FlutterDriver to the new process's Observatory port -- brings that
+    connection back. A raw adb-launched process leaves the *app*
+    running but the *driver* still bound to the dead old connection, so
+    every following flutter:* command fails immediately; that's why
+    callers saw ~1s failures immediately after this function ran rather
+    than a real timeout)."""
     adb_helpers.clear_app_data()
     adb_helpers.force_stop_app()
-    import subprocess
-
-    subprocess.run(
-        [
-            "adb",
-            "shell",
-            "monkey",
-            "-p",
-            __import__("config").APP_PACKAGE,
-            "-c",
-            "android.intent.category.LAUNCHER",
-            "1",
-        ],
-        capture_output=True,
-        timeout=15,
-    )
+    driver.activate_app(__import__("config").APP_PACKAGE)
     onboarding = OnboardingPage(driver)
     if onboarding.wait_for_key(onboarding.SKIP_BUTTON, timeout=15):
         onboarding.skip()

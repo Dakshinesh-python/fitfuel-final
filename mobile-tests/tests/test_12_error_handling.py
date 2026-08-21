@@ -16,7 +16,7 @@ from utils import adb_helpers, session_helpers
 class TestLoginOffline:
     @pytest.mark.error_handling
     @pytest.mark.slow
-    def test_login_while_offline_shows_error_not_crash(self, driver, logged_in_session, restore_network):
+    def test_login_while_offline_shows_error_not_crash(self, driver, logged_in_session, on_dashboard, restore_network):
         session_helpers.logout(driver)
         login = LoginPage(driver)
         assert login.is_loaded(timeout=10)
@@ -41,6 +41,19 @@ class TestRegistrationOffline:
         if not register.is_loaded(timeout=5):
             login = LoginPage(driver)
             if login.is_loaded(timeout=4):
+                login.go_to_register()
+        if not register.is_loaded(timeout=5):
+            # Already logged in from an earlier module in this shard --
+            # see test_00_ui_chrome.py's test_auth_screen_has_no_bottom_nav
+            # for the full explanation of why this fallback is needed.
+            import config
+
+            adb_helpers.clear_app_data()
+            driver.activate_app(config.APP_PACKAGE)
+            if onboarding.wait_for_key(onboarding.SKIP_BUTTON, timeout=15):
+                onboarding.skip()
+            login = LoginPage(driver)
+            if login.is_loaded(timeout=10):
                 login.go_to_register()
         assert register.is_loaded(timeout=10)
         register.fill_form(

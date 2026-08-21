@@ -100,6 +100,19 @@ class TestFontScaling:
             login = LoginPage(driver)
             if login.is_loaded(timeout=4):
                 login.go_to_register()
+        if not register.is_loaded(timeout=5):
+            # Already logged in from an earlier module in this shard --
+            # see test_00_ui_chrome.py's test_auth_screen_has_no_bottom_nav
+            # for the full explanation of why this fallback is needed.
+            import config
+
+            adb_helpers.clear_app_data()
+            driver.activate_app(config.APP_PACKAGE)
+            if onboarding.wait_for_key(onboarding.SKIP_BUTTON, timeout=15):
+                onboarding.skip()
+            login = LoginPage(driver)
+            if login.is_loaded(timeout=10):
+                login.go_to_register()
         assert register.is_loaded(timeout=10), "Register screen did not load at font_scale=1.3"
         register.fill_form(
             name="Font Scale Test",

@@ -48,23 +48,19 @@ class TestForcedLogout:
 
     @pytest.mark.session_mgmt
     def test_force_stopping_and_relaunching_preserves_session(self, driver, on_dashboard):
-        adb_helpers.force_stop_app()
-        import subprocess
+        import config
 
-        subprocess.run(
-            [
-                "adb",
-                "shell",
-                "monkey",
-                "-p",
-                __import__("config").APP_PACKAGE,
-                "-c",
-                "android.intent.category.LAUNCHER",
-                "1",
-            ],
-            capture_output=True,
-            timeout=15,
-        )
+        # Relaunch via driver.activate_app(), not a raw adb monkey launch
+        # -- force_stop_app() kills the Dart process the Appium session's
+        # FlutterDriver socket is connected to, and only activate_app()
+        # reconnects FlutterDriver to the new process's Observatory port.
+        # A raw adb-launched process leaves the *app* running but the
+        # *driver* still bound to the dead old connection, so every
+        # following flutter:* command fails immediately (confirmed as a
+        # real CI bug in session_helpers.force_logged_out_state(), which
+        # had the exact same pattern).
+        adb_helpers.force_stop_app()
+        driver.activate_app(config.APP_PACKAGE)
         assert DashboardPage(driver).is_loaded(timeout=20), (
             "A force-stop + relaunch (not a logout) unexpectedly required re-login -- "
             "session should persist across process death since the token is in SharedPreferences"

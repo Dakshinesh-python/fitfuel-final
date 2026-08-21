@@ -72,11 +72,17 @@ jobs:
     # timeouts silently) each test now takes ~30-60s in healthy state.
     # 100 tests × 60s average = ~100 min, plus session creation (20s sleep
     # × potentially 2-3 recreates), emulator startup overhead, and backend
-    # health checks. 180 gives every shard genuine headroom for the full
-    # ~100-test run without the job clock becoming the constraint. A truly
-    # stuck shard (wedged command) still burns through its per-command 30s
-    # budget and fails within a few minutes rather than hanging silently.
-    timeout-minutes: 180
+    # health checks. 240 gives every shard genuine headroom for the full
+    # ~100-test run without the job clock becoming the constraint -- bumped
+    # from 180 after test_16_form_field_matrices (isolated into its own
+    # shard below) showed individual tests taking 140s+ once the
+    # on_dashboard/on_register_screen "already logged in" recovery path
+    # (a real correctness fix, not a regression) needs to fire: that path
+    # does a full clear_app_data + cold app relaunch, genuinely slower
+    # than a same-session recovery. A truly stuck shard (wedged command)
+    # still burns through its per-command 30s budget and fails within a
+    # few minutes rather than hanging silently.
+    timeout-minutes: 240
     strategy:
       fail-fast: false
       matrix:
@@ -93,7 +99,6 @@ jobs:
               tests/test_03_health_assessment.py
               tests/test_08_progress_crud.py
               tests/test_07_meal_plan.py
-              tests/test_16_form_field_matrices.py
           - shard: 3
             test_files: >-
               tests/test_09_chat.py
@@ -109,12 +114,30 @@ jobs:
               tests/test_05_dashboard.py
               tests/test_18_integration_regression.py
               tests/test_12_error_handling.py
+          - shard: 5
+            test_files: >-
+              tests/test_16_form_field_matrices.py
     # This file-to-shard split was balanced by actual/estimated
     # parametrized test count (test_02/03 alone are ~47 tests each), not
     # just file count, aiming for ~100 tests/shard out of ~402 total. If
     # a future test file is added or a file's parametrize list grows a
     # lot, rebalance using the counts in mobile-tests/reports/summary.md
     # from a real run rather than guessing from def-count.
+    #
+    # test_16_form_field_matrices was pulled out of shard 2 into its own
+    # shard 5: it's ~84 tests on its own (as many as the other 3 files in
+    # its old shard combined) and, unlike them, most of its cases submit
+    # inputs the app's permissive client-side validation actually accepts
+    # (e.g. name = "X"*300 or "!@#$%^&*()" both pass -- register_screen.dart
+    # only rejects a truly empty name), so they complete a real backend
+    # registration almost every time. That leaves the app authenticated
+    # for the next parametrized case, which then needs the expensive
+    # clear_app_data + relaunch recovery path just to get back to a clean
+    # Register screen -- confirmed as why shard 2 hit the 180-minute job
+    # timeout and got cancelled with roughly half the module unrun.
+    # Isolating it keeps that cost from also delaying its former
+    # shard-mates (test_03/07/08, which don't have this pattern and now
+    # run 45-47/47 clean on their own).
 
     services:
       postgres:
@@ -288,6 +311,7 @@ jobs:
             ../shard-artifacts/raw-results-shard-2 \
             ../shard-artifacts/raw-results-shard-3 \
             ../shard-artifacts/raw-results-shard-4 \
+            ../shard-artifacts/raw-results-shard-5 \
             --out reports/execution-results.json
         env:
           GATE_THRESHOLD_PCT: ${{ env.GATE_THRESHOLD_PCT }}

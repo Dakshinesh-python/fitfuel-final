@@ -102,9 +102,23 @@ class TestShellScreensChrome:
             }[screen_name]
             nav_method()
         on_dashboard.back()
-        # Any of the 5 shell screens or dashboard itself is an acceptable
-        # landing spot -- what matters is the app is still alive.
+        # A non-dashboard shell tab has nothing left to pop (bottom-nav
+        # tabs aren't stacked on top of Dashboard), so standard Android
+        # behavior for the device back button is to minimize the app to
+        # the home screen -- not a crash. Checking Flutter screens while
+        # genuinely backgrounded was confirmed in CI to be expensive
+        # (each is_displayed() call against a backgrounded app escalates
+        # through _recovering()'s session-recreate path, ~25-30s each,
+        # ~130s total for 5 checks that were never going to find
+        # anything) as well as a false negative -- bring the app back to
+        # the foreground first, same as any real user re-opening it,
+        # before judging whether it actually crashed.
         alive = any(PC(driver).is_loaded(timeout=3) for _, PC in SHELL_SCREENS_WITH_NAV)
+        if not alive:
+            import config
+
+            driver.activate_app(config.APP_PACKAGE)
+            alive = any(PC(driver).is_loaded(timeout=10) for _, PC in SHELL_SCREENS_WITH_NAV)
         assert alive, f"App became unresponsive after back button from {screen_name}"
 
 

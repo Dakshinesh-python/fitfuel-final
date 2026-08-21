@@ -83,7 +83,19 @@ class TestIconTooltipCoverageExtended:
         if not login.is_loaded(timeout=5):
             from page_objects.auth_pages import RegisterPage
 
-            RegisterPage(driver).go_to_login()
+            if RegisterPage(driver).is_loaded(timeout=4):
+                RegisterPage(driver).go_to_login()
+        if not login.is_loaded(timeout=5):
+            # Already logged in from an earlier module in this shard --
+            # see test_00_ui_chrome.py's test_auth_screen_has_no_bottom_nav
+            # for the full explanation of why this fallback is needed.
+            import config
+            from utils import adb_helpers
+
+            adb_helpers.clear_app_data()
+            driver.activate_app(config.APP_PACKAGE)
+            if onboarding.wait_for_key(onboarding.SKIP_BUTTON, timeout=15):
+                onboarding.skip()
         assert login.is_loaded(timeout=10)
         assert login.wait_for_key(login.PASSWORD_TOGGLE, timeout=8), (
             "Password visibility toggle icon not present/keyed on the login screen"

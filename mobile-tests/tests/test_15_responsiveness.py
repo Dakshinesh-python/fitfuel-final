@@ -24,7 +24,7 @@ class TestOrientationChange:
 
     @pytest.mark.responsiveness
     @pytest.mark.slow
-    def test_login_screen_survives_rotation(self, driver, logged_in_session, restore_orientation):
+    def test_login_screen_survives_rotation(self, driver, logged_in_session, on_dashboard, restore_orientation):
         from utils import session_helpers
         from page_objects.auth_pages import LoginPage
 
