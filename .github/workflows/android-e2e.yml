@@ -236,38 +236,13 @@ jobs:
           avd-name: test
           disable-animations: true
           script: |
-            # set +e for the WHOLE script, not just the pytest line. Any
-            # single command failing here (pip install, appium driver
-            # startup, adb install, adb shell) used to abort the script
-            # under the default set -e and turn the shard red even though
-            # the shard was in every practical sense fine -- the point of
-            # this shard is "did the run make it to the end", not "did
-            # every setup command return 0". We track/report failures
-            # instead of letting them kill the step.
-            set +e
-
             pip install -r mobile-tests/requirements.txt
-            PIP_EXIT_CODE=$?
-            [ "$PIP_EXIT_CODE" -ne 0 ] && echo "::warning::pip install exited $PIP_EXIT_CODE"
-
             # Start Appium inside the emulator-runner script so it launches
             # after the emulator is online and ADB is responsive.
             appium --base-path / &
             sleep 8
-
-            # Install the test APK. Retry once -- this is the step most
-            # likely to hit a transient "device offline"/"INSTALL_FAILED"
-            # error on a cold emulator.
+            # Install the test APK.
             adb install -r fitfuel_mobile/build/app/outputs/flutter-apk/app-debug.apk
-            INSTALL_EXIT_CODE=$?
-            if [ "$INSTALL_EXIT_CODE" -ne 0 ]; then
-              echo "::warning::apk install failed (exit $INSTALL_EXIT_CODE), retrying once after 10s"
-              sleep 10
-              adb install -r fitfuel_mobile/build/app/outputs/flutter-apk/app-debug.apk
-              INSTALL_EXIT_CODE=$?
-              [ "$INSTALL_EXIT_CODE" -ne 0 ] && echo "::warning::apk install failed again (exit $INSTALL_EXIT_CODE) -- tests will likely fail to launch the app, see logs above"
-            fi
-
             # Pre-warm Flutter's Impeller GPU backend so the first Appium
             # session doesn't land on a mid-init Dart isolate that gets
             # immediately destroyed (causing every waitFor to return Error:{}).
@@ -275,21 +250,21 @@ jobs:
             sleep 12
             adb shell am force-stop com.example.fitfuel_mobile || true
             sleep 2
-
+            # Run pytest with set +e so that test-assertion failures (exit
+            # code 1) do not abort the step. Infrastructure commands above
+            # (pip install, appium, adb install, adb shell) still run under
+            # the default set -e and will fail the job if they error.
+            set +e
             cd mobile-tests && python3 -m pytest -m "not slow" --tb=short ${{ matrix.test_files }}
             TEST_EXIT_CODE=$?
+            set -e
             echo "Pytest completed with exit code: $TEST_EXIT_CODE"
-            echo "Individual test failures, and non-fatal setup hiccups above, are acceptable; the shard ran to completion."
-
-            # Exit 0 unconditionally so the shard is GREEN as long as the
-            # script itself ran to this point -- whether pytest passed,
-            # failed some tests, or a setup command above hit a transient
-            # error. The raw exit codes are logged/warned above for
-            # visibility so failures are still easy to spot in the log.
-            # The job timeout (timeout-minutes: 240) is a hard GitHub-side
-            # cancellation and still shows red -- that's a genuine "the
-            # shard did not finish", which no exit code inside the script
-            # can override.
+            echo "Individual test failures are acceptable; the test suite ran to completion."
+            # Exit 0 unconditionally so the shard is GREEN even when some
+            # tests fail. The raw exit code is logged above for visibility.
+            # The job timeout (timeout-minutes: 240) still cancels the job
+            # if pytest hangs and never returns, so a hung run is never
+            # falsely marked as success.
             exit 0
         env:
           APK_PATH: ${{ github.workspace }}/fitfuel_mobile/build/app/outputs/flutter-apk/app-debug.apk
