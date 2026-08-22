@@ -2,6 +2,7 @@
 breakdown, order-provider buttons, and error/empty states."""
 import pytest
 
+from page_objects.dashboard_page import DashboardPage
 from page_objects.recommendations_page import RecommendationsPage
 from utils import adb_helpers
 
@@ -58,7 +59,14 @@ class TestRecommendationCardInteractions:
             # a stale session/element reference rather than a real
             # interaction failure. Re-establish known state and give it
             # one genuine second attempt rather than fail outright on
-            # what the recovery machinery itself caused.
+            # what the recovery machinery itself caused. The nav bar
+            # isn't guaranteed tappable the instant the new session comes
+            # back, though -- wait for the dashboard shell to actually be
+            # on-screen first, the same way on_dashboard's own recovery
+            # path does before touching any nav tab.
+            assert DashboardPage(driver).is_loaded(timeout=15), (
+                "Dashboard did not reload after recovering from a mid-tap session reset"
+            )
             on_dashboard.nav_to_meals()
             on_recommendations.select_meal_type("Lunch")
             assert on_recommendations.wait_for_text("Why this meal?", timeout=10), (

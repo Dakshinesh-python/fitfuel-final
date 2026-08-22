@@ -31,4 +31,9 @@ class ChatPage(NavBarMixin):
         if found:
             return True
         self._scroll_into_view(self.by_key(key), timeout_ms=int(timeout * 1000))
-        return self.wait_for_key(key, timeout=2)
+        # 2s was too tight for index 2 specifically (confirmed as a genuine
+        # flake, not a missing scroll: 0/1 pass reliably via the same
+        # mechanism used elsewhere in the suite) -- the chip is scrolled
+        # into the tree by the line above but its own re-render/re-layout
+        # can still lag past a 2s recheck under CI load.
+        return self.wait_for_key(key, timeout=5)

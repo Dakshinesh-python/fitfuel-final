@@ -204,15 +204,33 @@ class ResilientDriver:
         if not _is_recovery_create:
             self._warm_up_shader_cache()
 
-    def _warm_up_shader_cache(self) -> None:
-        """Best-effort: force RegisterScreen's first paint once per fresh
-        session/process, so its BoxShadow-heavy widgets (the form card,
-        the gender selector, StepProgressBar -- see fitfuel_mobile/lib/
-        screens/register_screen.dart) get their GPU shaders compiled here
-        instead of during a real test's timed tap.
+    def _warm_up_shader_cache(
+        self,
+        steps: list[str] | None = None,
+        recover_on_failure: bool = True,
+    ) -> None:
+        """Best-effort: force a screen's first paint so its GPU shaders
+        get compiled here instead of during a real test's timed tap.
 
-        Why this is needed at all, root-caused against a real CI log
-        (mobile-tests/README.md -> "First-paint shader jank on
+        `steps`: sequence of ValueKeys to wait-for-then-tap, in order.
+        Defaults to `["onboarding_skip_button", "login_register_link"]`,
+        which warms RegisterScreen's first paint -- this is what every
+        fresh session/process creation calls with no arguments. See
+        below for why RegisterScreen specifically needs this.
+
+        `recover_on_failure`: if a step's wait/tap fails, escalate to a
+        full session recreate. That's the right call when this runs
+        right after a session was JUST created (the original call site
+        below, in `_create()`) -- there's nothing valuable to lose yet.
+        Pass False when warming an ALREADY-established, valuable app
+        state instead (e.g. warming Progress right after
+        `ensure_on_dashboard`'s own clear_app_data recovery has just
+        landed back on Dashboard) -- a session recreate there would be
+        far more disruptive than just leaving that one screen's shader
+        cold, so the failure is swallowed and we move on instead.
+
+        Why RegisterScreen needs this at all, root-caused against a real
+        CI log (mobile-tests/README.md -> "First-paint shader jank on
         login_register_link" has the full annotated trace): every fresh
         Appium session -- not just the first one of the whole run -- does
         `pm clear` on the app as part of `appium:noReset: False`'s "fast
@@ -238,8 +256,14 @@ class ResilientDriver:
         every actual test tap on that widget tree hits an
         already-compiled shader instead.
 
+        The exact same mechanism applies to `adb_helpers.clear_app_data()`
+        calls elsewhere (it's the same `pm clear` under the hood) -- see
+        `ensure_on_dashboard()`'s call with `steps=[NAV_PROGRESS, NAV_HOME]`
+        for Progress, which hits the identical first-paint cost as the
+        first not-yet-painted screen visited right after such a recovery.
+
         Deliberately swallows everything: this is a best-effort perf
-        optimization, not a correctness requirement. If the warm-up tap
+        optimization, not a correctness requirement. If a warm-up tap
         itself times out, that's fine -- the shader compile almost
         certainly still happened on the GPU/raster thread even though our
         client gave up waiting for the ack, so the cache is warm
@@ -247,56 +271,36 @@ class ResilientDriver:
         """
         from appium_flutter_finder import FlutterElement, FlutterFinder
 
+        if steps is None:
+            steps = ["onboarding_skip_button", "login_register_link"]
+
         f = FlutterFinder()
-        try:
-            self._raw.execute_script(
-                "flutter:waitFor", f.by_value_key("onboarding_skip_button"), 15000
-            )
-            FlutterElement(
-                self._raw, f.by_value_key("onboarding_skip_button")
-            ).click()
-        except Exception:
-            # If the click (not just the waitFor) failed, the Appium server's
-            # single FlutterDriver command queue may now be wedged behind a
-            # tap command the Dart side never acked. Recreating here costs one
-            # extra session startup but guarantees a clean queue for the
-            # login_register_link step below -- better than letting a wedge
-            # from warm-up propagate to the first real test.
-            # _is_recovery_create=True prevents the new session from calling
-            # _warm_up_shader_cache() again, which would recurse.
+        for key in steps:
             try:
-                self._raw.quit()
+                self._raw.execute_script("flutter:waitFor", f.by_value_key(key), 15000)
+                FlutterElement(self._raw, f.by_value_key(key)).click()
             except Exception:
-                pass
-            self._create(_is_recovery_create=True)
-            return  # new session is already warm enough; skip the register tap
-        try:
-            self._raw.execute_script(
-                "flutter:waitFor", f.by_value_key("login_register_link"), 15000
-            )
-            FlutterElement(
-                self._raw, f.by_value_key("login_register_link")
-            ).click()
-        except Exception:
-            # Same reasoning as above: a failed tap on login_register_link is
-            # the single most common wedge site (confirmed in CI logs -- see
-            # file-level docstring). Recreating the session here ensures the
-            # wedge is cleared before any real test runs.
-            # _is_recovery_create=True prevents recursion.
-            try:
-                self._raw.quit()
-            except Exception:
-                pass
-            self._create(_is_recovery_create=True)
-            return
+                # If the click (not just the waitFor) failed, the Appium
+                # server's single FlutterDriver command queue may now be
+                # wedged behind a tap command the Dart side never acked.
+                if recover_on_failure:
+                    # Recreating here costs one extra session startup but
+                    # guarantees a clean queue for whatever real test runs
+                    # next -- better than letting a wedge from warm-up
+                    # propagate. _is_recovery_create=True prevents the new
+                    # session from calling _warm_up_shader_cache() again,
+                    # which would recurse.
+                    try:
+                        self._raw.quit()
+                    except Exception:
+                        pass
+                    self._create(_is_recovery_create=True)
+                return
         # Give the (possibly still in-flight) shader compile + first frame
         # a moment to actually finish on the GPU/raster thread before
         # handing control back -- a plain sleep, not a wait_for, because
         # the point is just "don't race the compile", not "confirm a
-        # specific screen loaded". `_restart_app_between_tests` restarts
-        # the app to splash before the first real test regardless, so this
-        # warm-up doesn't need to leave the app in any particular screen
-        # state.
+        # specific screen loaded".
         time.sleep(5)
 
     def recreate(self):
@@ -454,15 +458,20 @@ def logged_in_session(driver, primary_test_account):
     return primary_test_account
 
 
-@pytest.fixture(scope="function")
-def on_dashboard(driver, logged_in_session):
-    """Function-scoped convenience fixture: guarantees the test starts
-    on the dashboard tab regardless of where the previous test in the
-    session left the app.
+def ensure_on_dashboard(driver, logged_in_session):
+    """Plain function holding on_dashboard's self-healing "wait for the
+    dashboard nav bar, recover if needed" logic, extracted out of the
+    fixture below so module/class-scoped fixtures can reuse it too.
+    pytest forbids a wider-scoped fixture from depending on a
+    narrower-scoped one (ScopeMismatch) -- test_01_authentication.py's
+    module-scoped `registered_account` only ever needed this recovery
+    logic to make its own logout() call reliable, not the function-scoped
+    fixture injection itself, so it imports and calls this directly
+    instead of declaring on_dashboard as a dependency.
 
     Two distinct "not on dashboard" cases, handled differently (found by
     root-causing the single largest cluster of CI failures -- 157 of 229
-    -- which all traced back to this fixture's old, single-branch
+    -- which all traced back to this function's old, single-branch
     recovery):
       1. On a *different* shell screen (nav bar exists, just not on the
          home tab) -- a single nav_to_home() tap recovers, as before.
@@ -501,8 +510,10 @@ def on_dashboard(driver, logged_in_session):
     if onboarding.wait_for_key(onboarding.SKIP_BUTTON, timeout=4):
         onboarding.skip()
     login = LoginPage(driver)
+    cleared_app_data = False
     if not login.is_loaded(timeout=5):
         adb_helpers.clear_app_data()
+        cleared_app_data = True
         driver.activate_app(config.APP_PACKAGE)
         time.sleep(5)
         if onboarding.wait_for_key(onboarding.SKIP_BUTTON, timeout=10):
@@ -511,7 +522,37 @@ def on_dashboard(driver, logged_in_session):
         driver, logged_in_session["email"], logged_in_session["password"]
     )
     assert dashboard.is_loaded(timeout=15)
+    if cleared_app_data:
+        # clear_app_data (pm clear) wipes the on-disk Skia GPU-program
+        # cache along with everything else, so the next not-yet-painted
+        # screen pays a cold first-paint shader-compile cost -- the same
+        # problem _warm_up_shader_cache() already solves for Register at
+        # session-creation time. Progress is the specific screen this
+        # bites: test_16_form_field_matrices.py's TestProgressLogFieldMatrix
+        # runs right after tests that push this exact recovery branch,
+        # and is the first thing to visit a not-yet-painted screen
+        # afterwards -- confirmed in CI as 46/46 failures in that class
+        # until this warm-up covered it too. recover_on_failure=False:
+        # we already have a hard-won, valid Dashboard state above: a
+        # session recreate here would throw that away for a
+        # perf-optimization that isn't worth the cost if it doesn't work.
+        driver._warm_up_shader_cache(
+            steps=[dashboard.NAV_PROGRESS, dashboard.NAV_HOME],
+            recover_on_failure=False,
+        )
+        assert dashboard.is_loaded(timeout=15)
     return dashboard
+
+
+@pytest.fixture(scope="function")
+def on_dashboard(driver, logged_in_session):
+    """Function-scoped convenience fixture: guarantees the test starts
+    on the dashboard tab regardless of where the previous test in the
+    session left the app. See ensure_on_dashboard()'s docstring above
+    for the actual recovery logic -- this fixture is just a thin,
+    function-scoped wrapper around it for the many tests that depend on
+    it directly."""
+    return ensure_on_dashboard(driver, logged_in_session)
 
 
 # ─────────────────────────────────────────────────────────────────────────

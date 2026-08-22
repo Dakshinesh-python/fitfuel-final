@@ -278,6 +278,14 @@ class BasePage:
             except WebDriverException:
                 pass
 
+    def scroll_key_into_view(self, value_key: str, timeout_ms: int = 8000) -> None:
+        """Public wrapper around `_scroll_into_view()` for a keyed widget,
+        for callers outside this class's own subclasses (e.g. test files)
+        that need Scrollable.ensureVisible()-precision targeting instead
+        of scroll_down()'s fixed-distance ADB swipe -- mirrors how
+        ChatPage.has_quick_reply calls `_scroll_into_view()` directly."""
+        self._scroll_into_view(self.by_key(value_key), timeout_ms=timeout_ms)
+
     def wait_for_text(self, text: str, timeout: float = None) -> bool:
         return self.is_displayed(self.by_text(text), timeout)
 

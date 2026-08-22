@@ -54,7 +54,7 @@ def _ensure_on_login_screen(driver) -> None:
 
 
 @pytest.fixture(scope="module")
-def registered_account(driver, logged_in_session, on_dashboard):
+def registered_account(driver, logged_in_session):
     """Ensures `primary_test_account` exists in the backend before any
     login test in this module runs, without depending on
     test_02_registration.py's execution order (registration is a
@@ -74,16 +74,22 @@ def registered_account(driver, logged_in_session, on_dashboard):
     registered" backend rejection, not a flake, cascading through every
     test in this module since the fixture is module-scoped.
 
-    Also depends on `on_dashboard` (not just `logged_in_session`)
-    before calling logout() -- logged_in_session's own contract is
-    "the app is on the dashboard", but the autouse per-test app-relaunch
+    Calls conftest.ensure_on_dashboard() (not the on_dashboard fixture
+    itself) before logout() -- logged_in_session's own contract is "the
+    app is on the dashboard", but the autouse per-test app-relaunch
     fixture still runs after it for this test, and logout() itself just
     taps the profile nav tab with no check that it has actually
-    rendered yet. Confirmed in CI as a real failure once the duplicate-
-    registration bug above stopped masking it: nav_tab_profile not
-    found because the freshly-relaunched app hadn't finished rendering
-    the shell yet. on_dashboard already has the right self-healing wait
-    for this."""
+    rendered yet. A previous fix declared `on_dashboard` as an explicit
+    dependency here to get that same self-healing wait, but on_dashboard
+    is function-scoped while this fixture is module-scoped -- pytest
+    raises ScopeMismatch for a wider-scoped fixture depending on a
+    narrower-scoped one, erroring out every test in this module before
+    any of them ran. This fixture only ever needed on_dashboard's
+    recovery logic to make logout() reliable, not the fixture injection
+    itself, so it calls the plain function version directly."""
+    from conftest import ensure_on_dashboard
+
+    ensure_on_dashboard(driver, logged_in_session)
     session_helpers.logout(driver)
     return logged_in_session
 

@@ -150,10 +150,12 @@ class TestDeleteAccountAffordance:
         # consistently across CI runs (not a flake): wait_for_key() only
         # checks whether the widget exists in the tree at all, and it
         # doesn't, that far down, until scrolled into view at least
-        # once. tap_key()/tap_text() already handle this automatically
-        # via _scroll_into_view(); a bare visibility check like this one
-        # needs the same nudge explicitly.
-        on_profile.scroll_down()
+        # once. scroll_down()'s fixed-distance ADB swipe isn't reliable
+        # enough to land this specific button on-screen; targeting it
+        # directly via Scrollable.ensureVisible() (same mechanism
+        # tap_key()/tap_text() already use internally) is precise
+        # regardless of exactly how far down the card sits.
+        on_profile.scroll_key_into_view(on_profile.DELETE_ACCOUNT_BUTTON)
         assert on_profile.wait_for_key(on_profile.DELETE_ACCOUNT_BUTTON, timeout=8)
 
     @pytest.mark.profile
