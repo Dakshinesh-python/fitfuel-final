@@ -266,9 +266,7 @@ jobs:
             # tests fail. The raw exit code is logged above for visibility.
             # The job timeout (timeout-minutes: 240) still cancels the job
             # if pytest hangs and never returns, so a hung run is never
-            # falsely marked as success.
             exit 0
-        continue-on-error: true
         env:
           APK_PATH: ${{ github.workspace }}/fitfuel_mobile/build/app/outputs/flutter-apk/app-debug.apk
           GATE_THRESHOLD_PCT: ${{ env.GATE_THRESHOLD_PCT }}
