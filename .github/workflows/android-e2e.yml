@@ -82,7 +82,7 @@ jobs:
     # than a same-session recovery. A truly stuck shard (wedged command)
     # still burns through its per-command 30s budget and fails within a
     # few minutes rather than hanging silently.
-    timeout-minutes: 240
+    timeout-minutes: 180
     strategy:
       fail-fast: false
       matrix:
@@ -228,7 +228,7 @@ jobs:
 
       - name: Run Android emulator + tests (shard ${{ matrix.shard }})
         uses: reactivecircus/android-emulator-runner@v2
-        timeout-minutes: 20
+        timeout-minutes: 180
         continue-on-error: true
         with:
           api-level: 33

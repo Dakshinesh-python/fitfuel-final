@@ -155,7 +155,6 @@ def write_excel_report(payload: dict):
     ws3.append(["Platform", payload["app_under_test"]["platform"]])
     ws3.append(["Platform Version", payload["app_under_test"]["platform_version"]])
     ws3.append(["Total Tests", s["total"]])
-    ws3.append(["Expected Total", EXPECTED_TEST_COUNT])
     ws3.append(["Passed", s["passed"]])
     ws3.append(["Failed", s["failed"]])
     ws3.append(["Skipped", s["skipped"]])
