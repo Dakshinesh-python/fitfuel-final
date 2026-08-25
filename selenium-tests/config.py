@@ -79,7 +79,6 @@ ROUTES = {
     "recommendations": "recommendations",
     "progress": "progress",
     "meal-plan": "meal-plan",
-    "chat": "chat",
     "profile": "profile",
 }
 
@@ -89,7 +88,6 @@ PROTECTED_ROUTES = [
     "recommendations",
     "progress",
     "meal-plan",
-    "chat",
     "profile",
 ]
 
@@ -100,7 +98,6 @@ NAV_ROUTES = [
     "recommendations",
     "meal-plan",
     "progress",
-    "chat",
     "profile",
 ]
 
@@ -109,7 +106,6 @@ NAV_LABELS = {
     "recommendations": "Recommendations",
     "meal-plan": "Meal Plan",
     "progress": "Progress",
-    "chat": "Chat",
     "profile": "Profile",
 }
 

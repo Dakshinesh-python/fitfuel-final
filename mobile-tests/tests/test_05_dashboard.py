@@ -2,7 +2,6 @@
 points, and load-error/retry behaviour."""
 import pytest
 
-from page_objects.chat_page import ChatPage
 from page_objects.dashboard_page import DashboardPage
 from page_objects.meal_plan_pages import WeeklyMealPlanPage
 from page_objects.profile_page import ProfilePage
@@ -18,11 +17,10 @@ class TestDashboardLoad:
         assert on_dashboard.is_loaded()
 
     @pytest.mark.dashboard
-    def test_all_four_quick_access_cards_visible(self, driver, on_dashboard):
+    def test_all_three_quick_access_cards_visible(self, driver, on_dashboard):
         for key in [
             on_dashboard.QUICK_RECOMMENDATIONS,
             on_dashboard.QUICK_MEAL_PLAN,
-            on_dashboard.QUICK_AI_COACH,
             on_dashboard.QUICK_PROGRESS,
         ]:
             assert on_dashboard.wait_for_key(key, timeout=8), f"Quick card '{key}' not visible"
@@ -48,12 +46,6 @@ class TestQuickAccessNavigation:
     def test_meal_plan_quick_card_navigates(self, driver, on_dashboard):
         on_dashboard.open_quick_meal_plan()
         assert WeeklyMealPlanPage(driver).is_loaded(timeout=15)
-
-    @pytest.mark.dashboard
-    @pytest.mark.navigation
-    def test_ai_coach_quick_card_navigates(self, driver, on_dashboard):
-        on_dashboard.open_quick_ai_coach()
-        assert ChatPage(driver).is_loaded(timeout=15)
 
     @pytest.mark.dashboard
     @pytest.mark.navigation

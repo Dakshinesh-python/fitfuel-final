@@ -16,7 +16,6 @@ import pytest
 
 from page_objects.auth_pages import LoginPage, RegisterPage
 from page_objects.base_page import ROUTE_TEXT_MARKERS
-from page_objects.chat_page import ChatPage
 from page_objects.dashboard_page import DashboardPage
 from page_objects.health_assessment_pages import (
     HealthActivityPage,
@@ -36,7 +35,6 @@ SHELL_SCREENS_WITH_NAV = [
     ("dashboard", DashboardPage),
     ("recommendations", RecommendationsPage),
     ("progress", ProgressPage),
-    ("chat", ChatPage),
     ("profile", ProfilePage),
 ]
 
@@ -59,7 +57,7 @@ class TestMarkerMapIntegrity:
             "splash", "onboarding", "login", "register", "health-weight",
             "health-activity", "health-goals", "health-prefs", "plan-ready",
             "dashboard", "recommendations", "meal-detail", "weekly-plan",
-            "progress", "chat", "profile",
+            "progress", "profile",
         }
         assert set(ROUTE_TEXT_MARKERS.keys()) == expected_routes
 
@@ -72,7 +70,6 @@ class TestShellScreensChrome:
             nav_method = {
                 "recommendations": on_dashboard.nav_to_meals,
                 "progress": on_dashboard.nav_to_progress,
-                "chat": on_dashboard.nav_to_chat,
                 "profile": on_dashboard.nav_to_profile,
             }[screen_name]
             nav_method()
@@ -85,7 +82,6 @@ class TestShellScreensChrome:
             nav_method = {
                 "recommendations": on_dashboard.nav_to_meals,
                 "progress": on_dashboard.nav_to_progress,
-                "chat": on_dashboard.nav_to_chat,
                 "profile": on_dashboard.nav_to_profile,
             }[screen_name]
             nav_method()
@@ -98,7 +94,6 @@ class TestShellScreensChrome:
             nav_method = {
                 "recommendations": on_dashboard.nav_to_meals,
                 "progress": on_dashboard.nav_to_progress,
-                "chat": on_dashboard.nav_to_chat,
                 "profile": on_dashboard.nav_to_profile,
             }[screen_name]
             nav_method()

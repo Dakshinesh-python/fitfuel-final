@@ -1,11 +1,10 @@
 """
 Bottom-navigation and inter-screen navigation, tested from every one of
-the 5 shell screens that carry the bottom nav (Dashboard, Recommendations,
-Chat, Progress, Profile) to every other tab.
+the 4 shell screens that carry the bottom nav (Dashboard, Recommendations,
+Progress, Profile) to every other tab.
 """
 import pytest
 
-from page_objects.chat_page import ChatPage
 from page_objects.dashboard_page import DashboardPage
 from page_objects.profile_page import ProfilePage
 from page_objects.progress_page import ProgressPage
@@ -14,7 +13,6 @@ from page_objects.recommendations_page import RecommendationsPage
 SHELL_SCREENS = [
     ("dashboard", DashboardPage, None),
     ("recommendations", RecommendationsPage, "nav_to_meals"),
-    ("chat", ChatPage, "nav_to_chat"),
     ("progress", ProgressPage, "nav_to_progress"),
     ("profile", ProfilePage, "nav_to_profile"),
 ]
@@ -22,7 +20,6 @@ SHELL_SCREENS = [
 NAV_TARGETS = [
     ("home", DashboardPage, "nav_to_home"),
     ("meals", RecommendationsPage, "nav_to_meals"),
-    ("chat", ChatPage, "nav_to_chat"),
     ("progress", ProgressPage, "nav_to_progress"),
     ("profile", ProfilePage, "nav_to_profile"),
 ]
@@ -31,7 +28,7 @@ NAV_TARGETS = [
 class TestBottomNavVisibility:
     @pytest.mark.navigation
     @pytest.mark.parametrize("screen_name,PageClass,nav_method_name", SHELL_SCREENS)
-    def test_all_five_tabs_visible_on_every_shell_screen(
+    def test_all_four_tabs_visible_on_every_shell_screen(
         self, driver, on_dashboard, screen_name, PageClass, nav_method_name
     ):
         if nav_method_name:
@@ -40,7 +37,6 @@ class TestBottomNavVisibility:
         for tab_key in [
             page.NAV_HOME,
             page.NAV_MEALS,
-            page.NAV_CHAT,
             page.NAV_PROGRESS,
             page.NAV_PROFILE,
         ]:
@@ -62,15 +58,12 @@ class TestNavigateBetweenAllTabs:
 
     @pytest.mark.navigation
     def test_navigate_full_loop_through_all_tabs(self, driver, on_dashboard):
-        """Home -> Meals -> Chat -> Progress -> Profile -> Home, verifying
+        """Home -> Meals -> Progress -> Profile -> Home, verifying
         each landing screen along the way."""
         on_dashboard.nav_to_meals()
         assert RecommendationsPage(driver).is_loaded(timeout=15)
 
-        RecommendationsPage(driver).nav_to_chat()
-        assert ChatPage(driver).is_loaded(timeout=15)
-
-        ChatPage(driver).nav_to_progress()
+        RecommendationsPage(driver).nav_to_progress()
         assert ProgressPage(driver).is_loaded(timeout=15)
 
         ProgressPage(driver).nav_to_profile()

@@ -8,7 +8,7 @@ FitFuelBottomNav) and it does NOT apply here -- FitFuel's bottom nav is a
 plain custom Row of GestureDetector + single Text per tab, not a Material
 3 NavigationBar, so there is no crossfade / no duplicate-Text-widget
 ambiguity. We still key every tab (nav_tab_home / nav_tab_meals /
-nav_tab_chat / nav_tab_progress / nav_tab_profile) because a handful of
+nav_tab_progress / nav_tab_profile) because a handful of
 tabs share the same Icon/Column structure and a key is more robust than
 a positional index regardless of the crossfade issue -- but it's included
 here as a deliberate best-practice choice, not a workaround for a bug
@@ -21,7 +21,6 @@ from page_objects.base_page import BasePage
 class NavBarMixin(BasePage):
     NAV_HOME = "nav_tab_home"
     NAV_MEALS = "nav_tab_meals"
-    NAV_CHAT = "nav_tab_chat"
     NAV_PROGRESS = "nav_tab_progress"
     NAV_PROFILE = "nav_tab_profile"
 
@@ -30,9 +29,6 @@ class NavBarMixin(BasePage):
 
     def nav_to_meals(self):
         self.tap_key(self.NAV_MEALS)
-
-    def nav_to_chat(self):
-        self.tap_key(self.NAV_CHAT)
 
     def nav_to_progress(self):
         self.tap_key(self.NAV_PROGRESS)

@@ -1,6 +1,6 @@
 /**
  * Free LLM layer using Groq's API (generous free tier, OpenAI-compatible format,
- * very low latency). Used ONLY for natural-language explanations / chat -
+ * very low latency). Used ONLY for natural-language explanations of nutrition plans -
  * the actual nutrition numbers always come from nutritionCalculator.ts,
  * never from the LLM, so figures stay accurate and reproducible.
  *
@@ -58,42 +58,3 @@ export async function explainNutritionPlan(targets: NutritionTargetsForPrompt): 
   return data.choices?.[0]?.message?.content?.trim() ?? "";
 }
 
-export async function chatWithNutritionAssistant(
-  userMessage: string,
-  contextSummary: string
-): Promise<string> {
-  const apiKey = process.env.GROQ_API_KEY;
-  if (!apiKey) {
-    return "AI chat isn't configured yet. Add a free GROQ_API_KEY to enable this feature.";
-  }
-
-  const systemPrompt =
-    `You are FitFuel's nutrition assistant. Be concise, encouraging, and practical. ` +
-    `Never invent medical claims. Your reply should be concise and accurate (around 2-4 sentences), not too big, not too small. ` +
-    `CRITICAL: Do NOT use any markdown formatting (no asterisks, no bold, no italics, no lists). Reply in plain text ONLY. ` +
-    `Here is the user's current profile summary: ${contextSummary}`;
-
-  const response = await fetch(GROQ_API_URL, {
-    method: "POST",
-    headers: {
-      "Content-Type": "application/json",
-      Authorization: `Bearer ${apiKey}`,
-    },
-    body: JSON.stringify({
-      model: GROQ_MODEL,
-      messages: [
-        { role: "system", content: systemPrompt },
-        { role: "user", content: userMessage },
-      ],
-      max_tokens: 600,
-      temperature: 0.7,
-    }),
-  });
-
-  if (!response.ok) {
-    throw new Error(`Groq API error: ${response.status}`);
-  }
-
-  const data = (await response.json()) as GroqChatCompletionResponse;
-  return data.choices?.[0]?.message?.content?.trim() ?? "";
-}

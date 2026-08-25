@@ -10,7 +10,6 @@ import recommendationRoutes from "./routes/recommendation.routes";
 import mealPlanRoutes from "./routes/mealPlan.routes";
 import orderRoutes from "./routes/order.routes";
 import progressRoutes from "./routes/progress.routes";
-import chatRoutes from "./routes/chat.routes";
 
 
 /**
@@ -52,7 +51,6 @@ export function createApp(): Express {
   app.use("/api/meal-plans", mealPlanRoutes);
   app.use("/api/orders", orderRoutes);
   app.use("/api/progress", progressRoutes);
-  app.use("/api/chat", chatRoutes);
 
   // 404 handler
   app.use((_req: Request, res: Response) => {

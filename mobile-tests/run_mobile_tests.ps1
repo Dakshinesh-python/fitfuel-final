@@ -407,7 +407,6 @@ $allModules = @(
     "test_06_recommendations",
     "test_07_meal_plan",
     "test_08_progress_crud",
-    "test_09_chat",
     "test_10_profile_settings",
     "test_11_input_validation",
     "test_12_error_handling",

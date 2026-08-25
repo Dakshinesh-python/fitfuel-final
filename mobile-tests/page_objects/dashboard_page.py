@@ -7,7 +7,6 @@ class DashboardPage(NavBarMixin):
     RETRY_BUTTON = "dashboard_retry_button"
     QUICK_RECOMMENDATIONS = "dashboard_quick_recommendations"
     QUICK_MEAL_PLAN = "dashboard_quick_meal_plan"
-    QUICK_AI_COACH = "dashboard_quick_ai_coach"
     QUICK_PROGRESS = "dashboard_quick_progress"
 
     def is_loaded(self, timeout: float = 15) -> bool:
@@ -30,9 +29,6 @@ class DashboardPage(NavBarMixin):
 
     def open_quick_meal_plan(self) -> None:
         self.tap_key(self.QUICK_MEAL_PLAN)
-
-    def open_quick_ai_coach(self) -> None:
-        self.tap_key(self.QUICK_AI_COACH)
 
     def open_quick_progress(self) -> None:
         self.tap_key(self.QUICK_PROGRESS)

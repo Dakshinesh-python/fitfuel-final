@@ -154,9 +154,8 @@ class _RecommendationsScreenState extends State<RecommendationsScreen> {
         currentIndex: 1,
         onTap: (i) {
           if (i == 0) Navigator.of(context).pushReplacementNamed('/dashboard');
-          if (i == 2) Navigator.of(context).pushNamed('/chat');
-          if (i == 3) Navigator.of(context).pushReplacementNamed('/progress');
-          if (i == 4) Navigator.of(context).pushReplacementNamed('/profile');
+          if (i == 2) Navigator.of(context).pushReplacementNamed('/progress');
+          if (i == 3) Navigator.of(context).pushReplacementNamed('/profile');
         },
       ),
     );

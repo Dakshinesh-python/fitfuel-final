@@ -46,7 +46,6 @@ MODULE_SEVERITY = {
     "test_06_recommendations": "MEDIUM",
     "test_07_meal_plan": "MEDIUM",
     "test_08_progress_crud": "HIGH",
-    "test_09_chat": "MEDIUM",
     "test_10_profile_settings": "MEDIUM",
     "test_11_input_validation": "MEDIUM",
     "test_12_error_handling": "MEDIUM",

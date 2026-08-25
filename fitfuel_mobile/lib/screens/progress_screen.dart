@@ -99,13 +99,12 @@ class _ProgressScreenState extends State<ProgressScreen> {
         child: _buildBody(),
       ),
       bottomNavigationBar: FitFuelBottomNav(
-        currentIndex: 3,
+        currentIndex: 2,
         onTap: (i) {
           if (i == 0) Navigator.of(context).pushReplacementNamed('/dashboard');
           if (i == 1)
             Navigator.of(context).pushReplacementNamed('/recommendations');
-          if (i == 2) Navigator.of(context).pushNamed('/chat');
-          if (i == 4) Navigator.of(context).pushReplacementNamed('/profile');
+          if (i == 3) Navigator.of(context).pushReplacementNamed('/profile');
         },
       ),
     );

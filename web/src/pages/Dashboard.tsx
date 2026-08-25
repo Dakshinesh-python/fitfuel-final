@@ -332,13 +332,7 @@ export default function Dashboard() {
                 sub="Log & view trends"
                 gradient="linear-gradient(135deg, #8B5CF6, #6D28D9)"
               />
-              <QuickCard
-                to="/chat"
-                icon="smart_toy"
-                title="AI Nutritionist"
-                sub="Chat with your coach"
-                gradient="linear-gradient(135deg, #EC4899, #BE185D)"
-              />
+
             </div>
           </div>
 

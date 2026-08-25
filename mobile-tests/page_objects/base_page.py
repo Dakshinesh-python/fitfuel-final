@@ -109,7 +109,6 @@ ROUTE_TEXT_MARKERS = {
     "meal-detail": "Macro Breakdown",
     "weekly-plan": "Meal Plan",  # see collision note above
     "progress": "Track your journey",
-    "chat": "Nutrition Coach",
     "profile": "Profile",
 }
 

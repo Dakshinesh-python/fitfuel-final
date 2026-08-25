@@ -388,13 +388,12 @@ class _ProfileScreenState extends State<ProfileScreen>
               ),
             ),
       bottomNavigationBar: FitFuelBottomNav(
-        currentIndex: 4,
+        currentIndex: 3,
         onTap: (i) {
           if (i == 0) Navigator.of(context).pushReplacementNamed('/dashboard');
           if (i == 1)
             Navigator.of(context).pushReplacementNamed('/recommendations');
-          if (i == 2) Navigator.of(context).pushNamed('/chat');
-          if (i == 3) Navigator.of(context).pushReplacementNamed('/progress');
+          if (i == 2) Navigator.of(context).pushReplacementNamed('/progress');
         },
       ),
     );

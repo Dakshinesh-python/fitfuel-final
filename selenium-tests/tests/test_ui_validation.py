@@ -7,7 +7,6 @@ sanity across every page in the app.
 import pytest
 
 from config import NAV_ROUTES
-from page_objects.chat_page import ChatPage
 from page_objects.dashboard_page import DashboardPage
 from page_objects.health_assessment_page import HealthAssessmentPage
 from page_objects.layout import LayoutNav
@@ -165,23 +164,6 @@ class TestMealPlanChrome:
         page = MealPlanPage(authenticated_driver).open()
         assert page.has_download_button()
 
-
-class TestChatChrome:
-    def test_chat_loads(self, authenticated_driver):
-        page = ChatPage(authenticated_driver).open()
-        assert page.is_loaded()
-
-    def test_chat_has_messages_container(self, authenticated_driver):
-        page = ChatPage(authenticated_driver).open()
-        assert page.exists(*page.MESSAGES_CONTAINER)
-
-    def test_chat_has_input_placeholder(self, authenticated_driver):
-        page = ChatPage(authenticated_driver).open()
-        assert page.input_placeholder()
-
-    def test_chat_has_send_button(self, authenticated_driver):
-        page = ChatPage(authenticated_driver).open()
-        assert page.exists(*page.SEND_BTN)
 
 
 class TestProfileChrome:

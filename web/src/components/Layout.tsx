@@ -12,7 +12,6 @@ const navItems = [
   { to: '/recommendations', label: 'Recommendations', icon: 'auto_awesome' },
   { to: '/meal-plan',       label: 'Meal Plan',        icon: 'restaurant_menu' },
   { to: '/progress',        label: 'Progress',         icon: 'insights' },
-  { to: '/chat',            label: 'Chat',             icon: 'chat' },
   { to: '/profile',         label: 'Profile',          icon: 'person' },
 ];
 

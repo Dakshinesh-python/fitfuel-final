@@ -141,9 +141,8 @@ class _DashboardScreenState extends State<DashboardScreen> {
         onTap: (i) {
           if (i == 1)
             Navigator.of(context).pushReplacementNamed('/recommendations');
-          if (i == 2) Navigator.of(context).pushNamed('/chat');
-          if (i == 3) Navigator.of(context).pushReplacementNamed('/progress');
-          if (i == 4) Navigator.of(context).pushReplacementNamed('/profile');
+          if (i == 2) Navigator.of(context).pushReplacementNamed('/progress');
+          if (i == 3) Navigator.of(context).pushReplacementNamed('/profile');
         },
       ),
     );
@@ -389,15 +388,6 @@ class _DashboardScreenState extends State<DashboardScreen> {
           const SizedBox(height: 12),
           Row(
             children: [
-              _QuickCard(
-                cardKey: const ValueKey('dashboard_quick_ai_coach'),
-                icon: Icons.chat_bubble_rounded,
-                label: 'AI Coach',
-                sub: 'Ask anything',
-                gradient: const [Color(0xFF3B82F6), Color(0xFF1D4ED8)],
-                onTap: () => Navigator.of(context).pushNamed('/chat'),
-              ),
-              const SizedBox(width: 12),
               _QuickCard(
                 cardKey: const ValueKey('dashboard_quick_progress'),
                 icon: Icons.show_chart_rounded,

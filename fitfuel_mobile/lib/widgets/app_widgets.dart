@@ -3,7 +3,7 @@ import 'dart:math' as math;
 import '../theme/app_theme.dart';
 
 // ─────────────────────────────────────────────────────────────────────────────
-// Bottom Navigation Bar  (5 tabs: Home | Meals | Chat | Progress | Profile)
+// Bottom Navigation Bar  (4 tabs: Home | Meals | Progress | Profile)
 // ─────────────────────────────────────────────────────────────────────────────
 
 class FitFuelBottomNav extends StatelessWidget {
@@ -15,7 +15,6 @@ class FitFuelBottomNav extends StatelessWidget {
   static const _items = [
     (Icons.home_rounded, 'Home'),
     (Icons.restaurant_menu_rounded, 'Meals'),
-    (Icons.chat_bubble_rounded, 'Chat'),
     (Icons.show_chart_rounded, 'Progress'),
     (Icons.person_rounded, 'Profile'),
   ];
@@ -39,47 +38,6 @@ class FitFuelBottomNav extends StatelessWidget {
             children: List.generate(_items.length, (i) {
               final selected = i == currentIndex;
               final (icon, label) = _items[i];
-              // The Chat tab (index 2) gets a special raised pill
-              if (i == 2) {
-                return Expanded(
-                  child: GestureDetector(
-                    key: ValueKey('nav_tab_${label.toLowerCase()}'),
-                    onTap: () => onTap(i),
-                    child: Column(
-                      mainAxisAlignment: MainAxisAlignment.center,
-                      children: [
-                        Container(
-                          width: 44,
-                          height: 30,
-                          decoration: BoxDecoration(
-                            gradient: const LinearGradient(
-                              colors: [Color(0xFF2A9D58), Color(0xFF006C4D)],
-                            ),
-                            borderRadius: BorderRadius.circular(AppRadius.full),
-                            boxShadow: [
-                              BoxShadow(
-                                  color:
-                                      AppColors.primary.withValues(alpha: 0.3),
-                                  offset: const Offset(0, 4),
-                                  blurRadius: 10)
-                            ],
-                          ),
-                          child: const Icon(Icons.chat_bubble_rounded,
-                              color: Colors.white, size: 18),
-                        ),
-                        const SizedBox(height: 2),
-                        Text(label,
-                            style: TextStyle(
-                                fontSize: 10,
-                                fontWeight: FontWeight.w600,
-                                color: selected
-                                    ? AppColors.primary
-                                    : AppColors.outline)),
-                      ],
-                    ),
-                  ),
-                );
-              }
               return Expanded(
                 child: GestureDetector(
                   key: ValueKey('nav_tab_${label.toLowerCase()}'),

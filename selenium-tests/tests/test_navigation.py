@@ -81,11 +81,6 @@ class TestNavLabels:
         nav.open_route("dashboard")
         assert "Progress" in nav.nav_link_text("progress")
 
-    def test_chat_label_text(self, authenticated_driver):
-        nav = LayoutNav(authenticated_driver)
-        nav.open_route("dashboard")
-        assert "Chat" in nav.nav_link_text("chat")
-
     def test_profile_label_text(self, authenticated_driver):
         nav = LayoutNav(authenticated_driver)
         nav.open_route("dashboard")

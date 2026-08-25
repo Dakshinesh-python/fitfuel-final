@@ -420,7 +420,7 @@ def logged_in_session(driver, primary_test_account):
     """Registers `primary_test_account` exactly once for the whole run
     (first call) and leaves the driver on the dashboard, logged in.
     Every module that just needs an authenticated app (dashboard,
-    recommendations, progress, chat, profile, navigation, etc.) depends
+    recommendations, progress, profile, navigation, etc.) depends
     on this fixture rather than re-registering per test -- registration
     itself is covered exhaustively and independently in
     test_02_registration.py.

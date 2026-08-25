@@ -14,7 +14,6 @@ import 'screens/recommendations_screen.dart';
 import 'screens/meal_detail_screen.dart';
 import 'screens/weekly_meal_plan_screen.dart';
 import 'screens/progress_screen.dart';
-import 'screens/chat_screen.dart';
 import 'screens/profile_screen.dart';
 
 void main() {
@@ -46,7 +45,6 @@ class FitFuelApp extends StatelessWidget {
         '/meal-detail': (context) => const MealDetailScreen(),
         '/weekly-plan': (context) => const WeeklyMealPlanScreen(),
         '/progress': (context) => const ProgressScreen(),
-        '/chat': (context) => const ChatScreen(),
         '/profile': (context) => const ProfileScreen(),
       },
     );
