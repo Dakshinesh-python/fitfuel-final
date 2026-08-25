@@ -78,5 +78,4 @@ ENDPOINTS = [
     ("GET",   "/api/progress/summary",          True,  "Weekly nutrition summary"),
     ("GET",   "/api/progress/weight-history",   True,  "Weight history (90d)"),
     ("GET",   "/api/progress",                  True,  "List progress logs"),
-    ("POST",  "/api/chat",                      True,  "AI nutrition chat"),
 ]
