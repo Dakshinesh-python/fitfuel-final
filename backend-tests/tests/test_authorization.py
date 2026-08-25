@@ -36,7 +36,6 @@ PROTECTED_ENDPOINTS = [
     ("GET",   f"{API_PREFIX}/progress/summary", None),
     ("GET",   f"{API_PREFIX}/progress/weight-history", None),
     ("GET",   f"{API_PREFIX}/progress", None),
-    ("POST",  f"{API_PREFIX}/chat", {}),
 ]
 
 
